@@ -1,8 +1,8 @@
 # django-offsite-backup
 
 [![CI](https://github.com/CorneiZeR/django-offsite-backup/actions/workflows/ci.yml/badge.svg)](https://github.com/CorneiZeR/django-offsite-backup/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/django-offsite-backup.svg)](https://pypi.org/project/django-offsite-backup/)
-[![Python](https://img.shields.io/pypi/pyversions/django-offsite-backup.svg)](https://pypi.org/project/django-offsite-backup/)
+[![PyPI](https://img.shields.io/pypi/v/django-offsite-backup?label=PyPI)](https://pypi.org/project/django-offsite-backup/)
+[![Python](https://img.shields.io/pypi/pyversions/django-offsite-backup?label=Python)](https://pypi.org/project/django-offsite-backup/)
 
 Off-site backups of a Django project's **databases, media and deployment configuration**:
 compressed, encrypted to a public key the server holds (so the server can write a backup
