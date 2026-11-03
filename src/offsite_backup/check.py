@@ -1,0 +1,65 @@
+"""The morning check: notice the night that never ran.
+
+It asks the store for the newest *whole* backup — objects of a pass without media do not
+count, so a deploy at noon cannot hide a night that never ran — under the config folder
+and under every database's folder. Older than ``STALE_HOURS`` or absent: MISSING, said
+and raised (so the scheduler's failure mail fires too). Store unreadable: UNCHECKED, as
+loud. Media written tonight does not stand in for a database that was not.
+"""
+
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
+
+from offsite_backup import conf, naming
+from offsite_backup.exceptions import BackupMissingError, BackupUncheckedError
+from offsite_backup.notify import notify
+from offsite_backup.outcome import MISSING, UNCHECKED, Outcome
+from offsite_backup.stores.base import Store
+
+__all__ = ('check_last_night', 'newest_whole')
+
+
+def newest_whole(store: Store, folder: str) -> datetime | None:
+    """When the newest whole backup under ``folder`` was written, or ``None``."""
+    found = [naming.parse(key) for key in store.current(folder)]
+    stamps = [name.when for name in found if name is not None and name.marker != naming.WITHOUT_MEDIA]
+    return max(stamps, default=None)
+
+
+def check_last_night(*, now: datetime | None = None) -> datetime | None:
+    """Raise unless every checked folder has a whole backup within ``STALE_HOURS``; answer the oldest newest.
+
+    ``None`` when backups are off on this machine.
+    """
+    from offsite_backup.pass_ import components  # noqa: PLC0415 - builds backends
+
+    settings = conf.read()
+    if not conf.enabled(settings):
+        return None
+    moment = now or datetime.now(timezone.utc)
+    base = Outcome(
+        kind=MISSING, prefix=settings.prefix, env=str(settings['ENV']), name=str(settings['NAME']), now=moment
+    )
+    try:
+        parts = components(conf.load())
+        kinds = [naming.CONFIG] if parts.config is not None else []
+        if parts.databases is not None:
+            kinds += [naming.db_kind(alias) for alias in parts.databases.targets()]
+        if not kinds:
+            kinds = [naming.media_kind(source.name) for source in parts.media]
+        newest = {kind: newest_whole(parts.store, naming.folder(settings.prefix, kind)) for kind in kinds}
+    except Exception as error:
+        text = f'{type(error).__name__}: {error}'
+        notify(replace(base, kind=UNCHECKED, error=text), settings)
+        raise BackupUncheckedError(text) from error
+    limit = timedelta(hours=settings.stale_hours)
+    stale = {kind: when for kind, when in newest.items() if when is None or moment - when > limit}
+    if stale:
+        oldest = min(stale.values(), key=lambda when: when or datetime.min.replace(tzinfo=timezone.utc))
+        notify(replace(base, kind=MISSING, newest=oldest, stale_hours=settings.stale_hours), settings)
+        named = ', '.join(
+            f'{kind}/ ({when:%Y-%m-%d %H:%M} UTC)' if when else f'{kind}/ (none)' for kind, when in stale.items()
+        )
+        msg = f'No whole backup within {settings.stale_hours:g} h under {settings.prefix}/: {named}'
+        raise BackupMissingError(msg)
+    return min((when for when in newest.values() if when is not None), default=None)

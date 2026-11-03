@@ -1,0 +1,77 @@
+name: Publish
+
+# PyPI Trusted Publishing (OIDC): no API token in secrets. The publisher is configured once at
+# https://pypi.org/manage/account/publishing/ for this repository, workflow `publish.yml`,
+# environment `pypi`.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.13'
+      - run: pip install build twine
+      # a version on PyPI can never be replaced, so the tag and __version__ must agree before upload
+      - name: The tag and __version__ agree
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(python -c "import re, pathlib; print(re.search(r\"__version__ = '(.+?)'\", pathlib.Path('src/offsite_backup/__init__.py').read_text()).group(1))")
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "tag ${TAG} does not match __version__ ${version}" >&2
+            exit 1
+          fi
+      - run: python -m build
+      - run: twine check --strict dist/*
+      # the very file that is uploaded, installed and booted
+      - run: bash scripts/smoke_install.sh dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    # a tag, and nothing else: a manual run builds and checks but never uploads
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/django-offsite-backup
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dist
+          path: dist/
+      - name: GitHub release with the published files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "See CHANGELOG.md."

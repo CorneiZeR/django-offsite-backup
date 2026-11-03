@@ -1,0 +1,176 @@
+[build-system]
+requires = ["hatchling>=1.27"]  # PEP 639 license metadata
+build-backend = "hatchling.build"
+
+[project]
+name = "django-offsite-backup"
+dynamic = ["version"]
+description = "Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Oleksii Kolosiuk", email = "kolosyuk1@gmail.com" }]
+keywords = ["django", "backup", "s3", "object-lock", "age", "encryption", "postgres", "retention", "telegram"]
+dependencies = ["django>=5.2"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Topic :: System :: Archiving :: Backup",
+    "Topic :: Database",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
+    "Operating System :: POSIX",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+# one extra per backend family member that needs a driver; the base install is Django alone.
+# A system check names the extra when a configured backend's driver is absent.
+s3 = ["boto3>=1.34"]
+telegram = ["httpx2>=2.16"]
+aiogram = ["django-aiogram>=5.2"]
+all = ["django-offsite-backup[s3,telegram,aiogram]"]
+
+[project.entry-points.pytest11]
+# loaded by pytest in every project that installs the package, so a test run cannot
+# reach a real notifier whatever the CI environment holds
+offsite_backup = "offsite_backup.testing.pytest_plugin"
+
+[dependency-groups]
+# what the suite needs and nothing a backend needs: the legs that prove the package runs
+# without an extra install this group alone
+test = [
+    "pytest>=8",
+    "pytest-django>=4.9",
+    "pytest-cov>=6",
+    "psycopg[binary]>=3.2",
+]
+dev = [
+    { include-group = "test" },
+    "boto3>=1.34",
+    "httpx2>=2.16",
+    "ruff==0.17.0",
+    "mypy>=1.14",
+    "django-stubs[compatible-mypy]>=5.1,<6.1",
+    "boto3-stubs[s3]>=1.34",
+    "markdown>=3.5",
+]
+docs = [
+    "mkdocs-material>=9.7",
+    "mike>=2.2",
+    "mkdocs-git-revision-date-localized-plugin>=1.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/CorneiZeR/django-offsite-backup"
+Documentation = "https://corneizer.github.io/django-offsite-backup/"
+Changelog = "https://github.com/CorneiZeR/django-offsite-backup/blob/master/CHANGELOG.md"
+Issues = "https://github.com/CorneiZeR/django-offsite-backup/issues"
+Repository = "https://github.com/CorneiZeR/django-offsite-backup"
+
+[tool.hatch.version]
+path = "src/offsite_backup/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/offsite_backup"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["**/LICENSE", "DESIGN.md"]
+include = [
+    "src",
+    "tests",
+    "docs",
+    "scripts",
+    "mkdocs.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "AGENTS.md",
+    "LICENSE",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+markers = [
+    "integration: needs PostgreSQL, an S3 server with Object Lock, age and zstd; see CONTRIBUTING.md",
+]
+filterwarnings = [
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+    "error::FutureWarning",
+]
+
+[tool.coverage.run]
+source = ["offsite_backup"]
+branch = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",   # incompatible with D211
+    "D213",   # incompatible with D212
+    "COM812", # trailing commas are the formatter's job
+    "CPY001", # LICENSE covers the project
+    "S603",   # every subprocess here runs an argv list we build, never a shell
+    "S607",   # binaries are found on PATH on purpose; system checks verify them
+    "D401",   # summaries are noun phrases as often as commands
+    "ANN401", # options blocks and boto3 clients are free-form
+    "ARG002", # a backend implements an interface whose arguments it may not need
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["offsite_backup"]
+
+[tool.ruff.lint.flake8-unused-arguments]
+ignore-variadic-names = true
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**" = ["E501", "RUF012", "PT018", "S608", "PLR0913", "PLR0917", "S101", "S105", "S106", "S108", "SLF001", "PLR2004", "ANN", "ARG", "D", "PLC0415", "EM101", "EM102", "TRY003", "BLE001", "FBT", "INP001"]
+"src/offsite_backup/management/commands/*.py" = ["TRY003", "EM102"]  # CommandError text is the interface
+"src/offsite_backup/testing/fake_s3.py" = ["EM101"]  # S3 error codes are data, raised as S3 raises them
+"src/offsite_backup/testing/pytest_plugin.py" = ["ARG001"]  # pytest's hook signatures
+"src/offsite_backup/checks.py" = ["ARG001"]  # Django's check signature
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+strict = true
+plugins = ["mypy_django_plugin.main"]
+
+[[tool.mypy.overrides]]
+module = ["httpx2", "httpx2.*", "django_aiogram", "django_aiogram.*", "celery", "celery.*", "taskiq", "taskiq.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# the scheduler's decorators are untyped where the scheduler is not installed
+module = ["offsite_backup.schedule.*"]
+disable_error_code = ["untyped-decorator"]
+
+[tool.django-stubs]
+django_settings_module = "tests.settings"

@@ -1,0 +1,28 @@
+.idea/
+.vscode/
+venv/
+.venv/
+*.egg-info/
+
+# Python cache.
+*.py[cod]
+__pycache__/
+
+# build
+build/
+dist/
+# the documentation site, built from docs/wiki/ by `mkdocs build`
+site/
+
+# tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# JetBrains AI plugin checkpoints: 45 MB of local cache, not source
+.proxyai/
+
+# macOS
+.DS_Store

@@ -1,0 +1,119 @@
+site_name: django-offsite-backup
+site_description: Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration
+site_author: Oleksii Kolosiuk
+site_url: https://corneizer.github.io/django-offsite-backup/latest/
+copyright: MIT
+
+repo_url: https://github.com/CorneiZeR/django-offsite-backup
+repo_name: CorneiZeR/django-offsite-backup
+edit_uri: edit/master/docs/wiki/
+
+docs_dir: docs/wiki
+site_dir: site
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
+theme:
+  name: material
+  language: en
+  font:
+    text: IBM Plex Sans
+    code: IBM Plex Mono
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: '(prefers-color-scheme)'
+      toggle:
+        icon: material/brightness-auto
+        name: Follow the system
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light
+  features:
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+extra:
+  version:
+    provider: mike
+    alias: true
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/CorneiZeR/django-offsite-backup
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/django-offsite-backup/
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      type: date
+      enable_creation_date: false
+      fallback_to_build_date: true
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: Installation.md
+      - Settings: Settings.md
+  - Where backups go:
+      - 'Stores: S3': Stores-S3.md
+      - S3 providers: S3-providers.md
+      - 'Stores: directory': Stores-directory.md
+  - What is backed up:
+      - Databases: Databases.md
+      - Media: Media.md
+      - Configuration archive: Configuration-archive.md
+  - How it is kept:
+      - Encryption and keys: Encryption.md
+      - Retention and locks: Retention.md
+  - Running it:
+      - Notifications: Notifications.md
+      - Scheduling: Scheduling.md
+      - Deploy integration: Deploy-integration.md
+      - Restore: Restore.md
+      - Monitoring: Monitoring.md
+      - Testing: Testing.md
+  - Reference:
+      - System checks: System-checks.md
+      - Troubleshooting: Troubleshooting.md
+      - Security model: Security-model.md
+      - Upgrading: Upgrading.md
+      - AI assistants: AI-assistants.md
+      - Changelog: Changelog.md
