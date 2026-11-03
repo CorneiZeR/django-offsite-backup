@@ -56,7 +56,7 @@ def backends(settings: conf.Settings) -> tuple[list[Backend], list[checks.CheckM
 
 
 def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[checks.CheckMessage]:
-    """E001-E003, E007, E008, W001-W005: everything that needs no network."""
+    """E001-E003, E007, E008, W001-W005: everything that needs neither the network nor a mount."""
     settings = conf.read()
     if not conf.enabled(settings):
         return []
@@ -87,7 +87,7 @@ def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> l
             )
     guard = settings['GUARD']
     if guard.get('ENABLED', True):
-        messages += _guard_cache(str(guard.get('CACHE', 'default')))
+        messages += _guard(guard)
     if _under_test() and settings['NOTIFY']:
         from offsite_backup.notify import silenced  # noqa: PLC0415
 
@@ -101,6 +101,32 @@ def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> l
                 )
             )
     return messages
+
+
+def _guard(guard: dict[str, Any]) -> list[checks.CheckMessage]:
+    from django.conf import settings  # noqa: PLC0415
+
+    backend = guard.get('BACKEND', 'cache')
+    if backend == 'database':
+        alias = str(guard.get('DATABASE', 'default'))
+        engine = str(settings.DATABASES.get(alias, {}).get('ENGINE', ''))
+        if 'postgresql' not in engine:
+            return [
+                checks.Error(
+                    f"GUARD['DATABASE'] is {alias!r}, which is not a PostgreSQL database in DATABASES.",
+                    hint='The database guard takes a PostgreSQL advisory lock; use the cache backend otherwise.',
+                    id='offsite_backup.E001',
+                )
+            ]
+        return []
+    if backend != 'cache':
+        return [
+            checks.Error(
+                f"GUARD['BACKEND'] is {backend!r}; expected 'cache' or 'database'.",
+                id='offsite_backup.E001',
+            )
+        ]
+    return _guard_cache(str(guard.get('CACHE', 'default')))
 
 
 def _guard_cache(alias: str) -> list[checks.CheckMessage]:
@@ -128,7 +154,7 @@ def _guard_cache(alias: str) -> list[checks.CheckMessage]:
 
 
 def check_deploy(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[checks.CheckMessage]:
-    """E004-E006: the bucket's lock configuration and ``pg_dump`` against the server."""
+    """E004-E006, E009: the bucket's lock, ``pg_dump`` against the server, required paths where the pass runs."""
     settings = conf.read()
     if not conf.enabled(settings) or conf.problems(settings):
         return []

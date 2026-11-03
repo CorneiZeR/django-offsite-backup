@@ -86,3 +86,55 @@ def test_nested_blocks_merge_with_their_defaults(settings):
     guard = conf.read()['GUARD']
     assert guard['CACHE'] == 'shared'
     assert guard['RUNNING_SECONDS'] == 3600
+
+
+def test_a_list_of_blank_recipients_is_unset(settings):
+    """[os.environ.get('X', '')] on a machine with store keys but no recipient is E001 by name."""
+    settings.OFFSITE_BACKUP = {
+        'PREFIX': 'p',
+        'STORE': {'BACKEND': 'offsite_backup.stores.s3.S3Store', 'BUCKET': 'b', 'ACCESS_KEY': 'k', 'SECRET_KEY': 's'},
+        'ENCRYPTION': {'BACKEND': 'offsite_backup.encryption.age_cli.AgeCli', 'RECIPIENTS': ['', '  ']},
+        'CONFIG': {'BACKEND': 'offsite_backup.config.paths.PathsSource'},
+    }
+    assert "OFFSITE_BACKUP['ENCRYPTION']['RECIPIENTS']" in conf.problems()
+
+
+def test_a_zero_chat_id_is_unset(settings):
+    """int(os.environ.get('X') or 0) is 0, which names no chat."""
+    settings.OFFSITE_BACKUP = {
+        'PREFIX': 'p',
+        'STORE': {'BACKEND': 'offsite_backup.stores.filesystem.DirectoryStore', 'ROOT': '/tmp/x'},
+        'ENCRYPTION': {'BACKEND': 'offsite_backup.encryption.age_cli.AgeCli', 'RECIPIENTS': 'age1x'},
+        'CONFIG': {'BACKEND': 'offsite_backup.config.paths.PathsSource'},
+        'NOTIFY': [{'BACKEND': 'offsite_backup.notifiers.telegram.TelegramNotifier', 'TOKEN': 't', 'CHAT_ID': 0}],
+    }
+    assert "OFFSITE_BACKUP['NOTIFY'][0]['CHAT_ID']" in conf.problems()
+
+
+@pytest.mark.parametrize(
+    ('value', 'expected'),
+    [
+        ('age1a age1b', ['age1a', 'age1b']),
+        ('age1a, age1b', ['age1a', 'age1b']),
+        (['age1a', '', ' age1b '], ['age1a', 'age1b']),
+        ('ssh-ed25519 AAAAkey user@host', ['ssh-ed25519 AAAAkey user@host']),
+        ('', []),
+    ],
+)
+def test_recipients_accept_a_string_or_a_list(value, expected):
+    """A separated string splits; an ssh recipient keeps its spaces; blanks drop."""
+    from offsite_backup.encryption.age_cli import AgeCli
+
+    assert AgeCli({'RECIPIENTS': value}).recipients == expected
+
+
+def test_blank_list_items_drop_everywhere(tmp_path):
+    """PATHS, INCLUDE/EXCLUDE and ALIASES lists ignore blank items."""
+    from offsite_backup.config.paths import PathsSource
+    from offsite_backup.databases.postgres import PostgresSource
+    from offsite_backup.media.filesystem import DirectorySource
+
+    assert PathsSource({'PATHS': ['', str(tmp_path)]}).paths == [tmp_path]
+    assert PostgresSource({'ALIASES': ['default', ' ']}).targets() == ['default']
+    (tmp_path / 'a.jpg').write_text('x')
+    assert [entry.name for entry in DirectorySource({'ROOT': str(tmp_path), 'INCLUDE': ['']}).selected()] == ['a.jpg']

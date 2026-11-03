@@ -1,6 +1,70 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.2.0 — 2026-11-03
+
+Nothing breaks: every new setting defaults to 0.1's behaviour. What to consider turning on
+is on [Upgrading](Upgrading.md#from-01-to-02).
+
+**Fixed: tests notified from parallel workers.** Under `manage.py test --parallel`, workers
+started with spawn (macOS) or forkserver (Linux, Python 3.14) did not inherit the runner's
+silence, and a configured notifier could post. The runner now sets
+`OFFSITE_BACKUP_SILENCE=1` for the run, which `notify.silenced()` honours in every process,
+and its `parallel_test_suite` is `SilencedParallelTestSuite`, whose `process_setup` silences
+each worker. `OffsiteBackupRunnerMixin` brings both to a project's own runner. The pytest
+plugin covers pytest-xdist workers, each of which loads it. [Testing](Testing.md#parallel-workers).
+
+**Blank values are unset.** `None`, blank strings, `0` and lists made only of those count as
+unset for required options, so `E001` names them — `[os.environ.get('X', '')]` and
+`int(os.environ.get('X') or 0)` no longer pass for configured. Blank items are dropped from
+`PATHS`, `INCLUDE`/`EXCLUDE` and `ALIASES` lists. `RECIPIENTS` takes a string or a list; a
+string splits on commas, newlines and, between `age1…` keys, whitespace.
+[Settings](Settings.md#blank-means-unset).
+
+**`TopicNotifier`: queued delivery and a bot factory.** `DELIVERY: 'queue'` sends through
+`bot.send` — the queue a bot container consumes, with no token in the worker; `'direct'`
+(default) is `bot.send_raw`, as before. `BOT_FACTORY` names a callable returning any object
+with `send_raw`/`send`. Both Telegram notifiers share `ChatNotifier`: `TOPIC_ID` is
+validated on both, and `None`, blank or `0` means the main thread.
+[Notifications](Notifications.md#direct-or-queued).
+
+**S3 client options.** `ADDRESSING_STYLE` (`auto`, `path`, `virtual`), `SIGNATURE_VERSION`
+and `VERIFY` (a bool, or a CA bundle's path) on `S3Store` and `S3Source`.
+[S3 providers](S3-providers.md#addressing-style).
+
+**`DEFAULT_REASON`.** The reason `backup_offsite` uses without `--reason` (default
+`manual`). `--without-media` without an explicit `--reason` prints a one-line notice
+suggesting `--reason deploy`. [Deploy integration](Deploy-integration.md).
+
+**`STRICT` and `REQUIRED`.** `REQUIRED` on `CONFIG` (`True`, or a list of paths) and on a
+media source; `STRICT` for the whole pass. A required path missing, an empty required media
+source, or — under `STRICT` — an unreadable file fails the pass with `SourceMissingError`,
+named in the FAILED message. New check `offsite_backup.E009` under `check --deploy`: a
+required `CONFIG` path missing where it runs. [Settings](Settings.md#strict-and-required).
+
+**The guard without a cache.** `GUARD['BACKEND']: 'database'` claims the night with a
+PostgreSQL session advisory lock on `GUARD['DATABASE']`, and reads "done" from the store.
+`'cache'` stays the default. [Scheduling](Scheduling.md#once-per-night).
+
+**Retries.** The nightly task retries: Celery `autoretry_for=(Exception,)`, `max_retries=3`,
+exponential backoff from a minute; taskiq `register(broker, retries=3)` puts
+`retry_on_error`/`max_retries` labels on it, for `SimpleRetryMiddleware`. A retry re-enters
+through the guard. The morning check is not retried. [Scheduling](Scheduling.md#retries-and-the-guard).
+
+**The morning check and new databases.** A database with no backup at all, beside databases
+that are backed up, is logged as "not backed up yet" instead of reported MISSING — a tenant
+created after the nightly pass. Stale backups, and the only database with none, are still
+MISSING. [Monitoring](Monitoring.md#a-database-added-today).
+
+**Restore.** `restore_database(..., identity_text=...)` takes a private key's text, for a
+dedicated identity the server holds on purpose; written to a private `0600` file and removed
+afterwards. Passing a file and text together is refused. [Restore](Restore.md#3-load-a-database).
+
+**Documentation.** A machine with only the recipient set is off; Celery beat entries follow
+`CELERY_TIMEZONE`; the deployment mount on the deploy's service and the worker; restoring a
+custom-format dump under a legacy `.sql…` name; mixed suffixes after switching formats;
+heartbeats of the two scheduled tasks; new rules on [AI assistants](AI-assistants.md).
+
+## 0.1.0 — 2026-11-03
 
 The first release.
 

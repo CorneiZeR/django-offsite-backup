@@ -56,6 +56,17 @@ Each rule answers something measured on a real S3 provider:
 The client retries each request up to five times (botocore's `standard` mode), and every
 listing follows pagination to its end.
 
+## Client options
+
+Three options shape how the client talks to the server, on the store and on an `S3Source`
+alike:
+
+| option | default | |
+| --- | --- | --- |
+| `ADDRESSING_STYLE` | `'auto'` | `'path'` (`https://host/bucket/key`) or `'virtual'` (`https://bucket.host/key`). MinIO and SeaweedFS need `'path'` — [which provider needs which](S3-providers.md#addressing-style). Anything else is `E001` |
+| `SIGNATURE_VERSION` | botocore's | e.g. `'s3v4'`, for a server that insists on one |
+| `VERIFY` | `True` | `False` to skip TLS verification, or the path of a CA bundle for a server behind an internal certificate; a path that is not a file is `E001` |
+
 ## Credentials: only the ones you name
 
 The client is built from `ENDPOINT_URL`, `REGION`, `ACCESS_KEY` and `SECRET_KEY` and

@@ -10,6 +10,7 @@ __all__ = (
     'MisconfiguredError',
     'NotConfiguredError',
     'PipelineError',
+    'SourceMissingError',
 )
 
 
@@ -27,6 +28,10 @@ class MisconfiguredError(BackupError):
 
 class BackendError(MisconfiguredError):
     """A backend path that does not import, is not the right kind, or lacks its extra."""
+
+
+class SourceMissingError(BackupError):
+    """A required path, file or source was not there at pass time; the message names it."""
 
 
 class PipelineError(BackupError):

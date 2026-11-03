@@ -75,6 +75,9 @@ def components(settings: conf.Settings | None = None) -> Components:
     ]
     if settings['CONFIG']:
         found.config = build(settings['CONFIG'], ConfigSource, label=conf.label('CONFIG'))
+    for backend in (found.databases, found.config, *found.media):
+        if backend is not None:
+            backend.strict = bool(settings['STRICT'])
     return found
 
 

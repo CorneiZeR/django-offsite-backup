@@ -99,7 +99,8 @@ can restore them itself — and nothing else. Seal only the dumps that need it.
 ### Tests
 
 Notifiers that reach the network are silenced for every pytest run and under
-`OffsiteBackupTestRunner`. Keep production tokens out of CI test jobs anyway
+`OffsiteBackupTestRunner` (or `OffsiteBackupRunnerMixin` in a project's own runner),
+`--parallel` and pytest-xdist workers included. Keep production tokens out of CI test jobs anyway
 ([Testing](Testing.md)).
 
 ## Reporting a vulnerability

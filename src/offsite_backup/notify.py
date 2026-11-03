@@ -7,6 +7,7 @@ that cannot reach the network are called, and captures still see every message.
 
 import contextlib
 import logging
+import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -17,16 +18,26 @@ from offsite_backup.notifiers.base import Notifier
 from offsite_backup.outcome import Outcome
 from offsite_backup.registry import build
 
-__all__ = ('capture', 'formatter', 'notifiers', 'notify', 'silence', 'silenced')
+__all__ = ('SILENCE_ENV', 'capture', 'formatter', 'notifiers', 'notify', 'silence', 'silence_process', 'silenced')
 
 logger = logging.getLogger('offsite_backup')
 
 _state: dict[str, Any] = {'silenced': 0, 'captures': []}
 
 
+#: set by the test runner in the parent process; spawned and forkserver workers inherit the
+#: environment and nothing else, so this is what silences them whatever hook was missed
+SILENCE_ENV = 'OFFSITE_BACKUP_SILENCE'
+
+
 def silenced() -> bool:
     """Whether network notifiers are switched off in this process."""
-    return bool(_state['silenced'])
+    return bool(_state['silenced']) or os.environ.get(SILENCE_ENV) == '1'
+
+
+def silence_process() -> None:
+    """Silence this process for the rest of its life (a test worker; a ``with`` would be collected)."""
+    _state['silenced'] += 1
 
 
 @contextlib.contextmanager

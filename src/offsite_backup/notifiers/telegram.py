@@ -8,9 +8,7 @@ import logging
 import time
 from typing import Any
 
-from django.core import checks
-
-from offsite_backup.notifiers.base import Notifier
+from offsite_backup.notifiers.base import ChatNotifier
 from offsite_backup.outcome import Outcome
 
 __all__ = ('TelegramNotifier',)
@@ -21,7 +19,7 @@ logger = logging.getLogger('offsite_backup')
 _MAX_RETRY_AFTER = 30
 
 
-class TelegramNotifier(Notifier):
+class TelegramNotifier(ChatNotifier):
     """``TOKEN``, ``CHAT_ID``, ``TOPIC_ID`` (optional), ``TIMEOUT`` (10 s), ``API_URL``."""
 
     REQUIRED = ('TOKEN', 'CHAT_ID')
@@ -36,14 +34,7 @@ class TelegramNotifier(Notifier):
 
     def send(self, outcome: Outcome, text: str) -> bool:
         """``sendMessage`` with HTML; never raises, never logs the token or the text."""
-        payload: dict[str, Any] = {
-            'chat_id': self.option('CHAT_ID'),
-            'text': text,
-            'parse_mode': 'HTML',
-            'disable_web_page_preview': True,
-        }
-        if self.option('TOPIC_ID') not in (None, ''):
-            payload['message_thread_id'] = int(self.option('TOPIC_ID'))
+        payload = self.message(text)
         try:
             for attempt in range(2):
                 response = self._post(payload)
@@ -64,13 +55,3 @@ class TelegramNotifier(Notifier):
             # the class only: the URL, and so the token, is in the message of several errors
             logger.error('Telegram unreachable', extra={'ob_error': type(error).__name__})  # noqa: TRY400
         return False
-
-    def check(self) -> list[checks.CheckMessage]:
-        """``TOPIC_ID`` is an integer when set."""
-        found = super().check()
-        topic = self.option('TOPIC_ID')
-        if topic not in (None, '') and not str(topic).lstrip('-').isdigit():
-            found.append(
-                checks.Error(f"{self.label}['TOPIC_ID'] is {topic!r}, not an integer.", id='offsite_backup.E001')
-            )
-        return found

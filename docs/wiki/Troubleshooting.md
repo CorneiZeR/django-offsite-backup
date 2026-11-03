@@ -19,6 +19,11 @@ Usually one environment variable missing from one container.
 **Fix.** Set every setting the message names. If this machine should not back up at all
 (a laptop, a CI job), make *all* the store options empty, or set `'ENABLED': False`.
 
+A value that *is* set in your settings can still be named: `None`, a blank string, `0` and a
+list of only those count as unset — `[os.environ.get('X', '')]` on a machine without `X` is
+`['']`, and `int(os.environ.get('X') or 0)` is `0`
+([Settings](Settings.md#blank-means-unset)). The variable is missing from this container.
+
 The same code is used for values that are present but wrong, each with its own message:
 
 | message | fix |
@@ -26,8 +31,13 @@ The same code is used for values that are present but wrong, each with its own m
 | `... (a positive integer, got ...)` for `KEEP_NIGHTS` | an `int` ≥ 1 |
 | `['FORMAT'] is ...; expected one of plain, custom` | `'plain'` or `'custom'` |
 | `['VOLUME_BYTES'] is ...; expected more than 20480 bytes and at most 5 GB` | the default 4 GiB is right for almost everyone |
-| `['TOPIC_ID'] is ..., not an integer` | the numeric topic id, or empty |
+| `['TOPIC_ID'] is ..., not an integer` | the numeric topic id, or empty (`0` and empty mean the main thread) |
+| `['DELIVERY'] is ...; expected one of direct, queue` | `'direct'` or `'queue'` ([Notifications](Notifications.md#direct-or-queued)) |
+| `['ADDRESSING_STYLE'] is ...; expected one of auto, path, virtual` | `'path'` for MinIO and SeaweedFS, `'auto'` or `'virtual'` for AWS ([S3 providers](S3-providers.md#addressing-style)) |
+| `['VERIFY'] is ..., which is not a file` | the CA bundle's path inside *this* container, or `True` / `False` |
+| `GUARD['BACKEND'] is ...; expected 'cache' or 'database'` | one of the two |
 | `GUARD['CACHE'] is ..., which CACHES does not define` | name a cache alias that exists |
+| `GUARD['DATABASE'] is ..., which is not a PostgreSQL database in DATABASES` | a PostgreSQL alias, or the `cache` backend |
 | `... (nothing to back up)` | set at least one of `DATABASES`, `MEDIA`, `CONFIG` |
 
 ### `E002` — a backend that cannot be loaded
@@ -43,6 +53,10 @@ expected, for example).
 
 **Fix.** Install the extra the hint names; otherwise copy the path from
 [Settings](Settings.md) — `offsite_backup.stores.s3.S3Store`, not `offsite_backup.stores.S3Store`.
+
+The same code names a `TopicNotifier` `BOT_FACTORY` that cannot be imported (the import
+error follows) or that is not callable — it must name a function or class that returns the
+bot object, not the bot object itself.
 
 ### `E003` — a binary is missing
 
@@ -111,12 +125,32 @@ leave them, and the folder would hold more than you think.
 ### `E008` — not a public key in `RECIPIENTS`
 
 **Cause.** `RECIPIENTS` holds an `AGE-SECRET-KEY-…` (the private half), or a string that is
-none of `age1…`, `ssh-ed25519 …`, `ssh-rsa …` — often several keys in one comma-separated
-string, or a quoted value with the quotes kept.
+none of `age1…`, `ssh-ed25519 …`, `ssh-rsa …` — often a quoted value with the quotes kept.
+(Several keys in one string are fine: it splits on commas, newlines and between `age1…`
+keys on whitespace.)
 
-**Fix.** The public half only (`age-keygen -y key.txt` prints it); a list for several. If a
+**Fix.** The public half only (`age-keygen -y key.txt` prints it); a list or a
+comma-separated string for several. If a
 private key was there, it has been on the server: make a new pair, and treat every backup
 sealed to the old one as readable by whoever had the server.
+
+### `E009` — a required path is missing where the deploy runs
+
+```text
+?: (offsite_backup.E009) OFFSITE_BACKUP['CONFIG']: required path(s) missing here: /app/deploy/certs.
+	HINT: Mount the deployment directory into this container, or drop REQUIRED for it.
+```
+
+**Cause.** A `CONFIG` path that is required — named in `REQUIRED`, every path with
+`REQUIRED: True`, or every path under `STRICT` — does not exist in the container
+`check --deploy` ran in. A pass there would fail with `SourceMissingError`. Usually the
+read-only mount of the deployment directory is on the worker and not on the service the
+deploy runs the pass in, or the other way round.
+
+**Fix.** Mount it in both ([Deploy integration](Deploy-integration.md#where-it-runs-and-what-it-needs-there)),
+or take the path out of `REQUIRED` if a pass without it is a whole backup after all. It is a
+deploy check, not a plain one, so that containers that never run a pass are not stopped
+([why](System-checks.md#why-e009-is-a-deploy-check)).
 
 ### `W001` — a directory store
 
@@ -132,15 +166,18 @@ Use `offsite_backup.encryption.age_cli.AgeCli`.
 ### `W003` — the guard's cache is not shared
 
 `GUARD['CACHE']` is a `LocMemCache` or `DummyCache`. Each worker has its own, so two
-schedulers can both run tonight. Point it at Redis, Memcached or the database cache, or
-turn the guard off if exactly one scheduler can ever run (`'GUARD': {'ENABLED': False}`).
+schedulers can both run tonight. Point it at Redis, Memcached or the database cache, switch
+to the `database` backend (`'GUARD': {'BACKEND': 'database'}`, PostgreSQL — no cache at all;
+[Scheduling](Scheduling.md#once-per-night)), or turn the guard off if exactly one scheduler
+can ever run (`'GUARD': {'ENABLED': False}`).
 
 ### `W004` — notifiers in a test run
 
 A test run (pytest, or `manage.py test`) with `NOTIFY` set and not silenced — with
 pytest the plugin silences it, so this means Django's runner without
-`OffsiteBackupTestRunner`. Set `TEST_RUNNER` ([Testing](Testing.md)), and keep production
-notifier tokens out of the CI test job.
+`OffsiteBackupTestRunner` or `OffsiteBackupRunnerMixin`. Set `TEST_RUNNER`, or mix the
+mixin into your own runner ([Testing](Testing.md)), and keep production notifier tokens out
+of the CI test job.
 
 ### `W005` — a path is missing here
 
@@ -151,6 +188,7 @@ notifier tokens out of the CI test job.
 
 A media `ROOT`, a `CONFIG` path or the `RENDER_ENV` file is not there in *this* container.
 Usually a volume mounted into the web service and not the worker, or the other way round.
+A *required* `CONFIG` path is not warned about here; `check --deploy` reports it as `E009`.
 
 ## At run time
 
@@ -175,6 +213,25 @@ The tail of `pg_dump`'s stderr follows. Common ones: `server version mismatch` (
 (the role cannot read every table — dump with the owner role, or grant `SELECT`). The other
 databases, the media and the configuration still went up.
 
+### `SourceMissingError`: required path(s) missing, cannot be read, no media files found
+
+The FAILED message names what was missing:
+
+| message | cause | fix |
+| --- | --- | --- |
+| `OFFSITE_BACKUP['CONFIG']: required path(s) missing: ...` | a required `CONFIG` path is not in the container that ran the pass | mount it; `check --deploy` there reports it as `E009` |
+| `...: <path> cannot be read` | under `STRICT`, a `CONFIG` file or a media file under a `DirectorySource` `ROOT` this process cannot read | fix its owner or mode, or exclude it |
+| `OFFSITE_BACKUP['MEDIA'][0]: no media files found, and the source is required` | a media source with `REQUIRED: True` (or under `STRICT`) found nothing | a missing mount, a wrong `ROOT` / `PREFIX`, or an `INCLUDE` that matches nothing |
+
+See [Settings](Settings.md#strict-and-required).
+
+### `backup_offsite: the reason is 'manual'; before a deploy, pass --reason deploy`
+
+A notice on stderr, not an error: `--without-media` was given without `--reason`, and a pass
+without media by hand is rare. If this is the deploy step, add `--reason deploy`, so a
+failure says "The deploy stops here". The notice is not printed when `--reason` is given,
+or when `DEFAULT_REASON` is `deploy`.
+
 ### `PipelineError` from `age`
 
 Usually a malformed recipient that slipped past `E008` (several keys in one string), or —
@@ -185,12 +242,24 @@ in a restore — the wrong identity: `no identity matched any of the recipients`
 `backup_restore --apply` refuses a database that has tables. Restore into an empty one, or
 add `--clean` to drop and recreate the `public` schema first.
 
-### The morning check reports a database missing that was just added
+### The morning check says a database is "not backed up yet"
 
-With `ALIASES` computed at run time, a new database has no backup until its first night.
-Run a whole pass (`backup_offsite`), or `back_up_database('<alias>')` from a shell. Not
+With `ALIASES` computed at run time, a database created after the nightly pass has no
+backup until its first night. Beside databases that are backed up, the morning check logs it
+at INFO (`Databases not backed up yet`) instead of reporting MISSING
+([Monitoring](Monitoring.md#a-database-added-today)). Nothing to do; if you want it backed up
+now, run a whole pass (`backup_offsite`), or `back_up_database('<alias>')` from a shell. Not
 `--only db` in a project with media: that pass is marked `.without-media.` and does not
 count.
+
+A database whose backups exist but are stale is still MISSING, and so is the only database
+when it has no backup at all.
+
+### The nightly task failed, and the chat shows several FAILED messages
+
+The nightly task retries ([Scheduling](Scheduling.md#retries)), and every attempt that
+fails sends its own FAILED message. One or more FAILED messages followed by a written one is a
+transient error that the retries absorbed.
 
 ### Telegram: no message, `Telegram refused the backup message`
 
@@ -201,7 +270,15 @@ would mean a custom formatter that did not escape its values.
 ### The nightly task ran twice
 
 The guard's cache is not shared (`W003`), or `GUARD['ENABLED']` is off. With a shared
-cache the second run logs `Nightly backup skipped: tonight is being written`.
+cache — or the `database` backend — the second run logs
+`Nightly backup skipped: tonight is being written` (or `... already written`).
+
+### Tests posted to the chat under `manage.py test --parallel`
+
+The runner silenced the parent process, and the workers were started with spawn or
+forkserver, which carry no module state over. Use `OffsiteBackupTestRunner`, or mix
+`OffsiteBackupRunnerMixin` into your own runner; a runner that sets its own
+`parallel_test_suite` must subclass `SilencedParallelTestSuite` ([Testing](Testing.md#parallel-workers)).
 
 ### The deploy waits a long time for the backup
 

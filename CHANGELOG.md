@@ -4,6 +4,42 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
+## 0.2.0 — 2026-11-03
+
+New settings default to 0.1 behaviour. Three behaviours change on their own: a blank
+recipient or `0` chat is now E001 instead of passing; the nightly task retries; and the
+morning check no longer calls a brand-new database MISSING. Nothing to edit on upgrade.
+
+Fixed
+
+- `OffsiteBackupTestRunner` now silences notifiers in every `--parallel` worker, whatever
+  the multiprocessing start method (spawn on macOS, forkserver on Linux from Python 3.14):
+  `SilencedParallelTestSuite` silences each worker, and the runner sets
+  `OFFSITE_BACKUP_SILENCE=1`, which workers inherit and `notify` honours. The pytest plugin
+  covers pytest-xdist workers.
+- Blank values count as unset: `[os.environ.get('X', '')]`, `''` and `0` no longer pass as a
+  configured recipient, chat or option, so E001 names them. Blank items drop from list options.
+
+Added
+
+- `OffsiteBackupRunnerMixin`, to mix the silencing into a project's own test runner.
+- `TopicNotifier`: `DELIVERY: 'queue'` (through the bot container's queue, no token in the
+  worker) and `BOT_FACTORY` (any bot wrapper). `TOPIC_ID` is validated on both Telegram
+  notifiers; `0` means the main thread.
+- S3: `ADDRESSING_STYLE` (`path` for MinIO and SeaweedFS), `SIGNATURE_VERSION`, `VERIFY` on
+  `S3Store` and `S3Source`.
+- `RECIPIENTS` accepts a separated string (`age1a, age1b`).
+- `DEFAULT_REASON`; `backup_offsite --without-media` without `--reason` suggests `--reason deploy`.
+- `STRICT` and per-source `REQUIRED`: a missing required path, an unreadable file (strict) or an
+  empty required media source fails the pass, named in the message; E009 under `check --deploy`.
+- `GUARD['BACKEND'] = 'database'`: the once-per-night guard on a PostgreSQL advisory lock and the
+  store itself, with no cache.
+- Retries: the nightly task retries 3 times on both Celery and taskiq (`register(..., retries=)`);
+  a retry re-enters the guard. The morning check is not retried.
+- The morning check no longer reports a database with no backup at all, beside backed-up ones,
+  as MISSING (a tenant created after the nightly pass); stale ones still are.
+- `restore_database(identity_text=...)`.
+
 ## 0.1.0 — 2026-11-03
 
 First release.

@@ -33,8 +33,11 @@ class Restored:
 
 
 @contextlib.contextmanager
-def identity_file(identity: Path | str | None) -> Iterator[str]:
-    """A path ``age -i`` can read: the given file, or ``AGE_IDENTITY`` written to a private one."""
+def identity_file(identity: Path | str | None, text: str | None = None) -> Iterator[str]:
+    """A path ``age -i`` can read: the given file, ``text``, or ``AGE_IDENTITY``, the last two in a private file."""
+    if identity and text:
+        msg = 'pass an identity file or its text, not both'
+        raise MisconfiguredError(msg)
     if identity:
         path = Path(identity).expanduser()
         if not path.is_file():
@@ -42,7 +45,7 @@ def identity_file(identity: Path | str | None) -> Iterator[str]:
             raise MisconfiguredError(msg)
         yield str(path)
         return
-    secret = os.environ.get(IDENTITY_ENV, '').strip()
+    secret = (text if text is not None else os.environ.get(IDENTITY_ENV, '')).strip()
     if not secret:
         msg = f'no identity: pass a file, or set {IDENTITY_ENV} to the private key'
         raise MisconfiguredError(msg)
@@ -160,20 +163,22 @@ def _newest_of_kind(parts: Components, kind: str) -> str:
     return max(keys, key=lambda key: naming.parse(key).stamp)  # type: ignore[union-attr]
 
 
-def restore_database(
+def restore_database(  # noqa: PLR0913 - every option after the alias is keyword-only
     source: str,
     alias: str,
     *,
     identity: Path | str | None = None,
     clean: bool = False,
     source_alias: str | None = None,
+    identity_text: str | None = None,
 ) -> str:
     """Load one database backup into ``alias``; answers with the key restored.
 
     ``source`` is a key, a stamp, or ``latest`` (the newest dump of that database, a
     deploy's included). ``source_alias`` names whose backup it is (default: ``alias``), so
     production's ``default`` can be restored into a scratch database. The target must be
-    empty unless ``clean``.
+    empty unless ``clean``. ``identity_text`` is the private key itself, for a dedicated,
+    narrowly used identity the server holds on purpose — never the backups' main key.
     """
     parts = components()
     if parts.databases is None:
@@ -191,7 +196,7 @@ def restore_database(
             raise BackupError(msg)
         key = found[0]
     with tempfile.TemporaryDirectory(prefix='offsite-restore-', dir=parts.settings['WORKDIR'] or None) as workspace:
-        with identity_file(identity) as secret:
+        with identity_file(identity, identity_text) as secret:
             plain = _unseal(parts, key, secret, Path(workspace) / _plain_name(key))
         parts.databases.verify(plain)
         parts.databases.restore(plain, alias, clean=clean)

@@ -20,9 +20,17 @@ class AgeCli(Sealer):
     @property
     def recipients(self) -> list[str]:
         """``RECIPIENTS`` as a list; a single string is accepted."""
-        value = self.option('RECIPIENTS', [])
-        values = [value] if isinstance(value, str) else list(value)
-        return [str(item).strip() for item in values if str(item).strip()]
+        # 'age1a, age1b' and 'age1a age1b' split, so os.environ.get('X', '') works as it is;
+        # whitespace splits age keys only — an ssh recipient has a space inside it
+        found: list[str] = []
+        for item in self.strings('RECIPIENTS'):
+            for line in item.replace(',', '\n').splitlines():
+                chunk = line.strip()
+                if chunk.startswith('age1'):
+                    found.extend(chunk.split())
+                elif chunk:
+                    found.append(chunk)
+        return found
 
     def pipeline(self, extra_recipients: Sequence[str] = ()) -> list[str]:
         """``age -r A -r B``: any one of the private halves opens the result."""

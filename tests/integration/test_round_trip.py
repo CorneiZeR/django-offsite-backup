@@ -251,3 +251,29 @@ def test_pg_dump_is_new_enough(configure, bucket, django_db_blocker):
     configure(bucket)
     with django_db_blocker.unblock():
         assert 'offsite_backup.E004' not in [message.id for message in check_deploy()]
+
+
+def test_the_database_guard_against_a_real_advisory_lock(configure, bucket, databases, django_db_blocker, settings):
+    """A lock held by another session skips the night; released, the night runs once."""
+    import psycopg
+    from django.db import connections
+
+    from offsite_backup.guard import lock_id, run_nightly
+
+    configure(bucket)
+    settings.OFFSITE_BACKUP['GUARD'] = {'BACKEND': 'database'}
+    settings.OFFSITE_BACKUP['MEDIA'] = []
+    params = connections['default'].settings_dict
+    other = psycopg.connect(
+        host=params['HOST'],
+        port=params['PORT'],
+        user=params['USER'],
+        password=params['PASSWORD'],
+        dbname=params['NAME'],
+    )
+    with django_db_blocker.unblock():
+        other.execute('SELECT pg_advisory_lock(%s)', [lock_id('acme/prod')])
+        assert run_nightly() is None
+        other.close()
+        assert run_nightly() is not None
+        assert run_nightly() is None

@@ -3,9 +3,15 @@
 A migration changes the database; the backup that matters most is the one taken just
 before it. Put one command in front of your migrations:
 
-```shell
-python manage.py backup_offsite --without-media --reason deploy
-```
+!!! tip "The deploy line"
+
+    ```shell
+    python manage.py backup_offsite --without-media --reason deploy
+    ```
+
+    Both flags, every time. `--reason deploy` is what makes a failure say "The deploy stops
+    here"; without it the pass reads `DEFAULT_REASON` — `manual` unless you set it, "✋ By
+    hand" in the chat.
 
 * It runs **on the new image**, before `migrate`.
 * **Non-zero stops the deploy.** The old release keeps serving, and the chat says
@@ -21,6 +27,23 @@ python manage.py backup_offsite --without-media --reason deploy
 * On a machine where backups are off it prints "nothing to do" and exits 0, so the same
   pipeline deploys a staging machine that has no keys.
 
+**Forgetting `--reason`.** `backup_offsite` defaults to `--reason manual`: a person running
+it by hand is the common case. A deploy step that leaves the flag out is read as a pass by
+hand, and its failure message lacks the deploy line. As a safeguard, `--without-media`
+without an explicit `--reason` prints a one-line notice to stderr:
+
+```text
+backup_offsite: the reason is 'manual'; before a deploy, pass --reason deploy (the message then says the deploy stops on failure)
+```
+
+A project that only ever runs the command from its deploy may set the default instead:
+
+```python
+OFFSITE_BACKUP = {..., 'DEFAULT_REASON': 'deploy'}
+```
+
+An explicit `--reason` always wins, and prints no notice.
+
 ## Where it runs, and what it needs there
 
 Run it where the **new** release's settings and image are, not the old one's: a deploy
@@ -30,7 +53,9 @@ them. The service it runs in needs:
 * the backup's environment variables (store, recipient, notifier);
 * a connection to the database;
 * the deployment directory, **mounted read-only**, for the configuration archive — in this
-  service **and** in the worker that runs the nightly pass:
+  service **and** in the worker that runs the nightly pass. Both run a pass, and each
+  archives what *its* container sees: a mount on one of them only gives the other an empty
+  (or failing, with `REQUIRED`) configuration archive.
 
 ```yaml
 services:
@@ -47,7 +72,9 @@ services:
       - ./:/app/deploy:ro
 ```
 
-`W005` on `manage.py check` names a path that is missing in the container it runs in.
+Here `web` is the service the deploy runs the pass in (`docker compose run --rm web ...`,
+below) and `worker` runs the nightly pass. `W005` on `manage.py check` names a path that is
+missing in the container it runs in; for a `REQUIRED` path, `check --deploy` says `E009`.
 
 ## Docker Compose
 
@@ -115,7 +142,8 @@ not retry until it happens to pass.
 * Run `python manage.py check --deploy` in the new image as part of your pipeline's test
   or build stage, against production settings if you can: `E004` (a `pg_dump` older than
   the server) and `E005`/`E006` (a bucket without Object Lock or its default rule) are
-  better found there than at the deploy.
+  better found there than at the deploy. Run it once in the service the deploy runs the
+  pass in, with the mount, for `E009` (a required configuration path missing there).
 * Make sure the **CI job that runs your tests does not inherit the production notifier
   token** — see [Testing](Testing.md).
 * Run the deploy pass once by hand and restore it ([Restore](Restore.md)).

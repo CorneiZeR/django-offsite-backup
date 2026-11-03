@@ -13,6 +13,25 @@ rule is for) and look for `Backup written` before trusting it.
 
 The examples use the AWS CLI, which talks to every provider below with `--endpoint-url`.
 
+## Addressing style
+
+An S3 client names the bucket either in the path (`https://host/bucket/key`) or in the
+host name (`https://bucket.host/key`, *virtual-hosted*). `ADDRESSING_STYLE` on the store
+and on an `S3Source` sets it — `'auto'` (default, botocore decides), `'path'` or
+`'virtual'`:
+
+| provider | `ADDRESSING_STYLE` |
+| --- | --- |
+| Hetzner Object Storage | either works |
+| AWS S3 | `'virtual'`, or leave it `'auto'` |
+| MinIO | `'path'` |
+| SeaweedFS | `'path'` |
+
+`SIGNATURE_VERSION`
+(botocore's, e.g. `'s3v4'`) and `VERIFY` (`False`, or the path of a CA bundle for a server
+behind an internal certificate) sit in the same block —
+[Settings](Settings.md#store-offsite_backupstoress3s3store).
+
 ## Hetzner Object Storage
 
 The provider this package's S3 rules were measured on.
@@ -142,12 +161,34 @@ mc retention info --default backups/acme-backups
     'ENDPOINT_URL': 'https://minio.example.com',
     'REGION': 'us-east-1',
     'BUCKET': 'acme-backups',
+    'ADDRESSING_STYLE': 'path',
     ...
 },
 ```
 
+MinIO needs path-style addressing ([above](#addressing-style)).
+
 A MinIO on the same machine as the application is not off-site. Run it elsewhere, or
 treat it like a [directory store](Stores-directory.md).
+
+## SeaweedFS
+
+SeaweedFS's S3 gateway needs path-style addressing:
+
+```python
+'STORE': {
+    'BACKEND': 'offsite_backup.stores.s3.S3Store',
+    'ENDPOINT_URL': 'https://s3.example.com',
+    'BUCKET': 'acme-backups',
+    'ADDRESSING_STYLE': 'path',
+    ...
+},
+```
+
+The same goes for an `S3Source` reading media from a SeaweedFS bucket. Whether a given
+SeaweedFS version supports what the store needs — Object Lock, a default retention rule —
+is for `check --deploy` to tell you (`E005`, `E006`), as for any provider
+[below](#cloudflare-r2-backblaze-b2-and-others).
 
 ## Cloudflare R2, Backblaze B2 and others
 

@@ -24,6 +24,7 @@ configuration: tonight's media does not stand in for a database that was not wri
 | finding | message | exit |
 | --- | --- | --- |
 | every folder has a whole backup within `STALE_HOURS` (26) | none | 0 |
+| a database with no backup at all, beside databases that are backed up | none — logged at INFO, `Databases not backed up yet` ([below](#a-database-added-today)) | 0 |
 | some folder's newest is older, or there is none | **MISSING**, naming the oldest | non-zero (`BackupMissingError`) |
 | the store could not be read | **UNCHECKED** — as loud as missing | non-zero (`BackupUncheckedError`) |
 | backups are off on this machine | none | 0, "nothing to do" |
@@ -37,8 +38,20 @@ CommandError: backup_check: No whole backup within 26 h under acme/prod/: db-ana
 `STALE_HOURS` is 26 so that a pass at 03:00 one night and a slow one the next still pass
 a check at 09:00. Raise it if your nightly pass runs less often than daily.
 
-Note that the database list is computed: with `ALIASES` a callable, a database added today
-is reported missing until its first nightly pass.
+### A database added today
+
+With `ALIASES` a callable, the list of databases is computed at every check — and a tenant
+created after the nightly pass has no backup at all at the morning check. That is not a
+missed night, so:
+
+* a database folder with **no backup at all**, beside databases that are backed up, is
+  "not backed up yet": logged at INFO (`Databases not backed up yet`, the kinds in
+  `ob_kinds`), not MISSING. Its first nightly pass backs it up;
+* a database whose backups **exist but are stale** is MISSING, as before;
+* the **only** database, with no backup at all, is still MISSING — there is nothing beside
+  it to show that the passes run;
+* a database whose dump **fails every night** is not silent either: each night's FAILED
+  message names it.
 
 Schedule it as in [Scheduling](Scheduling.md); from Python it is
 `offsite_backup.check_last_night()`, which returns the oldest of the newest whole backups
@@ -76,6 +89,7 @@ Everything is logged to the `offsite_backup` logger, with fields in the record's
 | INFO | `Backup written` | `ob_prefix`, `ob_objects`, `ob_bytes` |
 | INFO | `Database backed up` (a one-off backup) | `ob_alias`, `ob_key` |
 | INFO | `Nightly backup skipped: ...` (off, done, or being done) | — |
+| INFO | `Databases not backed up yet` (the morning check) | `ob_kinds` |
 | ERROR (with traceback) | `Database not backed up` | `ob_alias` |
 | WARNING | `Backup still locked; left for a later night` | `ob_key`, `ob_until` |
 | WARNING | `Backup depth not read` | `ob_folder` |
@@ -88,6 +102,18 @@ Everything is logged to the `offsite_backup` logger, with fields in the record's
 | INFO / ERROR | `Backup written` / `Backup failed` ... from `LogNotifier` | `ob_prefix`, `ob_text` |
 
 No message, token, password or private key is ever logged.
+
+## Heartbeats of scheduled tasks
+
+A project that tracks when each of its scheduled tasks last ran — a heartbeat table, a
+"last run" dashboard — sees the package's two tasks as **never run** until each has run
+once: the nightly pass after its first 03:00, the check after its first 09:00. Register
+them under their task names, the same for Celery and taskiq:
+
+| task | default schedule (UTC) |
+| --- | --- |
+| `offsite_backup.nightly` | 03:00 |
+| `offsite_backup.check` | 09:00 |
 
 ## What the store holds
 

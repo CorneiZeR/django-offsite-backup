@@ -23,8 +23,9 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '--reason',
-            default='manual',
-            help='Why it runs, for the message: nightly, deploy, manual, or any word (default: manual).',
+            default=None,
+            help='Why it runs, for the message: nightly, deploy, manual, or any word '
+            "(default: OFFSITE_BACKUP['DEFAULT_REASON'], manual unless set).",
         )
         parser.add_argument(
             '--only',
@@ -35,13 +36,20 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         """Run the pass; say "nothing to do" and exit 0 where backups are off."""
-        reason = str(options['reason']).strip()
-        if not reason:
+        given = options['reason']
+        if given is not None and not str(given).strip():
             msg = '--reason cannot be empty'
             raise CommandError(msg)
         if not conf.enabled():
             self.stdout.write('backup_offsite: not configured on this machine, nothing to do')
             return
+        reason = str(given).strip() if given is not None else str(conf.read()['DEFAULT_REASON'])
+        if given is None and options['without_media'] and reason != 'deploy':
+            # a pass without media by hand is rare; a deploy that forgot the flag reads "By hand"
+            self.stderr.write(
+                f'backup_offsite: the reason is {reason!r}; before a deploy, pass --reason deploy '
+                '(the message then says the deploy stops on failure)'
+            )
         try:
             summary = run(media=not options['without_media'], reason=reason, only=options['only'])
         except BackupError as error:

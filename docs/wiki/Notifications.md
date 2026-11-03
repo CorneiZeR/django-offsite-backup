@@ -84,7 +84,7 @@ The second line comes from `--reason`:
 | --- | --- | --- |
 | `nightly` | 🌙 Nightly | `#nightly` |
 | `deploy` | 🚀 Before a deploy | `#deploy` |
-| `manual` (the command's default), `by hand` | ✋ By hand | `#manual` |
+| `manual` (the command's default, see `DEFAULT_REASON`), `by hand` | ✋ By hand | `#manual` |
 | `upgrade` | ⬆️ Before an upgrade | `#upgrade` |
 | anything else | 🔁 *Reason* | `#reason`, non-alphanumerics replaced by `_` |
 
@@ -99,7 +99,7 @@ parse, and an error text with a `<` in it would otherwise be lost silently.
 | option | |
 | --- | --- |
 | `TOKEN`, `CHAT_ID` | required |
-| `TOPIC_ID` | a forum topic (`message_thread_id`); empty for the main thread |
+| `TOPIC_ID` | a forum topic (`message_thread_id`); `None`, empty or `0` for the main thread; not an integer is `E001` |
 | `TIMEOUT` | seconds, default 10 |
 | `API_URL` | default `https://api.telegram.org`; for a local Bot API server |
 
@@ -121,16 +121,43 @@ parse, and an error text with a `<` in it would otherwise be lost silently.
         'BACKEND': 'offsite_backup.notifiers.django_aiogram.TopicNotifier',
         'CHAT_ID': os.environ.get('BACKUP_TELEGRAM_CHAT_ID', ''),
         'TOPIC_ID': os.environ.get('BACKUP_TELEGRAM_TOPIC_ID', ''),
-        # 'BOT': 'ops',   # one of TELEGRAM_BOTS; the default bot when absent
+        # 'DELIVERY': 'queue',   # through the bot container; 'direct' by default
+        # 'BOT': 'ops',          # one of TELEGRAM_BOTS; the default bot when absent
     },
 ],
 ```
 
-It calls `bot.send_raw('send_message', ...)`, which talks to Telegram from the calling
-process — synchronously where no bot loop runs (a Celery worker, a one-off deploy
-container). In a process whose bot loop is running, `send_raw` only schedules the call, and
-"delivered" means "handed over". Whether a refused send raises follows django-aiogram's own
-`RAISE_EXCEPTION`; either way this notifier logs it and the backup goes on.
+`CHAT_ID` is required (`0` counts as unset); `TOPIC_ID` is validated as for Telegram above.
+
+### Direct or queued
+
+`DELIVERY` decides which of the bot's methods carries the message:
+
+| | `'direct'` (default) | `'queue'` |
+| --- | --- | --- |
+| calls | `bot.send_raw('send_message', ...)` | `bot.send('send_message', ...)` |
+| who talks to Telegram | the process running the pass — the worker, the deploy's one-off container | the bot container, which consumes django-aiogram's queue |
+| the bot token | must be in the worker's (and the deploy container's) environment | stays in the bot container; the worker needs only the queue |
+| `True` from the notifier means | sent — synchronously where no bot loop runs; in a process whose bot loop runs, `send_raw` only schedules the call, and it means "handed over" | **queued**: delivery depends on the bot container running |
+| a refusal (wrong topic, bot not in the chat) | logged here — whether it raises follows django-aiogram's `RAISE_EXCEPTION`; either way the backup goes on | logged by the bot container, not here |
+| django-aiogram's queue: rate limiting, event log, correlation ids | bypassed, with the queue | applied |
+
+Choose `direct` when the process running the pass may hold the token, and the message
+should not depend on another container. Choose `queue` when the project runs a dedicated
+bot container and keeps the token there: one place talks to Telegram, under one rate limit
+— and while that container is down, backup messages are not delivered.
+
+### Another bot wrapper: `BOT_FACTORY`
+
+```python
+'BOT_FACTORY': 'acme.bots.backup_bot',
+```
+
+A dotted path to a callable that takes no arguments and returns an object with
+`send_raw(method, **kwargs)` and/or `send(method, **kwargs)` — whichever `DELIVERY` calls.
+It replaces `BOT`: the escape hatch for an older django-aiogram, or any other wrapper that
+can be adapted to those two methods. It is called at every send; a path that does not
+import, or does not name a callable, is `E002`.
 
 ## The log
 

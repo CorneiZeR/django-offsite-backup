@@ -32,12 +32,17 @@ reach it.
 
 ## `RECIPIENTS`
 
-One public key, or a list. A comma-separated string is **not** split — read several from
-the environment yourself:
+One public key, a list, or one string holding several. A string is split on commas and
+newlines, and between `age1…` keys on whitespace too — an `ssh-ed25519 …` recipient keeps
+the space inside it. Blank items are dropped, so the environment idiom works as it is:
 
 ```python
-'RECIPIENTS': [r for r in os.environ.get('BACKUP_AGE_RECIPIENTS', '').split(',') if r.strip()],
+'RECIPIENTS': os.environ.get('BACKUP_AGE_RECIPIENTS', ''),   # 'age1abc..., age1def...'
 ```
+
+On a machine where the variable is unset this is `''` — and a list of blanks,
+`[os.environ.get('X', '')]`, counts as unset too: with the store credentials present, `E001`
+names `RECIPIENTS` ([Settings](Settings.md#blank-means-unset)).
 
 With several recipients, **any one** of the private keys opens a backup — a second key for
 a colleague, or a break-glass key in a safe.
@@ -84,12 +89,17 @@ from offsite_backup import back_up_database, restore_database
 key = back_up_database('tenant_42', extra_recipients=[settings.WAKE_RECIPIENT])
 ...
 restore_database(key, 'tenant_42', identity=settings.WAKE_IDENTITY_FILE)
+# or, with the key's text rather than a file:
+restore_database(key, 'tenant_42', identity_text=settings.WAKE_IDENTITY)
 ```
+
+`identity_text` is written to a private `0600` temporary file and removed afterwards. It is
+for this dedicated, narrowly used identity only — never the backups' main key.
 
 The server's wake key opens those dumps and nothing else. Treat it as a secret of the
 server, with the same care as its database password.
 
-## Not in 0.1.0
+## Not yet
 
 A pure-Python backend (`pyrage`, no `age` binary), an explicit "no encryption" backend, and
 helpers to re-seal recent backups to a new recipient are on the roadmap. For tests,

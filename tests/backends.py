@@ -67,3 +67,22 @@ class Network(Notifier):
     def send(self, outcome: Outcome, text: str) -> bool:
         Network.called.append(text)
         return True
+
+
+class FakeBot:
+    """Records which django-aiogram method a notifier used."""
+
+    calls: list[tuple[str, str, dict]] = []
+
+    def send_raw(self, function, **kwargs):
+        FakeBot.calls.append(('send_raw', function, kwargs))
+
+    def send(self, function, **kwargs):
+        FakeBot.calls.append(('send', function, kwargs))
+
+
+def fake_bot():
+    return FakeBot()
+
+
+NOT_CALLABLE = 42

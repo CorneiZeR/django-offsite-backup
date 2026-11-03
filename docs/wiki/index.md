@@ -51,10 +51,11 @@ does not cover.
 
 ## Off, on, or refused
 
-A machine with no store credentials and no recipient is **off**: every command says
-"nothing to do" and exits 0, which is what a developer laptop wants. A machine that has
-*some* of it is **partly configured** and is refused by name (`E001`) — a production
-machine that lost one variable must not stop backing up in silence.
+A machine with no store credentials is **off** — a recipient alone switches nothing on:
+every command says "nothing to do" and exits 0, which is what a developer laptop wants. A
+machine that has the store credentials and lacks something else is **partly configured**
+and is refused by name (`E001`) — a production machine that lost one variable must not stop
+backing up in silence. A blank value, `0` or `['']` counts as unset.
 **[Settings](Settings.md#enabled-off-on-or-refused)** has the rule.
 
 ## Where to start
