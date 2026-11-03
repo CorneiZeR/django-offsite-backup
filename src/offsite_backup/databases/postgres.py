@@ -59,7 +59,7 @@ class PostgresSource(DatabaseSource):
         if isinstance(aliases, str):
             found: Callable[[], Any] = import_string(aliases)
             aliases = found()
-        return [str(alias) for alias in aliases]
+        return [str(alias).strip() for alias in aliases if str(alias).strip()]
 
     def suffix(self) -> str:
         """``sql.zst.age`` for plain, ``dump.zst.age`` for custom (``-Z0``, then zstd)."""

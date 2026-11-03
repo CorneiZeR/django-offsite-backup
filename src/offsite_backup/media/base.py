@@ -16,6 +16,7 @@ from typing import IO
 from django.core import checks
 
 from offsite_backup.backend import Backend
+from offsite_backup.exceptions import SourceMissingError
 from offsite_backup.pipeline import feed
 from offsite_backup.sealing import Sealing
 
@@ -83,8 +84,8 @@ class MediaSource(Backend):
 
     def selected(self) -> Iterator[MediaEntry]:
         """``entries()`` through the ``INCLUDE`` and ``EXCLUDE`` globs."""
-        include = list(self.option('INCLUDE', []))
-        exclude = list(self.option('EXCLUDE', []))
+        include = self.strings('INCLUDE')
+        exclude = self.strings('EXCLUDE')
         for entry in self.entries():
             if include and not any(fnmatch.fnmatch(entry.name, pattern) for pattern in include):
                 continue
@@ -93,8 +94,12 @@ class MediaSource(Backend):
             yield entry
 
     def volumes(self) -> list[list[MediaEntry]]:
-        """The selected files packed into volumes."""
-        return pack(self.selected(), self.volume_bytes)
+        """The selected files packed into volumes; none at all fails a required source."""
+        volumes = pack(self.selected(), self.volume_bytes)
+        if not volumes and self.required:
+            msg = f'{self.label}: no media files found, and the source is required'
+            raise SourceMissingError(msg)
+        return volumes
 
     def seal_volume(self, volume: list[MediaEntry], into: Path, sealing: Sealing) -> Path:
         """Stream one volume through tar and the sealing stages into ``into``."""

@@ -41,7 +41,35 @@ matches `.env` or a glob in `EXCLUDE` are left out. `EXCLUDE` adds to `.env`, ne
 replaces it: the live environment file does not travel whatever the list says.
 
 A path that does not exist on this machine is `W005` — almost always a mount missing
-from one of the containers that run a pass.
+from one of the containers that run a pass. Blank items are dropped, so
+`os.environ.get('X', '')` in the list is harmless where `X` is unset.
+
+## Required paths
+
+By default a missing path is left out with a warning and the pass goes on. When the
+certificates or signing keys are part of what restores the machine, a pass without them
+is not a whole backup — make them required:
+
+```python
+'CONFIG': {
+    'BACKEND': 'offsite_backup.config.paths.PathsSource',
+    'PATHS': ['/app/deploy', '/etc/acme/signing.pem'],
+    'REQUIRED': ['/etc/acme/signing.pem'],   # or True: every path in PATHS
+},
+```
+
+* A required path missing at pass time **fails the pass** with `SourceMissingError`, and
+  the FAILED message names it. The databases and media written before it stay written; the
+  configuration archive — and so the night, for the [morning check](Monitoring.md) — does
+  not.
+* `manage.py check --deploy` reports it as `E009` in the container it runs in. A plain
+  `manage.py check` does not: it runs in every container, most of which never run a pass,
+  and an error there would stop `migrate` ([why](System-checks.md#why-e009-is-a-deploy-check)).
+* `STRICT: True` at the top level makes every path required, and a file that cannot be
+  read fails the pass instead of being skipped ([Settings](Settings.md#strict-and-required)).
+
+Use `REQUIRED` for what a restore cannot do without; leave paths that may legitimately be
+absent on some machines optional.
 
 ## The live `.env` does not travel; a rebuilt one does
 
@@ -98,7 +126,8 @@ services:
 
 The worker runs the nightly pass; the deploy pass runs in the service your deploy starts
 it in (often the web image as a one-off). Both need the mount, or one of them archives an
-empty folder and `W005` tells you which.
+empty folder and `W005` tells you which — or, for a required path, the pass fails and
+`check --deploy` says `E009`.
 
 ## Without `CONFIG`
 

@@ -17,6 +17,7 @@ from string import ascii_letters, digits
 from django.core import checks
 
 from offsite_backup.config.base import ConfigSource
+from offsite_backup.exceptions import SourceMissingError
 from offsite_backup.pipeline import feed
 from offsite_backup.sealing import Sealing
 
@@ -63,7 +64,7 @@ class PathsSource(ConfigSource):
     @property
     def paths(self) -> list[Path]:
         """The listed paths."""
-        return [Path(str(path)).expanduser() for path in self.option('PATHS', [])]
+        return [Path(path).expanduser() for path in self.strings('PATHS')]
 
     @property
     def names_file(self) -> Path | None:
@@ -80,11 +81,33 @@ class PathsSource(ConfigSource):
 
     def _excluded(self, path: Path) -> bool:
         # added to the default, never replacing it: a custom list must not let the live file travel
-        patterns = [*DEFAULT_EXCLUDE, *self.option('EXCLUDE', [])]
+        patterns = [*DEFAULT_EXCLUDE, *self.strings('EXCLUDE')]
         return any(fnmatch.fnmatch(path.name, pattern) for pattern in patterns)
+
+    @property
+    def required_paths(self) -> list[Path]:
+        """``REQUIRED: True`` (or ``STRICT``) means every path; a list names some of them."""
+        if self.required:
+            return self.paths
+        listed = self.option('REQUIRED')
+        if isinstance(listed, (list, tuple)):
+            return [Path(str(path)).expanduser() for path in listed if str(path).strip()]
+        return []
+
+    def _unreadable(self, path: Path) -> bool:
+        if os.access(path, os.R_OK):
+            return False
+        if self.strict:
+            msg = f'{self.label}: {path} cannot be read'
+            raise SourceMissingError(msg)
+        return True
 
     def archive(self, into: Path, sealing: Sealing) -> Path:
         """Each path under its own name (``deploy/compose.yml``), the rebuilt environment at the root."""
+        missing = [str(path) for path in self.required_paths if not path.exists()]
+        if missing:
+            msg = f'{self.label}: required path(s) missing: {", ".join(missing)}'
+            raise SourceMissingError(msg)
         with feed(sealing.stages(), into=into) as stdin, tarfile.open(fileobj=stdin, mode='w|') as tar:
             names = self.names_file
             if names is not None and names.is_file():
@@ -96,13 +119,13 @@ class PathsSource(ConfigSource):
                 tar.addfile(member, io.BytesIO(data))
             for root in self.paths:
                 if root.is_file():
-                    if not self._excluded(root) and os.access(root, os.R_OK):
+                    if not self._excluded(root) and not self._unreadable(root):
                         tar.add(root, arcname=root.name, recursive=False)
                     continue
                 for path in sorted(root.rglob('*')):
                     if path.is_symlink() or not path.is_file() or self._excluded(path):
                         continue
-                    if not os.access(path, os.R_OK):
+                    if self._unreadable(path):
                         continue
                     tar.add(path, arcname=f'{root.name}/{path.relative_to(root).as_posix()}', recursive=False)
         return into
@@ -110,7 +133,8 @@ class PathsSource(ConfigSource):
     def check(self) -> list[checks.CheckMessage]:
         """Every path and the names file exist here (a missing mount is found at start)."""
         found = super().check()
-        missing = [str(path) for path in self.paths if not path.exists()]
+        required = set(self.required_paths)
+        missing = [str(path) for path in self.paths if not path.exists() and path not in required]
         names = self.names_file
         if names is not None and not names.is_file():
             missing.append(str(names))
@@ -123,3 +147,16 @@ class PathsSource(ConfigSource):
                 )
             )
         return found
+
+    def deploy_check(self) -> list[checks.CheckMessage]:
+        """E009: a required path is missing where the deploy runs the pass."""
+        missing = [str(path) for path in self.required_paths if not path.exists()]
+        if not missing:
+            return []
+        return [
+            checks.Error(
+                f'{self.label}: required path(s) missing here: {", ".join(missing)}.',
+                hint='Mount the deployment directory into this container, or drop REQUIRED for it.',
+                id='offsite_backup.E009',
+            )
+        ]

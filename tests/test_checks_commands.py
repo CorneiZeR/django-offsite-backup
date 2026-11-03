@@ -386,3 +386,58 @@ def test_a_fake_client_stands_in_for_the_driver(configured, monkeypatch):
     real = importlib.util.find_spec
     monkeypatch.setattr(importlib.util, 'find_spec', lambda name, *a: None if name == 'boto3' else real(name, *a))
     assert 'offsite_backup.E002' not in ids(check_settings())
+
+
+def test_default_reason_comes_from_the_setting(configured, fake_s3, settings):
+    """DEFAULT_REASON replaces 'manual' when --reason is not given."""
+    from offsite_backup.notify import capture
+
+    settings.OFFSITE_BACKUP['DEFAULT_REASON'] = 'deploy'
+    with capture() as said:
+        command('backup_offsite', '--without-media')
+    assert said[0][0].reason == 'deploy'
+
+
+def test_without_media_and_no_reason_prints_a_notice(configured, fake_s3):
+    """A deploy that forgot --reason is told so."""
+    err = StringIO()
+    call_command('backup_offsite', '--without-media', stdout=StringIO(), stderr=err)
+    assert '--reason deploy' in err.getvalue()
+
+
+def test_an_explicit_reason_prints_no_notice(configured, fake_s3):
+    """--reason given explicitly is silent, whatever it is."""
+    err = StringIO()
+    call_command('backup_offsite', '--without-media', '--reason', 'manual', stdout=StringIO(), stderr=err)
+    assert err.getvalue() == ''
+
+
+def test_restore_takes_the_identity_as_text(configured, fake_s3, now, monkeypatch):
+    """identity_text is written to a private file that is gone afterwards."""
+    from offsite_backup import restore
+    from offsite_backup.pass_ import run
+
+    run(now=now)
+    monkeypatch.delenv('AGE_IDENTITY', raising=False)
+    seen = []
+    real = restore._unseal
+
+    def unseal(parts, key, secret, into):
+        seen.append((Path(secret), Path(secret).read_text(), oct(Path(secret).stat().st_mode & 0o777)))
+        return real(parts, key, secret, into)
+
+    monkeypatch.setattr(restore, '_unseal', unseal)
+    restore_database('latest', 'default', identity_text='AGE-SECRET-KEY-1WAKE')
+    path, text, mode = seen[0]
+    assert text == 'AGE-SECRET-KEY-1WAKE\n'
+    assert mode == '0o600'
+    assert not path.exists()
+
+
+def test_an_identity_file_and_text_together_are_refused(configured):
+    """One key, one way."""
+    from offsite_backup.exceptions import MisconfiguredError
+    from offsite_backup.restore import identity_file
+
+    with pytest.raises(MisconfiguredError, match='not both'), identity_file(__file__, 'AGE-SECRET-KEY-1'):
+        pass

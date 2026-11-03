@@ -53,6 +53,10 @@ DEFAULTS: dict[str, Any] = {
     'MESSAGES': 'offsite_backup.messages.default',
     'GUARD': {'ENABLED': True, 'CACHE': 'default', 'RUNNING_SECONDS': 3600, 'DONE_SECONDS': 26 * 3600},
     'LAST_SUCCESS_FILE': '',
+    # what backup_offsite says when --reason is not given
+    'DEFAULT_REASON': 'manual',
+    # a missing config path, an unreadable file or an empty required source fails the pass
+    'STRICT': False,
     'WORKDIR': '',
 }
 
@@ -136,12 +140,18 @@ def _blocks(conf: Settings) -> list[tuple[str, Mapping[str, Any], type[Backend]]
 
 
 def _empty(value: Any) -> bool:
+    """Unset: ``None``, blank, ``0`` (``int(os.environ.get('X') or 0)``), or a list of only those."""
     if value is None:
         return True
     if isinstance(value, str):
         return not value.strip()
-    if isinstance(value, (list, tuple, set, dict)):
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value == 0
+    if isinstance(value, dict):
         return not value
+    if isinstance(value, (list, tuple, set)):
+        # [os.environ.get('X', '')] is [''] on a machine without X
+        return all(_empty(item) for item in value)
     return False
 
 

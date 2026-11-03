@@ -6,23 +6,26 @@ token must still never post to that chat. ``capture()`` sees every message regar
 """
 
 import contextlib
+import os
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
 from django.core import checks
-from django.test.runner import DiscoverRunner
+from django.test.runner import DiscoverRunner, ParallelTestSuite
 
 from offsite_backup.encryption.base import Sealer
-from offsite_backup.notify import capture, silence, silenced
+from offsite_backup.notify import SILENCE_ENV, capture, silence, silence_process, silenced
 from offsite_backup.testing.fake_s3 import FakeBucket, FakeClientError, FakeS3
 
 __all__ = (
     'FakeBucket',
     'FakeClientError',
     'FakeS3',
+    'OffsiteBackupRunnerMixin',
     'OffsiteBackupTestRunner',
     'Passthrough',
+    'SilencedParallelTestSuite',
     'capture',
     'media_tree',
     'silence',
@@ -31,13 +34,43 @@ __all__ = (
 )
 
 
-class OffsiteBackupTestRunner(DiscoverRunner):
-    """Django's runner with every network notifier silenced for the whole run."""
+def _silence_worker(*args: Any) -> None:
+    """Runs in each spawned or forkserver worker before its tests; parent module state never gets there."""
+    os.environ[SILENCE_ENV] = '1'
+    silence_process()
+
+
+class SilencedParallelTestSuite(ParallelTestSuite):
+    """Django's parallel suite whose every spawned or forkserver worker is silenced too."""
+
+    # a plain function, as Django's own stub is: it calls ``self.process_setup.__func__``
+    process_setup = _silence_worker
+
+
+class OffsiteBackupRunnerMixin:
+    """Silence notifiers for a whole ``manage.py test`` run, ``--parallel`` workers included.
+
+    Mix into a project's own runner: ``class Runner(OffsiteBackupRunnerMixin, MyRunner)``.
+    """
+
+    parallel_test_suite: type[ParallelTestSuite] = SilencedParallelTestSuite
 
     def run_tests(self, *args: Any, **kwargs: Any) -> int:
-        """Run the suite inside ``silence()``."""
-        with silence():
-            return super().run_tests(*args, **kwargs)
+        """Run the suite silenced, with the variable workers inherit set for its length."""
+        previous = os.environ.get(SILENCE_ENV)
+        os.environ[SILENCE_ENV] = '1'
+        try:
+            with silence():
+                return super().run_tests(*args, **kwargs)  # type: ignore[misc, no-any-return]
+        finally:
+            if previous is None:
+                os.environ.pop(SILENCE_ENV, None)
+            else:
+                os.environ[SILENCE_ENV] = previous
+
+
+class OffsiteBackupTestRunner(OffsiteBackupRunnerMixin, DiscoverRunner):
+    """Django's runner with every network notifier silenced for the whole run."""
 
 
 class Passthrough(Sealer):

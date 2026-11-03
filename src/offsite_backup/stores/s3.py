@@ -24,7 +24,17 @@ from django.core import checks
 from offsite_backup.exceptions import BackupUnlockedError
 from offsite_backup.stores.base import Store, Version, Wrote
 
-__all__ = ('CLIENT_FACTORY', 'PART_BYTES', 'S3Store', 'make_client', 'transfer_config')
+__all__ = (
+    'ADDRESSING_STYLES',
+    'CLIENT_FACTORY',
+    'PART_BYTES',
+    'S3Store',
+    'check_client_options',
+    'make_client',
+    'transfer_config',
+)
+
+ADDRESSING_STYLES = ('auto', 'path', 'virtual')
 
 #: 64 MiB parts: a 4 GiB volume is 64 parts, and a failed part costs a minute
 PART_BYTES = 64 * 1024 * 1024
@@ -46,14 +56,39 @@ def make_client(options: Mapping[str, Any]) -> Any:
     import boto3  # noqa: PLC0415 - the [s3] extra, imported when a client is built
     from botocore.config import Config  # noqa: PLC0415
 
+    verify = options.get('VERIFY')
     return boto3.client(
         's3',
         endpoint_url=options.get('ENDPOINT_URL') or None,
         region_name=options.get('REGION') or None,
         aws_access_key_id=options.get('ACCESS_KEY') or None,
         aws_secret_access_key=options.get('SECRET_KEY') or None,
-        config=Config(retries={'max_attempts': 5, 'mode': 'standard'}),
+        # True, False, or a CA bundle's path for a store behind an internal certificate
+        verify=True if verify is None or verify == '' else verify,
+        config=Config(
+            retries={'max_attempts': 5, 'mode': 'standard'},
+            s3={'addressing_style': options.get('ADDRESSING_STYLE') or 'auto'},
+            signature_version=options.get('SIGNATURE_VERSION') or None,
+        ),
     )
+
+
+def check_client_options(options: Mapping[str, Any], label: str) -> list[checks.CheckMessage]:
+    """``ADDRESSING_STYLE`` is one botocore knows; ``VERIFY`` a bool or an existing CA file."""
+    found: list[checks.CheckMessage] = []
+    style = options.get('ADDRESSING_STYLE') or 'auto'
+    if style not in ADDRESSING_STYLES:
+        found.append(
+            checks.Error(
+                f"{label}['ADDRESSING_STYLE'] is {style!r}; expected one of {', '.join(ADDRESSING_STYLES)}.",
+                hint='MinIO and SeaweedFS need "path"; AWS works with "virtual".',
+                id='offsite_backup.E001',
+            )
+        )
+    verify = options.get('VERIFY')
+    if isinstance(verify, str) and verify and not Path(verify).is_file():
+        found.append(checks.Error(f"{label}['VERIFY'] is {verify!r}, which is not a file.", id='offsite_backup.E001'))
+    return found
 
 
 def transfer_config() -> Any:
@@ -185,7 +220,7 @@ class S3Store(Store):
 
     def check(self) -> list[checks.CheckMessage]:
         """E007: retention must outlast the lock, or rotation meets locked objects every night."""
-        found = super().check()
+        found = [*super().check(), *check_client_options(self.options, self.label)]
         from offsite_backup.conf import read  # noqa: PLC0415 - avoids a cycle at import
 
         keep = read()['RETENTION'].get('KEEP_NIGHTS')

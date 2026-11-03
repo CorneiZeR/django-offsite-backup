@@ -66,6 +66,12 @@ What you get:
 | `media`, `media-<name>` | `<stamp>.<NNN>.tar`, one per volume | `tar -xf` — each volume on its own |
 | `config` | `<stamp>.tar` | `tar -xf`; `rendered.env` is the environment |
 
+**A custom-format dump under a legacy `.sql…` name** — written by a predecessor that named
+its custom dumps `.sql.zst.age` — just works: the format is read from the magic bytes
+(`PGDMP`), not from the name. It is verified with `pg_restore --list` and loaded with
+`pg_restore` by `--apply`. The file `--into` writes keeps the object's name (`<stamp>.sql`),
+so open it with `pg_restore`, not `psql`; `head -c 5` on it prints `PGDMP` for a custom dump.
+
 ## 3. Load a database
 
 ```shell
@@ -98,8 +104,19 @@ restore_database('latest', 'scratch', identity='~/secure/backup-acme-prod.key', 
 restore_database('2026-03-10T03-00Z', 'default', clean=True)  # identity from AGE_IDENTITY
 ```
 
-`restore_database(source, alias, *, identity=None, clean=False, source_alias=None)` answers
-with the key it loaded.
+`restore_database(source, alias, *, identity=None, clean=False, source_alias=None,
+identity_text=None)` answers with the key it loaded.
+
+`identity_text` is the private key's **text**, for code that holds it rather than a file:
+it is written to a private `0600` temporary file for `age` and removed afterwards. It is
+meant for a dedicated, narrowly used identity the server holds on purpose — the wake key
+of [a one-off backup](Databases.md#a-one-off-backup-of-one-database) — **never the backups'
+main key**, which stays off the server. Passing both `identity` and `identity_text` is
+refused (`MisconfiguredError`).
+
+```python
+restore_database(key, 'tenant_42', identity_text=settings.WAKE_IDENTITY)
+```
 
 ## 4. Media and configuration
 

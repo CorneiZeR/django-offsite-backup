@@ -249,3 +249,158 @@ def test_silence_nests():
     with silence():
         assert silenced()
     assert silenced()
+
+
+# -- database guard -----------------------------------------------------------------------
+
+
+@pytest.fixture
+def database_guard(configured, settings, monkeypatch):
+    import contextlib
+
+    from offsite_backup import guard
+
+    held = {'taken': True, 'calls': 0}
+
+    @contextlib.contextmanager
+    def lock(alias, key):
+        held['calls'] += 1
+        yield held['taken']
+
+    monkeypatch.setattr(guard, '_advisory_lock', lock)
+    settings.OFFSITE_BACKUP['GUARD'] = {'BACKEND': 'database'}
+    return held
+
+
+def test_database_guard_skips_a_night_another_worker_holds(database_guard, fake_s3, now):
+    """The advisory lock taken elsewhere: skipped, nothing dumped."""
+    database_guard['taken'] = False
+    assert run_nightly(now=now) is None
+    assert backends.DUMPED == []
+
+
+def test_database_guard_reads_done_from_the_store(database_guard, fake_s3, now):
+    """No cache: a whole backup stamped tonight is what 'done' means."""
+    assert run_nightly(now=now) is not None
+    assert run_nightly(now=now + timedelta(hours=1)) is None
+    assert run_nightly(now=now + timedelta(days=1)) is not None
+    assert backends.DUMPED == ['default', 'default']
+
+
+def test_database_guard_does_not_count_a_deploy_pass(database_guard, fake_s3, now):
+    """A pass without media tonight does not make the night done."""
+    from offsite_backup.pass_ import run
+
+    run(media=False, reason='deploy', now=now)
+    assert run_nightly(now=now + timedelta(hours=1)) is not None
+
+
+def test_lock_ids_are_stable_and_per_prefix():
+    """Two prefixes never share a lock; one prefix always gets the same one."""
+    from offsite_backup.guard import lock_id
+
+    assert lock_id('acme/prod') == lock_id('acme/prod')
+    assert lock_id('acme/prod') != lock_id('acme/stage')
+    assert -(2**63) <= lock_id('acme/prod') < 2**63
+
+
+@pytest.mark.filterwarnings('ignore:Overriding setting DATABASES')
+def test_guard_backend_checks(configured, settings):
+    """An unknown backend and a non-PostgreSQL database are refused; the database backend needs no shared cache."""
+    from offsite_backup.checks import check_settings
+
+    settings.OFFSITE_BACKUP['GUARD'] = {'BACKEND': 'redis'}
+    assert 'offsite_backup.E001' in [m.id for m in check_settings()]
+    settings.OFFSITE_BACKUP['GUARD'] = {'BACKEND': 'database'}
+    settings.DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}}
+    found = [m.id for m in check_settings()]
+    assert 'offsite_backup.E001' in found
+    settings.DATABASES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': 'x'}}
+    found = [m.id for m in check_settings()]
+    assert 'offsite_backup.E001' not in found
+    assert 'offsite_backup.W003' not in found
+
+
+def test_a_database_that_appeared_after_the_pass_is_not_missing(configured, fake_s3, now, settings):
+    """A new tenant served since 03:00 has no backup yet at 09:00; that is not MISSING."""
+    settings.OFFSITE_BACKUP['DATABASES']['ALIASES'] = ['default', 'tenant9']
+    stamp = naming.stamp(now - timedelta(hours=6))
+    put(fake_s3, f'acme/prod/config/{stamp}.tar.zst.age')
+    put(fake_s3, f'acme/prod/db/{stamp}.sql.zst.age')
+    assert check_last_night(now=now) is not None
+
+
+def test_a_database_with_only_old_backups_is_missing(configured, fake_s3, now, settings):
+    """A database that was backed up and stopped is MISSING, named."""
+    settings.OFFSITE_BACKUP['DATABASES']['ALIASES'] = ['default', 'tenant9']
+    fresh = naming.stamp(now - timedelta(hours=6))
+    old = naming.stamp(now - timedelta(hours=60))
+    put(fake_s3, f'acme/prod/config/{fresh}.tar.zst.age')
+    put(fake_s3, f'acme/prod/db/{fresh}.sql.zst.age')
+    put(fake_s3, f'acme/prod/db-tenant9/{old}.sql.zst.age')
+    with pytest.raises(BackupMissingError, match='db-tenant9'):
+        check_last_night(now=now)
+
+
+def test_the_only_database_with_no_backup_is_still_missing(configured, fake_s3, now):
+    """With nothing else to compare against, an empty database folder is MISSING."""
+    put(fake_s3, f'acme/prod/config/{naming.stamp(now - timedelta(hours=6))}.tar.zst.age')
+    with pytest.raises(BackupMissingError, match='db/'):
+        check_last_night(now=now)
+
+
+# -- django-aiogram notifier ----------------------------------------------------------------
+
+
+def topic(**options):
+    from offsite_backup.notifiers.django_aiogram import TopicNotifier
+
+    backends.FakeBot.calls.clear()
+    return TopicNotifier({'CHAT_ID': -100, 'BOT_FACTORY': 'tests.backends.fake_bot', **options}, label='NOTIFY[0]')
+
+
+def test_topic_notifier_sends_directly_by_default():
+    """direct: send_raw from the process running the pass."""
+    assert topic(TOPIC_ID=5).send(Outcome(kind='written', prefix='p'), '<b>x</b>')
+    method, function, kwargs = backends.FakeBot.calls[0]
+    assert (method, function) == ('send_raw', 'send_message')
+    assert kwargs['message_thread_id'] == 5
+    assert kwargs['parse_mode'] == 'HTML'
+
+
+def test_topic_notifier_can_queue():
+    """queue: bot.send, which a bot container consumes."""
+    assert topic(DELIVERY='queue').send(Outcome(kind='written', prefix='p'), 'x')
+    assert backends.FakeBot.calls[0][0] == 'send'
+
+
+def test_a_zero_topic_is_the_main_thread():
+    """int(os.environ.get('X') or 0) means no topic."""
+    topic(TOPIC_ID=0).send(Outcome(kind='written', prefix='p'), 'x')
+    assert 'message_thread_id' not in backends.FakeBot.calls[0][2]
+
+
+def test_topic_notifier_checks():
+    """Unknown delivery, a factory that does not import or is not callable, a topic that is not an integer."""
+    ids = lambda notifier: [message.id for message in notifier.check()]  # noqa: E731
+    assert ids(topic()) == []
+    assert ids(topic(DELIVERY='later')) == ['offsite_backup.E001']
+    assert ids(topic(BOT_FACTORY='tests.backends.no_such')) == ['offsite_backup.E002']
+    assert ids(topic(BOT_FACTORY='tests.backends.NOT_CALLABLE')) == ['offsite_backup.E002']
+    assert ids(topic(TOPIC_ID='backups')) == ['offsite_backup.E001']
+
+
+def test_a_factory_that_raises_does_not_cost_the_backup():
+    """A broken bot is a False and a log line."""
+    assert not topic(BOT_FACTORY='tests.backends.NOT_CALLABLE').send(Outcome(kind='written', prefix='p'), 'x')
+
+
+def test_database_guard_retries_a_night_where_one_database_failed(database_guard, fake_s3, now, settings):
+    """The failed pass uploaded the config and the other database; its retry is not a done night."""
+    settings.OFFSITE_BACKUP['DATABASES']['ALIASES'] = ['default', 'tenant1']
+    settings.OFFSITE_BACKUP['DATABASES']['FAIL'] = ['tenant1']
+    with pytest.raises(Exception, match='not backed up'):
+        run_nightly(now=now)
+    settings.OFFSITE_BACKUP['DATABASES']['FAIL'] = []
+    assert run_nightly(now=now + timedelta(minutes=5)) is not None
+    assert run_nightly(now=now + timedelta(minutes=10)) is None

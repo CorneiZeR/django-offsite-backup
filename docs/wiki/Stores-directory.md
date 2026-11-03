@@ -29,7 +29,7 @@ That is a warning, not an error, on purpose: a directory store is a legitimate c
 a staging machine, or for a disk that is in fact mounted from elsewhere. Silence it with
 `SILENCED_SYSTEM_CHECKS = ['offsite_backup.W001']` once you have decided.
 
-In 0.1.0 a project has one store. Several at once — a local volume for a fast restore and
+A project has one store. Several at once — a local volume for a fast restore and
 S3 for disaster, each with its own retention — is on the roadmap.
 
 ## How files are written

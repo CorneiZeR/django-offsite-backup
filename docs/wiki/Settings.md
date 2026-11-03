@@ -51,9 +51,36 @@ OFFSITE_BACKUP = {
 ```
 
 **Credentials come from the environment, in your settings.** The package never reads
-`os.environ` for its configuration (the one exception is `AGE_IDENTITY`, the private key
-a *restore* reads — see [Restore](Restore.md)). Read each one with a default of `''`, as
+`os.environ` for its configuration (the exceptions are `AGE_IDENTITY`, the private key
+a *restore* reads — see [Restore](Restore.md) — and `OFFSITE_BACKUP_SILENCE`, the test
+runner's switch — see [Testing](Testing.md#parallel-workers)). Read each one with a default of `''`, as
 above: an unset variable then means "off", not a `KeyError` at import.
+
+## Blank means unset
+
+What `os.environ.get('X', '')` gives on a machine without `X` is read as *not set*, wherever
+it ends up:
+
+* `None`, a blank string and `0` (what `int(os.environ.get('X') or 0)` gives) are unset. A
+  required option holding one of them is named by `E001`, like an absent one.
+* A list made only of those — `[os.environ.get('X', '')]` is `['']` — is unset too.
+* Inside a list, blank items are dropped: `PATHS`, `INCLUDE`/`EXCLUDE`, a list of
+  `ALIASES`, `RECIPIENTS`.
+* A `TOPIC_ID` that is unset means the chat's main thread.
+
+So the plain idiom works as it is, for one recipient or several:
+
+```python
+'ENCRYPTION': {
+    'BACKEND': 'offsite_backup.encryption.age_cli.AgeCli',
+    # 'age1abc...', or 'age1abc..., age1def...' — or nothing, on a laptop
+    'RECIPIENTS': os.environ.get('BACKUP_AGE_RECIPIENTS', ''),
+},
+```
+
+`RECIPIENTS` takes a string or a list. A string is split on commas and newlines, and — for
+`age1…` keys only — on whitespace; an `ssh-ed25519 …` recipient keeps the space inside it.
+On a machine with the store credentials and no recipient, `E001` names `RECIPIENTS`.
 
 ## `ENABLED`: off, on, or refused
 
@@ -77,18 +104,20 @@ non-empty:
 | `DirectoryStore` | `ROOT` |
 
 A recipient is not among them: it is a public key, and writing it into settings must not
-switch on every machine that has no store key.
+switch on every machine that has no store key. **A machine with only the age recipient set
+— and no store credentials — is off, not partly configured.** A hand-written predecessor
+may have used the recipient as its "on" switch; here the store is the switch.
 
 A `BACKEND` path that does not import also counts as "on", so `E002` can say what is
 wrong with it. `ENABLED: True` or `False` overrides the rule either way.
 
-!!! warning "A recipient hard-coded in settings switches every machine on"
+!!! note "A recipient alone is off"
 
-    A public key is not a secret, so it is tempting to write `RECIPIENTS: ['age1...']`
-    straight into `settings.py`. That makes every machine that loads those settings —
-    developer laptops and CI included — *partly configured*, and `manage.py check` reports
-    `E001` everywhere. Read the recipient from the environment like the credentials, or
-    set `ENABLED` from an environment variable of its own.
+    A public key is not a secret, so `RECIPIENTS: ['age1...']` may be written straight into
+    `settings.py`. It switches nothing on: developer laptops and CI that load those settings
+    without store credentials stay **off**, and `manage.py check` says nothing there. The
+    other way round — store credentials and no recipient — is partly configured, and `E001`
+    names `RECIPIENTS`.
 
 ## Top-level keys
 
@@ -115,6 +144,8 @@ other key replaces its default whole.
 | `MESSAGES` | dotted path | `'offsite_backup.messages.default'` | the formatter — [Notifications](Notifications.md#your-own-format) | — |
 | `GUARD` | dict | see below | the once-per-night claim — [Scheduling](Scheduling.md#once-per-night) | `E001`, `W003` |
 | `LAST_SUCCESS_FILE` | path | `''` | a file rewritten with the ISO time of every successful pass — [Monitoring](Monitoring.md) | — |
+| `DEFAULT_REASON` | `str` | `'manual'` | the reason `backup_offsite` uses when `--reason` is not given — [Deploy integration](Deploy-integration.md) | — |
+| `STRICT` | `bool` | `False` | every `CONFIG` path and every media source is required, and an unreadable file fails the pass — [below](#strict-and-required) | `E009` |
 | `WORKDIR` | path | `''` | where the temporary workspace is made; `''` is the system's temporary directory | — |
 
 At least one of `DATABASES`, `MEDIA` and `CONFIG` must be set, or `E001` says
@@ -137,9 +168,37 @@ At least one of `DATABASES`, `MEDIA` and `CONFIG` must be set, or `E001` says
 | key | type | default | |
 | --- | --- | --- | --- |
 | `ENABLED` | `bool` | `True` | whether `run_nightly()` claims the night at all |
-| `CACHE` | cache alias | `'default'` | must exist in `CACHES` (`E001`) and be shared between workers (`W003` on `LocMemCache` and `DummyCache`) |
-| `RUNNING_SECONDS` | `int` | `3600` | how long a pass whose worker died holds the night |
-| `DONE_SECONDS` | `int` | `93600` (26 h) | how long "done" is remembered — past the end of its UTC date |
+| `BACKEND` | `'cache'` or `'database'` | `'cache'` | where the night is claimed: a shared Django cache, or a PostgreSQL advisory lock ([Scheduling](Scheduling.md#once-per-night)); anything else is `E001` |
+| `CACHE` | cache alias | `'default'` | `cache` backend: must exist in `CACHES` (`E001`) and be shared between workers (`W003` on `LocMemCache` and `DummyCache`) |
+| `RUNNING_SECONDS` | `int` | `3600` | `cache` backend: how long a pass whose worker died holds the night |
+| `DONE_SECONDS` | `int` | `93600` (26 h) | `cache` backend: how long "done" is remembered — past the end of its UTC date |
+| `DATABASE` | database alias | `'default'` | `database` backend: the database the lock is taken on; an alias that is not a PostgreSQL database in `DATABASES` is `E001` |
+
+### `STRICT` and `REQUIRED`
+
+By default a pass backs up what is there: a missing `CONFIG` path is `W005` and is left out,
+an unreadable file is logged and left out, and a media source with no files writes no volume.
+A deployment whose certificates or signing keys are part of what restores the machine may
+want a pass without them to fail instead. Two settings, one mechanism:
+
+* `REQUIRED` on a source, for that source only:
+    * on `CONFIG`, `True` makes every path in `PATHS` required, and a list names the required
+      ones (`'REQUIRED': ['/app/deploy/certs']`). A required path missing at pass time fails
+      the pass;
+    * on a media source, `True` makes a source with no files at all a failure.
+* `STRICT: True` at the top level, for the whole pass: every `CONFIG` path and every media
+  source is required, and a file that cannot be read — a `CONFIG` file, or a file under a
+  `DirectorySource` `ROOT` — fails the pass instead of being left out.
+
+The pass fails with `SourceMissingError`, and the FAILED message names what was missing:
+
+```text
+SourceMissingError: OFFSITE_BACKUP['CONFIG']: required path(s) missing: /app/deploy/certs
+```
+
+`manage.py check --deploy` reports a required `CONFIG` path missing where it runs as `E009`;
+a plain `manage.py check` warns `W005` for optional paths only
+([System checks](System-checks.md#why-e009-is-a-deploy-check)).
 
 ## Backend options
 
@@ -158,6 +217,9 @@ Needs the `[s3]` extra. [Stores: S3](Stores-S3.md).
 | `ENDPOINT_URL` | URL | `None` (AWS) | the provider's endpoint, e.g. `https://fsn1.your-objectstorage.com` |
 | `REGION` | `str` | `None` | the region name the provider expects |
 | `LOCK_DAYS` | `int` | `13` | days every object is locked COMPLIANCE; `0` stores without a lock. Checked against the bucket's default rule (`E006`) and against `KEEP_NIGHTS` (`E007`) |
+| `ADDRESSING_STYLE` | `'auto'`, `'path'` or `'virtual'` | `'auto'` | botocore's addressing style: `path` is `https://host/bucket/key`, `virtual` is `https://bucket.host/key`. MinIO and SeaweedFS need `path` ([S3 providers](S3-providers.md#addressing-style)); anything else is `E001` |
+| `SIGNATURE_VERSION` | `str` | `None` | botocore's signature version (e.g. `'s3v4'`); `None` keeps botocore's default |
+| `VERIFY` | `bool` or path | `True` | TLS verification: `True`, `False`, or the path of a CA bundle for a store behind an internal certificate. A path that is not a file is `E001` |
 
 Only these options make the client: no `~/.aws`, no instance role, no `AWS_*` variables.
 
@@ -175,7 +237,7 @@ Only these options make the client: no `~/.aws`, no instance role, no `AWS_*` va
 
 | option | type | default | |
 | --- | --- | --- | --- |
-| `RECIPIENTS` | `str` or list of `str` | — | **required**; public keys (`age1…`, `ssh-ed25519 …`, `ssh-rsa …`). A private key or anything else is `E008` |
+| `RECIPIENTS` | `str` or list of `str` | — | **required**; public keys (`age1…`, `ssh-ed25519 …`, `ssh-rsa …`). A string splits on commas, newlines and — between `age1…` keys — whitespace ([above](#blank-means-unset)). A private key or anything else is `E008` |
 
 ### `DATABASES`: `offsite_backup.databases.postgres.PostgresSource`
 
@@ -183,7 +245,7 @@ Only these options make the client: no `~/.aws`, no instance role, no `AWS_*` va
 
 | option | type | default | |
 | --- | --- | --- | --- |
-| `ALIASES` | list of aliases, or a dotted path to a callable returning one | `['default']` | which `DATABASES` aliases to dump |
+| `ALIASES` | list of aliases, or a dotted path to a callable returning one | `['default']` | which `DATABASES` aliases to dump; blank items are dropped |
 | `FORMAT` | `'plain'` or `'custom'` | `'plain'` | `pg_dump` output format; anything else is `E001` |
 | `NO_OWNER` | `bool` | `True` | adds `--no-owner --no-privileges` |
 | `EXTRA_ARGS` | list of `str` | `[]` | appended to the `pg_dump` command |
@@ -200,15 +262,16 @@ The connection comes from Django's `DATABASES[alias]`: `HOST`, `PORT`, `USER`, `
 | --- | --- | --- | --- |
 | `NAME` | `str` | `''` | the kind: `media/` when empty, `media-<name>/` otherwise. Give each of several sources its own |
 | `VOLUME_BYTES` | `int` | `4294967296` (4 GiB) | the most one volume holds; must be more than 20 KiB and at most 5 GB (`E001`) |
-| `INCLUDE` | list of globs | `[]` | only names matching one of these |
-| `EXCLUDE` | list of globs | `[]` | names matching one of these are left out |
+| `INCLUDE` | list of globs | `[]` | only names matching one of these; blank items are dropped |
+| `EXCLUDE` | list of globs | `[]` | names matching one of these are left out; blank items are dropped |
 | `COMPRESS` | `bool` | `False` | run the `COMPRESS` stage on volumes too |
+| `REQUIRED` | `bool` | `False` | a source with no files fails the pass ([above](#strict-and-required)) |
 
 ### `MEDIA`: `offsite_backup.media.filesystem.DirectorySource`
 
 | option | type | default | |
 | --- | --- | --- | --- |
-| `ROOT` | path | `settings.MEDIA_ROOT` | the directory archived; missing is `W005` |
+| `ROOT` | path | `settings.MEDIA_ROOT` | the directory archived; missing is `W005`. Under `STRICT` a file in it that cannot be read fails the pass |
 
 ### `MEDIA`: `offsite_backup.media.s3.S3Source`
 
@@ -222,6 +285,9 @@ Needs the `[s3]` extra. Its credentials are its own; it does not borrow the stor
 | `REGION` | `str` | `None` | |
 | `ACCESS_KEY` | `str` | `None` | |
 | `SECRET_KEY` | `str` | `None` | |
+| `ADDRESSING_STYLE` | `'auto'`, `'path'` or `'virtual'` | `'auto'` | as on `S3Store`; anything else is `E001` |
+| `SIGNATURE_VERSION` | `str` | `None` | as on `S3Store` |
+| `VERIFY` | `bool` or path | `True` | as on `S3Store`; a path that is not a file is `E001` |
 
 ### `CONFIG`: `offsite_backup.config.paths.PathsSource`
 
@@ -229,9 +295,10 @@ Needs the `[s3]` extra. Its credentials are its own; it does not borrow the stor
 
 | option | type | default | |
 | --- | --- | --- | --- |
-| `PATHS` | list of paths | `[]` | files and directories archived; missing is `W005` |
+| `PATHS` | list of paths | `[]` | files and directories archived; blank items are dropped; missing is `W005` |
 | `RENDER_ENV` | path | `None` | a file of variable names to rebuild the environment from; relative to `settings.BASE_DIR`; missing is `W005` |
 | `EXCLUDE` | list of globs | `[]` | matched against each file's **name**; always in addition to `.env`, which never travels |
+| `REQUIRED` | `bool` or list of paths | `False` | `True`: every path is required; a list: those paths are. A required path missing at pass time fails the pass, and is `E009` under `check --deploy` ([above](#strict-and-required)) |
 
 ### `NOTIFY`: `offsite_backup.notifiers.telegram.TelegramNotifier`
 
@@ -240,8 +307,8 @@ Needs the `[telegram]` extra. [Notifications](Notifications.md).
 | option | type | default | |
 | --- | --- | --- | --- |
 | `TOKEN` | `str` | — | **required** (see the note below) |
-| `CHAT_ID` | `int` or `str` | — | **required** |
-| `TOPIC_ID` | `int` | `None` | a forum topic (`message_thread_id`); not an integer is `E001` |
+| `CHAT_ID` | `int` or `str` | — | **required**; `0` counts as unset |
+| `TOPIC_ID` | `int` | `None` | a forum topic (`message_thread_id`); `None`, blank or `0` is the main thread; not an integer is `E001` |
 | `TIMEOUT` | seconds | `10` | |
 | `API_URL` | URL | `'https://api.telegram.org'` | for a local Bot API server |
 
@@ -251,9 +318,11 @@ Needs the `[aiogram]` extra.
 
 | option | type | default | |
 | --- | --- | --- | --- |
-| `CHAT_ID` | `int` or `str` | — | **required** |
-| `TOPIC_ID` | `int` | `None` | a forum topic |
+| `CHAT_ID` | `int` or `str` | — | **required**; `0` counts as unset |
+| `TOPIC_ID` | `int` | `None` | a forum topic; `None`, blank or `0` is the main thread; not an integer is `E001` |
+| `DELIVERY` | `'direct'` or `'queue'` | `'direct'` | `direct` calls `bot.send_raw` from the process running the pass, which then needs the bot token; `queue` calls `bot.send`, handing the message to the queue a bot container consumes ([Notifications](Notifications.md#direct-or-queued)); anything else is `E001` |
 | `BOT` | alias | `None` | one of django-aiogram's bots; the default bot when absent |
+| `BOT_FACTORY` | dotted path | `None` | a callable returning an object with `send_raw` / `send`, used instead of `BOT` — another bot wrapper, or an older django-aiogram; one that does not import or is not callable is `E002` |
 
 ### `NOTIFY`: `offsite_backup.notifiers.log.LogNotifier`
 

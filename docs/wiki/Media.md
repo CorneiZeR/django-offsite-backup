@@ -31,7 +31,8 @@ Uploaded files, whatever holds them, packed into **volumes** of whole files.
 
     Regular files under `ROOT`, in sorted order; names inside the tar are relative to
     `ROOT`. Symbolic links are not followed. A file that cannot be read is logged
-    (`Media file not readable; left out`) and left out rather than failing the night.
+    (`Media file not readable; left out`) and left out rather than failing the night —
+    unless `STRICT` is on, and then it fails the pass, naming the file.
     A `ROOT` that does not exist is `W005` — a missing mount is worth knowing at start,
     not at 03:00.
 
@@ -53,7 +54,9 @@ Uploaded files, whatever holds them, packed into **volumes** of whole files.
     Every object under `PREFIX`, in key order, streamed straight from the bucket into the
     tar — nothing is staged on disk but the sealed volume. The object's full key is its
     name inside the archive. The source has its own credentials: a read-only key for the
-    media bucket, not the backup store's.
+    media bucket, not the backup store's. `ADDRESSING_STYLE`, `SIGNATURE_VERSION` and
+    `VERIFY` work as on the store — a MinIO or SeaweedFS media bucket needs
+    `'ADDRESSING_STYLE': 'path'` ([S3 providers](S3-providers.md#addressing-style)).
 
 ## Volumes
 
@@ -91,8 +94,8 @@ stage on its volumes as well, and the suffix becomes `.tar.zst.age`.
 ## Filters
 
 `INCLUDE` and `EXCLUDE` are lists of shell globs matched against each file's name inside
-the archive (`fnmatch`: `*` matches across `/` too). With `INCLUDE`, only matching names
-are kept; then anything matching `EXCLUDE` is left out:
+the archive (`fnmatch`: `*` matches across `/` too); blank items are dropped. With
+`INCLUDE`, only matching names are kept; then anything matching `EXCLUDE` is left out:
 
 ```python
 'EXCLUDE': ['*.tmp', 'cache/*', '*/thumbs/*'],   # regenerable, not worth a night's upload
@@ -120,11 +123,16 @@ acme/prod/media-private/...
 
 A single block instead of a list is accepted too.
 
-## Empty is not an error
+## Empty is not an error — unless it is required
 
 A source with no files writes no volume, and the message says how many objects went up.
 The [morning check](Monitoring.md) does not depend on media: tonight's media does not
 stand in for a database that was not written.
+
+When an empty source can only mean a missing mount or a wrong `ROOT` / `PREFIX`, make it
+required: `'REQUIRED': True` on the source (or `STRICT: True` for the whole pass) turns "no
+files at all" into a failed pass, with `SourceMissingError` naming the source in the FAILED
+message ([Settings](Settings.md#strict-and-required)).
 
 ## Leaving media out of one pass
 
@@ -133,7 +141,7 @@ the configuration only, and — in a project that has `MEDIA` configured — mar
 object `.without-media.`: the pass a deploy runs. Those objects never count as a night; see [Retention](Retention.md) and
 [Deploy integration](Deploy-integration.md).
 
-## Not in 0.1.0
+## Not yet
 
 A Docker volume *not* mounted where the backup runs (through the Docker API), any Django
 storage backend, and a manifest per volume for restoring one folder without downloading

@@ -7,6 +7,7 @@ and raised (so the scheduler's failure mail fires too). Store unreadable: UNCHEC
 loud. Media written tonight does not stand in for a database that was not.
 """
 
+import logging
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
@@ -17,6 +18,8 @@ from offsite_backup.outcome import MISSING, UNCHECKED, Outcome
 from offsite_backup.stores.base import Store
 
 __all__ = ('check_last_night', 'newest_whole')
+
+logger = logging.getLogger('offsite_backup')
 
 
 def newest_whole(store: Store, folder: str) -> datetime | None:
@@ -53,7 +56,16 @@ def check_last_night(*, now: datetime | None = None) -> datetime | None:
         notify(replace(base, kind=UNCHECKED, error=text), settings)
         raise BackupUncheckedError(text) from error
     limit = timedelta(hours=settings.stale_hours)
-    stale = {kind: when for kind, when in newest.items() if when is None or moment - when > limit}
+    # a database with no backup at all appeared after the last pass (a new tenant): not yet
+    # backed up, which is not MISSING. One whose dumps always fail is named by every FAILED
+    # message of the nightly pass itself, so it is not silent either
+    databases = {kind: when for kind, when in newest.items() if kind.startswith('db')}
+    # only beside a database that is backed up: one with nothing at all and nothing to compare is MISSING
+    backed_up = any(when is not None for when in databases.values())
+    new = sorted(kind for kind, when in databases.items() if when is None) if backed_up else []
+    if new:
+        logger.info('Databases not backed up yet', extra={'ob_kinds': new})
+    stale = {kind: when for kind, when in newest.items() if kind not in new and (when is None or moment - when > limit)}
     if stale:
         oldest = min(stale.values(), key=lambda when: when or datetime.min.replace(tzinfo=timezone.utc))
         notify(replace(base, kind=MISSING, newest=oldest, stale_hours=settings.stale_hours), settings)

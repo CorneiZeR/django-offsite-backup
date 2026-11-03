@@ -10,19 +10,26 @@ the test suite's backup messages to the team's chat. So:
 
 * **pytest**: installing the package registers a pytest plugin (`pytest11` entry point)
   that silences every notifier able to reach the network, from the first test to the
-  last. Nothing to configure.
-* **Django's test runner**: use the shipped runner, or mix it into yours:
+  last. Nothing to configure. Under **pytest-xdist** (`pytest -n 2`) every worker is a
+  process of its own that loads the plugin itself, so each one is silenced too.
+* **Django's test runner**: use the shipped runner —
 
     ```python
     TEST_RUNNER = 'offsite_backup.testing.OffsiteBackupTestRunner'
     ```
 
+    — or, when the project already has a runner of its own, mix the behaviour into it,
+    the mixin first:
+
     ```python
-    from offsite_backup.testing import OffsiteBackupTestRunner
+    from offsite_backup.testing import OffsiteBackupRunnerMixin
 
 
-    class ProjectRunner(OffsiteBackupTestRunner, YourRunner): ...
+    class ProjectRunner(OffsiteBackupRunnerMixin, YourRunner): ...
     ```
+
+    `OffsiteBackupTestRunner` is exactly `OffsiteBackupRunnerMixin` over Django's
+    `DiscoverRunner`.
 
 "Silenced" means: a notifier whose class says `REACHES_NETWORK = True` — Telegram,
 django-aiogram, and any third-party notifier unless it says otherwise — is not called.
@@ -43,6 +50,40 @@ from offsite_backup.testing import silence
 with silence():
     ...
 ```
+
+### Parallel workers
+
+`manage.py test --parallel N` runs the tests in worker processes, started with the
+platform's multiprocessing start method — **spawn** on macOS, and forkserver on Linux from
+Python 3.14. A spawned worker inherits the environment and nothing else: a switch set in
+the parent's memory never reaches it. The mixin therefore covers the workers three ways:
+
+* it sets `OFFSITE_BACKUP_SILENCE=1` in the parent's environment for the length of the run
+  (and restores what was there afterwards). Every worker inherits it, whatever the start
+  method, and `offsite_backup.notify.silenced()` honours it;
+* its `parallel_test_suite` is `SilencedParallelTestSuite`, a subclass of Django's
+  `ParallelTestSuite` whose `process_setup` silences each spawn or forkserver worker before
+  its first test (`notify.silence_process()`, for the rest of the worker's life);
+* the parent itself runs inside `silence()`, as before — the whole of a run without
+  `--parallel`, and a fork worker, which copies the parent's memory.
+
+**A runner that sets its own `parallel_test_suite`** replaces the mixin's. Make it a
+subclass of `SilencedParallelTestSuite`, or its workers rely on the environment variable
+alone:
+
+```python
+from offsite_backup.testing import OffsiteBackupRunnerMixin, SilencedParallelTestSuite
+
+
+class ProjectParallelSuite(SilencedParallelTestSuite): ...
+
+
+class ProjectRunner(OffsiteBackupRunnerMixin, YourRunner):
+    parallel_test_suite = ProjectParallelSuite
+```
+
+`OFFSITE_BACKUP_SILENCE=1` set by hand silences any process — a script, a CI step that must
+never notify.
 
 ## Asserting on messages: `capture()`
 

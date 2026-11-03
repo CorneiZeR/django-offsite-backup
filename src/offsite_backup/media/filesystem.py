@@ -9,7 +9,7 @@ from typing import IO
 
 from django.core import checks
 
-from offsite_backup.exceptions import MisconfiguredError
+from offsite_backup.exceptions import MisconfiguredError, SourceMissingError
 from offsite_backup.media.base import MediaEntry, MediaSource
 
 __all__ = ('DirectorySource',)
@@ -47,6 +47,9 @@ class DirectorySource(MediaSource):
                 if not path.is_file() or path.is_symlink():
                     continue
                 if not os.access(path, os.R_OK):
+                    if self.strict:
+                        msg = f'{self.label}: {path} cannot be read'
+                        raise SourceMissingError(msg)
                     logger.warning('Media file not readable; left out', extra={'ob_path': str(path)})
                     continue
                 yield MediaEntry(path.relative_to(root).as_posix(), stat.st_size, stat.st_mtime)

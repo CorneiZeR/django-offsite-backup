@@ -4,8 +4,10 @@ import contextlib
 from collections.abc import Iterator
 from typing import IO, Any
 
+from django.core import checks
+
 from offsite_backup.media.base import MediaEntry, MediaSource
-from offsite_backup.stores.s3 import make_client
+from offsite_backup.stores.s3 import check_client_options, make_client
 
 __all__ = ('S3Source',)
 
@@ -50,3 +52,7 @@ class S3Source(MediaSource):
             yield body, int(found['ContentLength'])
         finally:
             body.close()
+
+    def check(self) -> list[checks.CheckMessage]:
+        """The client options, as the store checks them."""
+        return [*super().check(), *check_client_options(self.options, self.label)]

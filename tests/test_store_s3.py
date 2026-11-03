@@ -134,3 +134,36 @@ def test_the_client_uses_only_the_configured_credentials(monkeypatch):
         {'BUCKET': 'b', 'ACCESS_KEY': 'mine', 'SECRET_KEY': 's', 'ENDPOINT_URL': 'http://127.0.0.1:1', 'REGION': 'x'}
     ).client
     assert client._request_signer._credentials.access_key == 'mine'
+
+
+@pytest.mark.parametrize('style', ['path', 'virtual'])
+def test_the_client_carries_the_addressing_style(style):
+    """MinIO and SeaweedFS need path-style addressing; it reaches botocore's config."""
+    pytest.importorskip('boto3')
+    client = S3Store({'BUCKET': 'b', 'ACCESS_KEY': 'k', 'SECRET_KEY': 's', 'ADDRESSING_STYLE': style}).client
+    assert client.meta.config.s3['addressing_style'] == style
+
+
+def test_the_client_carries_signature_and_verify(tmp_path):
+    """SIGNATURE_VERSION and a CA bundle path reach the client."""
+    pytest.importorskip('boto3')
+    bundle = tmp_path / 'bundle.txt'
+    bundle.write_text('x')
+    options = {
+        'BUCKET': 'b',
+        'SIGNATURE_VERSION': 's3v4',
+        'VERIFY': str(bundle),
+        'ENDPOINT_URL': 'https://s3.example.com',
+    }
+    client = S3Store(options).client
+    assert client.meta.config.signature_version == 's3v4'
+    assert client._endpoint.http_session._verify == str(bundle)
+
+
+def test_an_unknown_addressing_style_is_e001(fake):
+    """A typo in the style is refused at start, on the store and on the media source."""
+    from offsite_backup.media.s3 import S3Source
+
+    assert 'offsite_backup.E001' in [m.id for m in store(ADDRESSING_STYLE='paths').check()]
+    assert 'offsite_backup.E001' in [m.id for m in S3Source({'BUCKET': 'm', 'ADDRESSING_STYLE': 'paths'}).check()]
+    assert 'offsite_backup.E001' in [m.id for m in store(VERIFY='/no/such/bundle').check()]

@@ -76,6 +76,14 @@ in `pg_stat_activity` as `application_name = offsite_backup`.
 formats apart by the archive's magic bytes (`PGDMP`), and decompresses whatever starts with
 zstd's — so objects written under an older naming scheme restore too.
 
+**Switching from custom-format dumps named `.sql…`.** A project whose own backups were
+custom-format dumps under a `.sql.zst.age` name, and which now sets `FORMAT: 'custom'`, sees
+both names in a database's folder for one retention window — the old `.sql.zst.age`
+objects, the new `.dump.zst.age` ones — until the old ones rotate out. That is expected and
+harmless: rotation reads nights from the stamps, not from the suffix, and a restore
+detects the format from the magic bytes. There is no option to keep the old suffix: a
+suffix that does not name the format is how a custom dump ends up fed to `psql`.
+
 The custom format is dumped with `pg_dump`'s own compression **off** and compressed by
 zstd: zstd compresses better, and compressed data does not compress twice. It is what you
 want when you need `pg_restore --list` (an integrity read of the whole table of contents,
@@ -123,7 +131,8 @@ that folder once the alias is no longer among the pass's targets.
 
 * `extra_recipients=['age1...']` seals this one dump to more keys as well — for a database
   the server itself must be able to restore later (waking a tenant), seal it to a key the
-  server holds. Every other backup stays readable off the machine only.
+  server holds. Every other backup stays readable off the machine only. Restoring it on
+  the server: `restore_database(..., identity_text=...)` ([Restore](Restore.md#3-load-a-database)).
 * `keep_apart=True` writes it under `<PREFIX>/released/db-<alias>/` instead, where no
   rotation ever reads — so an alias reused later never mixes two databases' history.
 
@@ -137,7 +146,7 @@ own rotation will take it.
 
 ## Other databases
 
-0.1.0 ships PostgreSQL. MySQL (`mysqldump --single-transaction`) and SQLite (the online
+PostgreSQL is the one source shipped. MySQL (`mysqldump --single-transaction`) and SQLite (the online
 backup API) are on the roadmap; meanwhile a subclass of
 `offsite_backup.databases.base.DatabaseSource` named in `BACKEND` works without any change
 to the package.
