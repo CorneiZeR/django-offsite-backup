@@ -93,7 +93,7 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
           pip-version: '25.1'
-      - run: pip install -e '.[s3,telegram]' --group test 'django==5.2.0' 'boto3==1.34.0' 'httpx2==2.16.0'
+      - run: pip install -e '.[s3,telegram]' --group test 'django==5.2.0' 'boto3==1.34.0' 'httpx2==2.0.0'
       - run: python -m pytest -q
 
   integration:

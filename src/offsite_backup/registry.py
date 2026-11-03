@@ -34,6 +34,12 @@ def missing_extra(path: str) -> str | None:
     module, extra = SHIPPED[path]
     if importlib.util.find_spec(module) is not None:
         return None
+    if module == 'boto3':
+        from offsite_backup.stores import s3  # noqa: PLC0415 - imports no driver
+
+        if s3.CLIENT_FACTORY is not None:
+            # a client factory (testing.use_fake_s3) stands in for the driver entirely
+            return None
     return f'pip install "django-offsite-backup[{extra}]"'
 
 
