@@ -55,9 +55,15 @@ def test_a_missing_extra_is_e002_with_the_install_line(configured, monkeypatch):
     """The check names the extra even where the import would fail."""
     import importlib.util
 
+    from offsite_backup.stores import s3
+
     real = importlib.util.find_spec
     monkeypatch.setattr(importlib.util, 'find_spec', lambda name, *a: None if name == 'boto3' else real(name, *a))
-    [error] = [message for message in check_settings() if message.id == 'offsite_backup.E002']
+    installed, s3.CLIENT_FACTORY = s3.CLIENT_FACTORY, None
+    try:
+        [error] = [message for message in check_settings() if message.id == 'offsite_backup.E002']
+    finally:
+        s3.CLIENT_FACTORY = installed
     assert error.hint == 'pip install "django-offsite-backup[s3]"'
 
 
@@ -80,7 +86,11 @@ def test_keep_not_above_lock_is_e007(configured, settings):
 
 def test_a_private_key_as_recipient_is_e008():
     """The machine must hold public keys only."""
-    assert ids(AgeCli({'RECIPIENTS': ['AGE-SECRET-KEY-1XYZ']}).check()) == ['offsite_backup.E008']
+    assert [
+        found
+        for found in ids(AgeCli({'RECIPIENTS': ['AGE-SECRET-KEY-1XYZ']}).check())
+        if found != 'offsite_backup.E003'
+    ] == ['offsite_backup.E008']
 
 
 def test_a_directory_store_warns_w001(configured, settings, tmp_path):
@@ -354,8 +364,9 @@ def test_a_public_recipient_alone_leaves_backups_off(settings):
 def test_a_custom_compressor_is_checked_by_its_own_name(configured, settings):
     """E003 names the binary COMPRESS actually runs."""
     settings.OFFSITE_BACKUP['COMPRESS'] = ['no-such-compressor']
-    [error] = [message for message in check_settings() if message.id == 'offsite_backup.E003']
-    assert 'no-such-compressor' in error.msg
+    assert any(
+        'no-such-compressor' in message.msg for message in check_settings() if message.id == 'offsite_backup.E003'
+    )
 
 
 def test_directory_store_creates_every_directory_private(tmp_path):
@@ -366,3 +377,12 @@ def test_directory_store_creates_every_directory_private(tmp_path):
     store.put(source, 'acme/prod/db/2026-01-01T03-00Z.sql')
     for directory in ('store', 'store/acme', 'store/acme/prod'):
         assert oct((tmp_path / directory).stat().st_mode & 0o777) == '0o700'
+
+
+def test_a_fake_client_stands_in_for_the_driver(configured, monkeypatch):
+    """Under use_fake_s3 a project's tests need no boto3."""
+    import importlib.util
+
+    real = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, 'find_spec', lambda name, *a: None if name == 'boto3' else real(name, *a))
+    assert 'offsite_backup.E002' not in ids(check_settings())

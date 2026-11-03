@@ -39,7 +39,7 @@ imported only when a pass first needs it, and its driver is an extra:
 | extra | pulls | for |
 | --- | --- | --- |
 | `s3` | `boto3>=1.34` | `offsite_backup.stores.s3.S3Store`, `offsite_backup.media.s3.S3Source` |
-| `telegram` | `httpx2>=2.16` | `offsite_backup.notifiers.telegram.TelegramNotifier` |
+| `telegram` | `httpx2>=2.0` | `offsite_backup.notifiers.telegram.TelegramNotifier` |
 | `aiogram` | `django-aiogram>=5.2` | `offsite_backup.notifiers.django_aiogram.TopicNotifier` |
 | `all` | all of the above | |
 

@@ -74,7 +74,9 @@ def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> l
     messages += errors
     for backend in built:
         messages += backend.check()
-    for binary in {command[0] for command in (settings['COMPRESS'], settings['DECOMPRESS']) if command}:
+    # the decompressor only matters where something is compressed
+    compressors = (settings['COMPRESS'], settings['DECOMPRESS']) if settings['COMPRESS'] else ()
+    for binary in sorted({command[0] for command in compressors if command}):
         if not shutil.which(binary):
             messages.append(
                 checks.Error(
