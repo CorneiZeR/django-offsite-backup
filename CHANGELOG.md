@@ -46,6 +46,11 @@ Changed
 - The pass's object count (message, `backup_offsite`, `ob_objects`) includes manifests, and
   counts each object once however many stores hold it.
 - `fetch()` / `backup_restore --stamp` also brings back each volume's manifest.
+- `pass_.Components` holds `stores` (a list); `Components.store` is the first of them, as
+  before. `Wrote` carries the `store` it went to; `Summary` adds `objects`, `stores` and
+  `failed_stores`, and its `bytes` and `keys` count each object once.
+- `MediaSource.seal_volumes()` packs and seals while the files stream; `items()` is the one
+  method a source that can only stream overrides. `volumes()` and `seal_volume()` remain.
 
 ## 0.3.0 — 2026-11-04
 
