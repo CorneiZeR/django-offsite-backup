@@ -174,9 +174,11 @@ class _Pass:
             try:
                 self.ship(source.dump(alias, self.here / name, sealing), kind)
             except Exception as error:  # recorded; raised at the end
+                (self.here / name).unlink(missing_ok=True)
+                if not self.healthy:
+                    raise  # no store left: the stores' refusals are the pass's error, not this database's
                 logger.exception('Database not backed up', extra={'ob_alias': alias})
                 self.summary.failed[alias] = _error_text(error)
-                (self.here / name).unlink(missing_ok=True)
 
     def media(self, sealing: Sealing) -> None:
         """Every source, one volume at a time, each followed by its manifest."""

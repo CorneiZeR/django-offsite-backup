@@ -55,7 +55,8 @@ restore/media/2026-03-10T03-00Z.002.tar
   bytes — decompressed, into `<into>/<kind>/`. `--into` defaults to `./restore-<stamp>`.
 * `--kind db` (repeatable) takes only some kinds — skip a night's media when you need the
   database. `--database ALIAS` takes that one database's dump (its kind, `db` or
-  `db-<alias>`) and nothing else.
+  `db-<alias>`) and nothing else; beside `--kind` it narrows — a `--kind` list without
+  that database is refused rather than widened.
 * `--store NAME` reads from another of [several stores](Stores-several.md) — the local copy
   while the off-site one is out of reach, or the other way round. The first store is the
   default, for every command and function on this page (`store=` in Python).

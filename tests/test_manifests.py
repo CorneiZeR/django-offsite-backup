@@ -226,3 +226,27 @@ def test_backup_restore_database_fetches_that_dump_alone(configured, fake_s3, no
     [line] = out.getvalue().splitlines()
     assert '/db-reports/' in line
     assert line.endswith('(verified)')
+
+
+def restore_command(tmp_path, *args):
+    out = StringIO()
+    call_command(
+        'backup_restore', '--stamp', 'latest', '--identity', __file__, '--into', str(tmp_path), *args, stdout=out
+    )
+    return out.getvalue().splitlines()
+
+
+def test_backup_restore_database_narrows_kind(configured, fake_s3, now, tmp_path, settings):
+    """--database with --kind is the intersection: that database alone, not the kinds added to it."""
+    settings.OFFSITE_BACKUP['DATABASES']['ALIASES'] = ['default', 'reports']
+    run(now=now)
+    [line] = restore_command(tmp_path, '--kind', 'media', '--kind', 'db-reports', '--database', 'reports')
+    assert '/db-reports/' in line
+
+
+def test_backup_restore_database_outside_kind_is_refused(configured, fake_s3, now, tmp_path, settings):
+    """An empty intersection is said, not widened into fetching both."""
+    settings.OFFSITE_BACKUP['DATABASES']['ALIASES'] = ['default', 'reports']
+    run(now=now)
+    with pytest.raises(CommandError, match='leaves out'):
+        restore_command(tmp_path, '--kind', 'media', '--database', 'reports')

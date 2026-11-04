@@ -105,6 +105,34 @@ def test_every_store_refusing_fails_at_once(two_stores, now, settings, tmp_path)
         run(now=now)
 
 
+def refuse_everywhere(settings, tmp_path):
+    for block in settings.OFFSITE_BACKUP['STORE']:
+        block.update({'BACKEND': 'tests.backends.RefusingStore', 'ROOT': str(tmp_path / block['NAME'])})
+
+
+def test_every_store_refusing_a_database_names_the_stores(two_stores, now, settings, tmp_path):
+    """--only db: the stores' refusals are the error, said by name — not an IndexError from rotation."""
+    refuse_everywhere(settings, tmp_path)
+    with (
+        capture() as said,
+        pytest.raises(BackupFailedError, match=r'no store took the backup — offsite: OSError.*local: OSError'),
+    ):
+        run(now=now, only=['db'])
+    [(outcome, text)] = said
+    assert outcome.kind == 'failed'
+    assert 'IndexError' not in text
+    assert 'offsite' in text and 'local' in text
+
+
+def test_every_store_refusing_stops_at_the_first_database(two_stores, now, settings, tmp_path):
+    """No other database is dumped and thrown away once nothing can take it."""
+    refuse_everywhere(settings, tmp_path)
+    settings.OFFSITE_BACKUP['DATABASES']['ALIASES'] = ['default', 'tenant1', 'tenant2']
+    with pytest.raises(BackupFailedError, match='no store took the backup'):
+        run(now=now)
+    assert backends.DUMPED == ['default']
+
+
 def test_each_store_rotates_by_its_own_keep_nights(two_stores, fake_s3, now, local, settings):
     """A short local window and a long off-site one, from the same passes."""
     settings.OFFSITE_BACKUP['STORE'][0]['LOCK_DAYS'] = 0

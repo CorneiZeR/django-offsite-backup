@@ -10,6 +10,15 @@ from offsite_backup.exceptions import BackupError
 from offsite_backup.restore import IDENTITY_ENV, fetch, restore_database, restore_media
 
 
+def _one_database(alias: str, kinds: list[str]) -> list[str]:
+    """``--database`` narrows: alone, that database only; with ``--kind``, only if it is among them."""
+    kind = naming.db_kind(alias)
+    if kinds and kind not in kinds:
+        msg = f'--database {alias} is {kind}/, which --kind {", ".join(kinds)} leaves out'
+        raise CommandError(msg)
+    return [kind]
+
+
 class Command(BaseCommand):
     """Bring a backup back."""
 
@@ -69,7 +78,7 @@ class Command(BaseCommand):
                     self.stdout.write(f'{restored.path}' + ('  (verified)' if restored.verified else ''))
                 return
             if options['database']:
-                kinds.append(naming.db_kind(options['database']))
+                kinds = _one_database(options['database'], kinds)
             for restored in fetch(
                 options['stamp'], into=into, identity=options['identity'], kinds=kinds, store=options['store']
             ):
