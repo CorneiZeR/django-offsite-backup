@@ -26,9 +26,9 @@ def psql(tmp_path, monkeypatch):
             f"""\
             #!{sys.executable}
             import json, os, sys
-            command = next(arg for arg in sys.argv if arg.startswith('--command=')).removeprefix('--command=')
+            command = sys.stdin.read()
             with open({str(log)!r}, 'a') as log:
-                log.write(json.dumps({{'argv': sys.argv[1:], 'password': os.environ.get('PGPASSWORD')}}) + '\\n')
+                log.write(json.dumps({{'argv': sys.argv[1:], 'sql': command, 'password': os.environ.get('PGPASSWORD')}}) + '\\n')
             if 'FAIL' in os.environ.get('FAKE_PSQL', ''):
                 sys.stderr.write('connection refused')
                 sys.exit(2)
@@ -101,9 +101,17 @@ def test_clear_drops_every_schema_and_makes_public_anew(psql):
     """The drill's clean-up is one statement against the target."""
     source().clear('default')
     [call] = psql()
-    command = next(arg for arg in call['argv'] if arg.startswith('--command='))
+    command = call['sql']
     assert 'DROP SCHEMA %I CASCADE' in command
     assert command.endswith('DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;')
+
+
+def test_the_statement_travels_on_stdin_not_in_argv(psql, monkeypatch):
+    """A count per table of thousands of tables would not fit in one argument."""
+    monkeypatch.setenv('FAKE_TABLES', ','.join(f'tenant_{n}.orders' for n in range(3000)))
+    assert len(source().tables('default')) == 3000
+    for call in psql():
+        assert not any(arg.startswith('--command') for arg in call['argv'])
 
 
 def test_server_major_is_asked_through_psql(psql):

@@ -185,6 +185,13 @@ def test_list_and_restore(server, tmp_path, monkeypatch, capsys):
     assert list((into / 'config').iterdir())
 
 
+def test_list_refuses_a_setting_configured_by_halves(server, capsys):
+    """list loads the setting as every other command does: E001's names, exit 1."""
+    server.write_text(TOML.replace('PREFIX = "acme/registry"', 'PREFIX = ""'))
+    assert main(['--config', str(server), 'list']) == 1
+    assert "OFFSITE_BACKUP['PREFIX']" in capsys.readouterr().err
+
+
 def test_a_failing_pass_exits_one_and_names_it(server, capsys):
     """A required path missing: 1, and the path named."""
     server.write_text(TOML.replace('PATHS = ["${DEPLOY_DIR}"]', 'PATHS = ["/gone"]\nREQUIRED = true'))

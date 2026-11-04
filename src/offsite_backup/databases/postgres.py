@@ -92,11 +92,17 @@ class PostgresSource(DatabaseSource):
         return argv, env
 
     def psql(self, alias: str, sql: str) -> list[list[str]]:
-        """Run ``sql`` against ``alias``; the rows it printed, each split on tabs."""
+        """Run ``sql`` against ``alias``; the rows it printed, each split on tabs.
+
+        The statement goes on stdin, not in argv: one count per table of a database with
+        thousands of them is longer than a single argument may be.
+        """
         argv, env = self.connection(alias)
-        command = [*_PSQL, '--tuples-only', '--no-align', '--field-separator=\t', *argv, f'--command={sql}']
+        command = [*_PSQL, '--tuples-only', '--no-align', '--field-separator=\t', *argv]
         try:
-            done = subprocess.run(command, capture_output=True, env={**os.environ, **env}, check=False)
+            done = subprocess.run(
+                command, input=sql.encode(), capture_output=True, env={**os.environ, **env}, check=False
+            )
         except OSError as error:
             msg = f'`psql` could not be started: {error.strerror or error}'
             raise PipelineError(msg) from error

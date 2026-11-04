@@ -211,7 +211,7 @@ def _list(args: argparse.Namespace, settings: conf.Settings) -> int:
     from offsite_backup import listing  # noqa: PLC0415
     from offsite_backup.pass_ import components  # noqa: PLC0415
 
-    table = listing.rows(components(settings), args.kind or ())
+    table = listing.rows(components(), args.kind or ())
     if args.json:
         _say(json.dumps({'prefix': settings.prefix, 'kinds': table}, indent=2))
     else:
