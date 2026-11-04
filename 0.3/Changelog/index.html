@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1011,6 +1011,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Testing/" class="md-nav__link">
         
   
@@ -1300,6 +1328,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#040-unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.4.0 — unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.4.0 — unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#030-2026-11-04" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1375,6 +1431,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#040-unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.4.0 — unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.4.0 — unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#030-2026-11-04" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1433,6 +1517,29 @@
 
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<h2 id="040-unreleased">0.4.0 — unreleased<a class="headerlink" href="#040-unreleased" title="Permanent link">&para;</a></h2>
+<p>Nothing to edit in a Django project; <a href="../Upgrading/#from-03-to-04">Upgrading</a> has the three
+behaviours that move and what to consider turning on.</p>
+<h3 id="operations">Operations<a class="headerlink" href="#operations" title="Permanent link">&para;</a></h3>
+<p><strong>The restore drill.</strong> <code>manage.py backup_drill</code> (and <code>offsite-backup drill</code>, <code>run_drill()</code>)
+downloads the newest whole backup, decrypts it, restores every database into the throwaway
+<code>DRILL['DATABASE']</code> — never a live one: a target reaching a database the pass dumps is
+refused, and is <code>E011</code> under <code>check --deploy</code> — counts every table there and live, opens
+every media volume and the configuration archive, says the outcome through the notifiers
+and empties the target. A schedule entry for it in both adapters, off unless asked
+(<code>beat_schedule(drill=...)</code>, <code>register(broker, drill=...)</code>). <a href="../Restore/#the-monthly-drill">Restore</a>.</p>
+<p><strong>A webhook notifier.</strong> <code>WebhookNotifier</code> (<code>[webhook]</code>) POSTs the outcome as JSON beside its
+text, signed with HMAC-SHA256 when given a <code>SECRET</code>, retried on a network error, a 429 or a
+5xx; <code>E010</code> checks its options. <a href="../Notifications/#a-webhook">Notifications</a>.</p>
+<p><strong>The age of every kind, for a monitor.</strong> <code>manage.py backup_status</code> (<code>offsite-backup status</code>,
+<code>freshness()</code>) answers each kind's newest whole backup and its age, exits 1 when one is
+stale and 2 when the store cannot be read, and writes a Prometheus textfile with
+<code>--prometheus</code>. <a href="../Monitoring/#the-age-of-every-kind">Monitoring</a>.</p>
+<p><strong>Without Django.</strong> The <code>offsite-backup</code> command runs the same passes, checks, restore and
+drill on a server with no Django project, from a TOML file whose top level is
+<code>OFFSITE_BACKUP</code>, with <code>${NAME}</code> read from the environment and <code>--env-file</code> files.
+<code>PostgresSource</code> takes its connections from <code>CONNECTIONS</code>. Django is the <code>[django]</code> extra;
+the core imports without it. <a href="../Plain-servers/">Without Django</a>.</p>
 <h2 id="030-2026-11-04">0.3.0 — 2026-11-04<a class="headerlink" href="#030-2026-11-04" title="Permanent link">&para;</a></h2>
 <p>Nothing to edit on upgrade; <a href="../Upgrading/#from-02-to-03">Upgrading</a> has the two checks that
 moved.</p>
@@ -1559,7 +1666,7 @@ notifiers; <code>capture()</code>, <code>FakeS3</code>, <code>use_fake_s3</code>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 19:32:49 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

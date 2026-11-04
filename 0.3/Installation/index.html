@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1106,6 +1106,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Testing/" class="md-nav__link">
         
   
@@ -1457,7 +1485,7 @@
 
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">S3 + Telegram</label><label for="__tabbed_1_2">S3 + django-aiogram</label><label for="__tabbed_1_3">Directory only</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">S3 + Telegram</label><label for="__tabbed_1_2">S3 + django-aiogram</label><label for="__tabbed_1_3">Directory only</label><label for="__tabbed_1_4">A server without Django</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'django-offsite-backup[s3,telegram]'</span>
@@ -1477,13 +1505,21 @@ settings.</p>
 <p>A local directory or Docker volume as the store, messages to the log. No driver at all
 — and no immutability either; see <a href="../Stores-directory/">Stores: directory</a>.</p>
 </div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span><span class="s1">'django-offsite-backup[cli,s3,telegram]'</span>
+</code></pre></div>
+<p>The <code>offsite-backup</code> command, a TOML setting, the same passes — see
+<a href="../Plain-servers/">Without Django</a>.</p>
 </div>
 </div>
-<p>Requires Python 3.10–3.14 and Django 5.2+. Every pair in that range runs in CI, and an
+</div>
+<p>Requires Python 3.10–3.14, and Django 5.2+ for the Django layer (a Django project has it
+already). Every pair in that range runs in CI, and an
 integration job runs a whole cycle — backup, restore into a clean database, row counts of
 every table compared — against PostgreSQL 16 and 18 and an S3 server with Object Lock.</p>
 <h2 id="extras">Extras<a class="headerlink" href="#extras" title="Permanent link">&para;</a></h2>
-<p>The base install is Django alone. Every backend is named by a dotted path in the settings,
+<p>The base install pulls nothing — not even Django, which a Django project brings itself and a
+plain server does not need. Every backend is named by a dotted path in the settings,
 imported only when a pass first needs it, and its driver is an extra:</p>
 <table>
 <thead>
@@ -1495,6 +1531,16 @@ imported only when a pass first needs it, and its driver is an extra:</p>
 </thead>
 <tbody>
 <tr>
+<td><code>django</code></td>
+<td><code>django&gt;=5.2</code></td>
+<td>the Django layer — the app, the commands, the system checks — where the project does not already pin Django</td>
+</tr>
+<tr>
+<td><code>cli</code></td>
+<td><code>tomli&gt;=2.0</code> on Python 3.10 only</td>
+<td>the <code>offsite-backup</code> command's TOML setting (<a href="../Plain-servers/">Without Django</a>)</td>
+</tr>
+<tr>
 <td><code>s3</code></td>
 <td><code>boto3&gt;=1.34</code></td>
 <td><code>offsite_backup.stores.s3.S3Store</code>, <code>offsite_backup.media.s3.S3Source</code></td>
@@ -1503,6 +1549,11 @@ imported only when a pass first needs it, and its driver is an extra:</p>
 <td><code>telegram</code></td>
 <td><code>httpx2&gt;=2.0</code></td>
 <td><code>offsite_backup.notifiers.telegram.TelegramNotifier</code></td>
+</tr>
+<tr>
+<td><code>webhook</code></td>
+<td><code>httpx2&gt;=2.0</code></td>
+<td><code>offsite_backup.notifiers.webhook.WebhookNotifier</code></td>
 </tr>
 <tr>
 <td><code>aiogram</code></td>
@@ -1550,7 +1601,7 @@ Python dependencies; install them in the image that runs the backup:</p>
 </tr>
 <tr>
 <td><code>psql</code>, <code>pg_restore</code></td>
-<td>restoring a database (<code>backup_restore --apply</code>) and verifying a custom-format dump; shipped with <code>pg_dump</code> in every PostgreSQL client package</td>
+<td>restoring a database (<code>backup_restore --apply</code>, the drill), verifying a custom-format dump, and every question asked of the server (is the target empty, row counts, its version); shipped with <code>pg_dump</code> in every PostgreSQL client package</td>
 <td><code>E003</code></td>
 </tr>
 </tbody>
@@ -1658,7 +1709,7 @@ the deploy pass in front of your migrations (<a href="../Deploy-integration/">De
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 19:32:49 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

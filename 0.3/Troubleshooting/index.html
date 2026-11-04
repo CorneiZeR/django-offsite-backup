@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1013,6 +1013,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Testing/" class="md-nav__link">
         
   
@@ -1312,6 +1340,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#e011-the-drills-target-is-a-live-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E011 — the drill's target is a live database
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#w001-a-directory-store" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1443,6 +1482,28 @@
     <span class="md-ellipsis">
       
         PipelineError from age
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drillfailederror-n-parts-of-stamp-did-not-come-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DrillFailedError: N part(s) of &lt;stamp&gt; did not come back — ...
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#offsite-backup-no-setting-pass-config-file-or-set-offsite_backup_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        offsite-backup: no setting — pass --config FILE or set OFFSITE_BACKUP_CONFIG
       
     </span>
   </a>
@@ -1819,6 +1880,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#e011-the-drills-target-is-a-live-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E011 — the drill's target is a live database
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#w001-a-directory-store" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1950,6 +2022,28 @@
     <span class="md-ellipsis">
       
         PipelineError from age
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drillfailederror-n-parts-of-stamp-did-not-come-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DrillFailedError: N part(s) of &lt;stamp&gt; did not come back — ...
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#offsite-backup-no-setting-pass-config-file-or-set-offsite_backup_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        offsite-backup: no setting — pass --config FILE or set OFFSITE_BACKUP_CONFIG
       
     </span>
   </a>
@@ -2255,10 +2349,36 @@ deploy check, not a plain one, so that containers that never run a pass are not 
 <td><code>['DELIVERY'] is ...; expected one of direct, queue</code></td>
 <td><code>'direct'</code> or <code>'queue'</code> (<a href="../Notifications/#direct-or-queued">Notifications</a>)</td>
 </tr>
+<tr>
+<td><code>['URL'] is not an http:// or https:// URL</code></td>
+<td>the receiver's full URL (<a href="../Notifications/#a-webhook">Notifications</a>)</td>
+</tr>
+<tr>
+<td><code>['TIMEOUT'] is ..., not a positive number of seconds</code></td>
+<td>a number above 0, e.g. <code>10</code></td>
+</tr>
+<tr>
+<td><code>['RETRIES'] is ..., not a whole number of 0 or more</code></td>
+<td><code>0</code> for no retry, <code>2</code> by default</td>
+</tr>
+<tr>
+<td><code>['HEADERS'] is not a mapping of names to values</code></td>
+<td><code>{'Authorization': 'Bearer ...'}</code></td>
+</tr>
 </tbody>
 </table>
 <p>A malformed option would make Telegram refuse every message, so it is an error at start
 rather than a silent night.</p>
+<h3 id="e011-the-drills-target-is-a-live-database"><code>E011</code> — the drill's target is a live database<a class="headerlink" href="#e011-the-drills-target-is-a-live-database" title="Permanent link">&para;</a></h3>
+<p><code>DRILL['DATABASE']</code> names a database the pass backs up — the same alias, or another alias
+whose host, port and database name are the same (<code>localhost</code>, <code>127.0.0.1</code> and <code>::1</code> are one
+host; an empty port is the default one) — or an alias that names no database at all. The
+drill empties and overwrites its target, so it refuses to run, and <code>check --deploy</code> says so
+first. Point <code>DRILL['DATABASE']</code> at a scratch database: another server, or another database
+name on the same one.</p>
+<div class="highlight"><pre><span></span><code><span class="n">DATABASES</span><span class="p">[</span><span class="s1">'drill'</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">DATABASES</span><span class="p">[</span><span class="s1">'default'</span><span class="p">],</span> <span class="s1">'NAME'</span><span class="p">:</span> <span class="s1">'acme_drill'</span><span class="p">}</span>
+<span class="n">OFFSITE_BACKUP</span><span class="p">[</span><span class="s1">'DRILL'</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'DATABASE'</span><span class="p">:</span> <span class="s1">'drill'</span><span class="p">}</span>
+</code></pre></div>
 <h3 id="w001-a-directory-store"><code>W001</code> — a directory store<a class="headerlink" href="#w001-a-directory-store" title="Permanent link">&para;</a></h3>
 <p>No immutability, on the machine it protects. Fine for a fast local copy or a staging
 machine; silence it there (<code>SILENCED_SYSTEM_CHECKS</code>). For production, the disaster copy
@@ -2341,6 +2461,19 @@ or when <code>DEFAULT_REASON</code> is <code>deploy</code>.</p>
 <h3 id="pipelineerror-from-age"><code>PipelineError</code> from <code>age</code><a class="headerlink" href="#pipelineerror-from-age" title="Permanent link">&para;</a></h3>
 <p>Usually a malformed recipient that slipped past <code>E008</code> (several keys in one string), or —
 in a restore — the wrong identity: <code>no identity matched any of the recipients</code>.</p>
+<h3 id="drillfailederror-n-parts-of-stamp-did-not-come-back"><code>DrillFailedError: N part(s) of &lt;stamp&gt; did not come back — ...</code><a class="headerlink" href="#drillfailederror-n-parts-of-stamp-did-not-come-back" title="Permanent link">&para;</a></h3>
+<p>The drill names every object that did not come back and the step it failed at:
+<code>download and decrypt</code> (the identity does not open it, or the store refused), <code>verify</code> (a
+cut-short dump), <code>empty 'drill'</code> / <code>restore into 'drill'</code> (the throwaway database refused —
+its role, its version, a missing extension), <code>count 'drill'</code>, or <code>list</code> (a media volume or
+the configuration archive that does not read to its end as a tar). <code>the restored database has
+no tables</code> means the dump loaded nothing. Everything else in the drill still ran; the
+message lists what came back. <code>empty 'drill' afterwards</code> means the clean-up failed and a copy
+of production is still in the throwaway database: empty it by hand.</p>
+<h3 id="offsite-backup-no-setting-pass-config-file-or-set-offsite_backup_config"><code>offsite-backup: no setting — pass --config FILE or set OFFSITE_BACKUP_CONFIG</code><a class="headerlink" href="#offsite-backup-no-setting-pass-config-file-or-set-offsite_backup_config" title="Permanent link">&para;</a></h3>
+<p>The command line found no TOML file to read; exit 2. A file that is not there, an
+<code>--env-file</code> that is not there and TOML that does not parse are 2 as well, each naming the
+file. See <a href="../Plain-servers/">Without Django</a>.</p>
 <h3 id="a-database-restore-says-is-not-empty">A database restore says "is not empty"<a class="headerlink" href="#a-database-restore-says-is-not-empty" title="Permanent link">&para;</a></h3>
 <p><code>backup_restore --apply</code> refuses a database that has tables. Restore into an empty one, or
 add <code>--clean</code> to drop and recreate the <code>public</code> schema first.</p>
@@ -2468,7 +2601,7 @@ code and pinned by a test.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 19:32:49 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

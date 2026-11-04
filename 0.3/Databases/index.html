@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1150,6 +1150,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Testing/" class="md-nav__link">
         
   
@@ -1589,11 +1617,28 @@ naming every alias that did not go up:</p>
 <div class="highlight"><pre><span></span><code>backup_offsite: 1 database(s) not backed up, the rest went up — analytics: PipelineError: `pg_dump` exited with status 1: ...
 </code></pre></div>
 <h2 id="the-connection">The connection<a class="headerlink" href="#the-connection" title="Permanent link">&para;</a></h2>
-<p>From <code>DATABASES[alias]</code>: <code>HOST</code>, <code>PORT</code>, <code>USER</code> and <code>NAME</code> become <code>pg_dump</code> flags;
+<p>From <code>DATABASES[alias]</code> — or, when the source has a <code>CONNECTIONS</code> block, from that block's
+<code>CONNECTIONS[alias]</code>, with the same keys. <code>CONNECTIONS</code> is how a server with no Django
+project names its databases (<a href="../Plain-servers/">Without Django</a>), and how a Django project
+names one it does not want in <code>DATABASES</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="s1">'DATABASES'</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.databases.postgres.PostgresSource'</span><span class="p">,</span>
+    <span class="s1">'ALIASES'</span><span class="p">:</span> <span class="p">[</span><span class="s1">'default'</span><span class="p">],</span>
+    <span class="s1">'CONNECTIONS'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">'default'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'HOST'</span><span class="p">:</span> <span class="s1">'db'</span><span class="p">,</span> <span class="s1">'PORT'</span><span class="p">:</span> <span class="s1">'5432'</span><span class="p">,</span> <span class="s1">'USER'</span><span class="p">:</span> <span class="s1">'app'</span><span class="p">,</span> <span class="s1">'PASSWORD'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'DB_PASSWORD'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span> <span class="s1">'NAME'</span><span class="p">:</span> <span class="s1">'app'</span><span class="p">},</span>
+    <span class="p">},</span>
+<span class="p">},</span>
+</code></pre></div>
+<p>With <code>CONNECTIONS</code> set, Django's <code>DATABASES</code> is not read at all for this source, and an
+alias missing from it is refused by name. <code>ALIASES</code> still says which are dumped.</p>
+<p><code>HOST</code>, <code>PORT</code>, <code>USER</code> and <code>NAME</code> become <code>pg_dump</code> flags;
 <code>PASSWORD</code> travels in <code>PGPASSWORD</code>, <strong>never on the command line</strong> — a command line is
 visible in <code>ps</code>, and an error text is posted to a chat. <code>OPTIONS['sslmode']</code> and
 <code>OPTIONS['sslrootcert']</code> become <code>PGSSLMODE</code> and <code>PGSSLROOTCERT</code>. The connection shows up
-in <code>pg_stat_activity</code> as <code>application_name = offsite_backup</code>.</p>
+in <code>pg_stat_activity</code> as <code>application_name = offsite_backup</code>. Every question the package asks
+the server — whether a restore target is empty, how many rows a table holds, the server's
+version for <code>E004</code> — goes through <code>psql</code> with the same connection, so it needs no Django
+connection either.</p>
 <h2 id="formats">Formats<a class="headerlink" href="#formats" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1698,7 +1743,7 @@ to the package.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2026 19:45:53 UTC">November 3, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1013,6 +1013,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Testing/" class="md-nav__link">
         
   
@@ -1441,7 +1469,7 @@ test suite posting to the team's chat, a bucket without Object Lock. This page i
 brief to hand them.</p>
 <h2 id="paste-this-in">Paste this in<a class="headerlink" href="#paste-this-in" title="Permanent link">&para;</a></h2>
 <p>Short enough for a system prompt or a <code>CLAUDE.md</code> / <code>AGENTS.md</code> / <code>.cursor/rules</code> file:</p>
-<div class="highlight"><pre><span></span><code>Project uses django-offsite-backup 0.3. Rules:
+<div class="highlight"><pre><span></span><code>Project uses django-offsite-backup 0.4. Rules:
 
 - Install with the extras the configuration names, nothing inferred:
   `django-offsite-backup[s3,telegram]` for an S3 store and Telegram messages,
@@ -1470,6 +1498,7 @@ brief to hand them.</p>
   offsite_backup.notifiers.telegram.TelegramNotifier
   offsite_backup.notifiers.django_aiogram.TopicNotifier
   offsite_backup.notifiers.log.LogNotifier
+  offsite_backup.notifiers.webhook.WebhookNotifier   ([webhook] extra)
 - NEVER put an age private key (AGE-SECRET-KEY-...) on the server, in settings,
   in .env, in CI variables, or in the repository. RECIPIENTS takes public keys
   (age1...). The private key is generated on a person's machine with age-keygen
@@ -1521,6 +1550,19 @@ brief to hand them.</p>
 - Restore: `manage.py backup_restore --stamp latest --into DIR` with the
   private key in AGE_IDENTITY or --identity FILE, run by a person on their own
   machine. Never write code that stores the identity on the server.
+- The restore drill (`manage.py backup_drill`) restores into
+  DRILL['DATABASE'], which must be a throwaway database — never an alias, host+
+  port+name of a live one (refused; E011). It needs the private key: do not
+  schedule it on the production worker unless the user explicitly accepts the
+  key there; prefer a separate machine running `offsite-backup drill`. Its
+  schedule is off by default — beat_schedule(drill=(1, 5, 0)) /
+  register(broker, drill='0 5 1 * *') only when asked.
+- Monitoring: `manage.py backup_status` exits 1 when a kind is stale, 2 when
+  the store is unreadable; `--prometheus FILE` for a textfile collector.
+- A server with no Django project uses the `offsite-backup` command with a TOML
+  setting (same keys as OFFSITE_BACKUP, secrets as ${VAR} from the environment
+  or --env-file, never literal), PostgresSource CONNECTIONS for its databases,
+  and cron with flock. Install `django-offsite-backup[cli,s3,...]` with pipx.
 </code></pre></div>
 <h2 id="prompts-that-work">Prompts that work<a class="headerlink" href="#prompts-that-work" title="Permanent link">&para;</a></h2>
 <p><strong>Wire it in.</strong> <em>"Add django-offsite-backup to this project: S3 store with credentials
@@ -1570,7 +1612,7 @@ backup key under prefix <code>acme/prod/</code>. Do not run them."</em></p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 19:32:49 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1013,6 +1013,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Testing/" class="md-nav__link">
         
   
@@ -1246,6 +1274,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#from-03-to-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From 0.3 to 0.4
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="From 0.3 to 0.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-to-consider-turning-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What to consider turning on
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#from-02-to-03" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1269,7 +1325,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#what-to-consider-turning-on" class="md-nav__link">
+  <a href="#what-to-consider-turning-on_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         What to consider turning on
@@ -1416,6 +1472,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#from-03-to-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From 0.3 to 0.4
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="From 0.3 to 0.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-to-consider-turning-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What to consider turning on
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#from-02-to-03" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1439,7 +1523,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#what-to-consider-turning-on" class="md-nav__link">
+  <a href="#what-to-consider-turning-on_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         What to consider turning on
@@ -1513,6 +1597,30 @@
 
 
 <h1 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h1>
+<h2 id="from-03-to-04">From 0.3 to 0.4<a class="headerlink" href="#from-03-to-04" title="Permanent link">&para;</a></h2>
+<p><strong>Nothing to edit in a Django project.</strong> No setting is renamed or removed, and every new one
+is off until set. Bump the pin and run <code>python manage.py check --deploy</code>.</p>
+<ul>
+<li><strong>Django is an extra now.</strong> The base install no longer pulls Django — a Django project
+  has it pinned already, so nothing changes there. An environment that installed the
+  package <em>alone</em> and relied on it to bring Django installs <code>django-offsite-backup[django]</code>.</li>
+<li><strong>A restore's emptiness check and <code>E004</code> ask the server through <code>psql</code></strong> instead of a
+  Django connection — the same answers, on the same connection settings. <code>psql</code> was already
+  required for a restore (<code>E003</code>).</li>
+<li><strong><code>--reason upgrade</code></strong> now says on failure that the upgrade stops and the running service
+  (<code>NAME</code>) keeps serving, as <code>--reason deploy</code> says for a deploy.</li>
+</ul>
+<h3 id="what-to-consider-turning-on">What to consider turning on<a class="headerlink" href="#what-to-consider-turning-on" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>The monthly drill</strong> — <code>DRILL['DATABASE']</code> and a schedule, after reading
+  <a href="../Restore/#where-it-runs-the-identity">where it runs</a>.</li>
+<li><strong><code>backup_status</code></strong> in your monitoring, or its Prometheus textfile
+  (<a href="../Monitoring/#the-age-of-every-kind">Monitoring</a>); <code>offsite_backup.drill</code> in a
+  heartbeat table if you schedule the drill.</li>
+<li><strong>A webhook</strong> beside the chat (<a href="../Notifications/#a-webhook">Notifications</a>).</li>
+<li><strong>The command line</strong> for a server with no Django project, in place of its own backup
+  script (<a href="../Plain-servers/#coming-from-a-hand-written-script">Without Django</a>).</li>
+</ul>
 <h2 id="from-02-to-03">From 0.2 to 0.3<a class="headerlink" href="#from-02-to-03" title="Permanent link">&para;</a></h2>
 <p><strong>Nothing breaks.</strong> No setting is added, renamed or removed. Bump the pin.</p>
 <p>Two check results move:</p>
@@ -1542,7 +1650,7 @@ did. Bump the pin and run <code>python manage.py check --deploy</code>.</p>
 <p>And the nightly task now <strong>retries</strong> (three times; Celery out of the box, taskiq once the
 broker has <code>SimpleRetryMiddleware</code>). Each failed attempt sends its own FAILED message.
 <a href="../Scheduling/#retries">Scheduling</a> says how to turn it off.</p>
-<h3 id="what-to-consider-turning-on">What to consider turning on<a class="headerlink" href="#what-to-consider-turning-on" title="Permanent link">&para;</a></h3>
+<h3 id="what-to-consider-turning-on_1">What to consider turning on<a class="headerlink" href="#what-to-consider-turning-on_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Your own test runner</strong> — mix in <code>OffsiteBackupRunnerMixin</code>, so <code>--parallel</code> workers are
   silenced (<a href="../Testing/#parallel-workers">Testing</a>). A project that subclassed
@@ -1590,8 +1698,8 @@ does this page says exactly what to change.</p>
 <li>Read the <a href="../Changelog/">Changelog</a> between your version and the new one, and this page.</li>
 <li>Bump the pin; run <code>python manage.py check --deploy</code> in the new image.</li>
 <li>Run <code>backup_offsite --reason manual</code> once after deploying and read the message.</li>
-<li>Run the <a href="../Restore/#the-monthly-drill">restore drill</a> if the release touched naming,
-   encryption or restore.</li>
+<li>Run the <a href="../Restore/#the-monthly-drill">restore drill</a> — <code>backup_drill</code> — if the release
+   touched naming, encryption or restore.</li>
 </ol>
 
 
@@ -1613,7 +1721,7 @@ does this page says exactly what to change.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 19:32:49 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

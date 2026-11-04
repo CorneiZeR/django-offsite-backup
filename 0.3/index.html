@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1102,6 +1102,34 @@
   
   
     <li class="md-nav__item">
+      <a href="Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="Testing/" class="md-nav__link">
         
   
@@ -1454,7 +1482,9 @@
 
 <h1 id="django-offsite-backup">django-offsite-backup<a class="headerlink" href="#django-offsite-backup" title="Permanent link">&para;</a></h1>
 <p>Encrypted, immutable off-site backups of a Django project's <strong>databases, media and
-deployment configuration</strong> — written by the machine they protect, readable only off it.</p>
+deployment configuration</strong> — written by the machine they protect, readable only off it.
+The same passes run on a server with no Django project, from the <code>offsite-backup</code> command
+(<a href="Plain-servers/">Without Django</a>).</p>
 <div class="highlight"><pre><span></span><code><span class="n">OFFSITE_BACKUP</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s1">'PREFIX'</span><span class="p">:</span> <span class="s1">'acme/prod'</span><span class="p">,</span>
     <span class="s1">'STORE'</span><span class="p">:</span> <span class="p">{</span>
@@ -1474,7 +1504,9 @@ deployment configuration</strong> — written by the machine they protect, reada
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>manage.py<span class="w"> </span>backup_offsite<span class="w">                    </span><span class="c1"># a whole pass, now</span>
 python<span class="w"> </span>manage.py<span class="w"> </span>backup_offsite<span class="w"> </span>--without-media<span class="w"> </span>--reason<span class="w"> </span>deploy<span class="w">   </span><span class="c1"># before a migration</span>
 python<span class="w"> </span>manage.py<span class="w"> </span>backup_check<span class="w">                      </span><span class="c1"># the morning check</span>
+python<span class="w"> </span>manage.py<span class="w"> </span>backup_status<span class="w">                     </span><span class="c1"># each kind's age, for a monitor</span>
 python<span class="w"> </span>manage.py<span class="w"> </span>backup_restore<span class="w"> </span>--stamp<span class="w"> </span>latest<span class="w">     </span><span class="c1"># get it back</span>
+python<span class="w"> </span>manage.py<span class="w"> </span>backup_drill<span class="w">                      </span><span class="c1"># prove it comes back, monthly</span>
 </code></pre></div>
 <h2 id="what-a-pass-does">What a pass does<a class="headerlink" href="#what-a-pass-does" title="Permanent link">&para;</a></h2>
 <ol>
@@ -1488,8 +1520,8 @@ python<span class="w"> </span>manage.py<span class="w"> </span>backup_restore<sp
    last: a configuration object for a stamp means every part before it went up.</li>
 <li>Only then rotates — counted in <strong>whole UTC nights</strong>, never in objects or age.</li>
 <li>Says what happened in a chat (Telegram, or through your
-   <a href="https://github.com/CorneiZeR/django-aiogram">django-aiogram</a> bot), in one format a
-   phone shows at a glance.</li>
+   <a href="https://github.com/CorneiZeR/django-aiogram">django-aiogram</a> bot) or to a webhook, in one
+   format a phone shows at a glance.</li>
 </ol>
 <p>On S3 every object is uploaded with an Object Lock in <strong>COMPLIANCE</strong> mode, and the lock is
 read back after the upload: an object locked less than asked fails the pass. A stolen
@@ -1526,13 +1558,19 @@ keeps serving.</p>
 <li>
 <p><strong><a href="Restore/">Restore</a></strong></p>
 <hr />
-<p>Step by step, and the monthly drill that proves the backups are worth keeping.</p>
+<p>Step by step, and the monthly drill that restores the newest backup into a throwaway
+database, counts every table and says so.</p>
+</li>
+<li>
+<p><strong><a href="Plain-servers/">Without Django</a></strong></p>
+<hr />
+<p>The same passes on a plain server: a TOML file, <code>offsite-backup run</code>, cron.</p>
 </li>
 </ul>
 </div>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
-<p>Python 3.10–3.14 and Django 5.2+. The base install pulls Django and nothing else; each
-driver is an extra (<code>[s3]</code>, <code>[telegram]</code>, <code>[aiogram]</code>). The binaries a pass runs — <code>pg_dump</code>,
+<p>Python 3.10–3.14, and Django 5.2+ for the Django layer. The base install pulls nothing; Django
+and each driver are extras (<code>[django]</code>, <code>[cli]</code>, <code>[s3]</code>, <code>[telegram]</code>, <code>[webhook]</code>, <code>[aiogram]</code>). The binaries a pass runs — <code>pg_dump</code>,
 <code>zstd</code>, <code>age</code> — are checked by <code>manage.py check</code> (<code>E003</code>) rather than discovered at 03:00.</p>
 <p>Released under the MIT licence.</p>
 
@@ -1555,7 +1593,7 @@ driver is an extra (<code>[s3]</code>, <code>[telegram]</code>, <code>[aiogram]<
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2026 19:45:53 UTC">November 3, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1041,6 +1041,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-monthly-drill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The monthly drill
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#retries-and-the-guard" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1181,6 +1192,34 @@
     
   
     Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
   
 
     
@@ -1561,6 +1600,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-monthly-drill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The monthly drill
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#retries-and-the-guard" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1647,7 +1697,7 @@
 
 
 <h1 id="scheduling">Scheduling<a class="headerlink" href="#scheduling" title="Permanent link">&para;</a></h1>
-<p>Two jobs, both in UTC:</p>
+<p>Two jobs, both in UTC — and a third, monthly, when you ask for it:</p>
 <table>
 <thead>
 <tr>
@@ -1666,6 +1716,11 @@
 <td>the morning check</td>
 <td>09:00 UTC</td>
 <td>is there a whole backup younger than <code>STALE_HOURS</code>? — <a href="../Monitoring/">Monitoring</a></td>
+</tr>
+<tr>
+<td>the restore drill</td>
+<td>off unless scheduled; e.g. the 1st, 05:00 UTC</td>
+<td>restore the newest whole backup into a throwaway database and report — <a href="../Restore/#the-monthly-drill">Restore</a></td>
 </tr>
 </tbody>
 </table>
@@ -1764,8 +1819,26 @@ default). Labels only describe the wish: <strong>the broker needs taskiq's
 not retried. Both
 commands exit non-zero on failure, so cron's mail, a systemd <code>OnFailure=</code> unit or the
 CronJob's failed status sees it as well as the chat.</p>
+<p>On a server with no Django project, the same jobs are <code>offsite-backup run --reason nightly</code>
+and <code>offsite-backup check</code> — <a href="../Plain-servers/#scheduling">Without Django</a>.</p>
 <p>With Docker Compose and a host crontab:</p>
 <div class="highlight"><pre><span></span><code>0 3 * * *  cd /srv/acme &amp;&amp; docker compose exec -T worker python manage.py backup_offsite --reason nightly
+</code></pre></div>
+<h2 id="the-monthly-drill">The monthly drill<a class="headerlink" href="#the-monthly-drill" title="Permanent link">&para;</a></h2>
+<p>Off by default in both adapters — it needs a throwaway database (<code>DRILL['DATABASE']</code>) and the
+private key where it runs; read <a href="../Restore/#where-it-runs-the-identity">where it runs</a> first.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Celery: the 1st of the month, 05:00 in the beat's timezone — (day of month, hour, minute)</span>
+<span class="n">CELERY_BEAT_SCHEDULE</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">beat_schedule</span><span class="p">(</span><span class="n">drill</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span> <span class="o">...</span><span class="p">}</span>
+
+<span class="c1"># taskiq: a cron expression, UTC</span>
+<span class="n">backup_nightly</span><span class="p">,</span> <span class="n">backup_check</span> <span class="o">=</span> <span class="n">register</span><span class="p">(</span><span class="n">broker</span><span class="p">,</span> <span class="n">drill</span><span class="o">=</span><span class="s1">'0 5 1 * *'</span><span class="p">)</span>
+<span class="c1"># the drill task: broker.find_task('offsite_backup.drill')</span>
+</code></pre></div>
+<p>The task is <code>offsite_backup.drill</code> (<code>run_drill()</code>). It is <strong>not retried</strong>: a drill that
+failed has said why, and another attempt would restore the same backup again. It skips
+where backups are off, and otherwise raises on failure, so the scheduler's own failure
+report fires beside the chat's. Without a scheduler:</p>
+<div class="highlight"><pre><span></span><code>0 5 1 * *  cd /app &amp;&amp; python manage.py backup_drill
 </code></pre></div>
 <h2 id="retries-and-the-guard">Retries and the guard<a class="headerlink" href="#retries-and-the-guard" title="Permanent link">&para;</a></h2>
 <p>Both adapters retry the <strong>nightly</strong> task only. A failed pass gives the night back to the
@@ -1857,7 +1930,7 @@ someone asks.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2026 19:45:53 UTC">November 3, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

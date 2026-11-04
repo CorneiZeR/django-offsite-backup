@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1013,6 +1013,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Testing/" class="md-nav__link">
         
   
@@ -1307,6 +1335,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#the-drills-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The drill's key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-wake-key" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1571,6 +1610,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#the-drills-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The drill's key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-wake-key" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1752,6 +1802,14 @@ key.</p>
 which holds every secret the application has (<code>rendered.env</code>). Keep it off servers, keep it
 where two people can reach it, and restore from your own machine. If it ever reached a
 server, make a new pair and treat the old backups as exposed.</p>
+<h3 id="the-drills-key">The drill's key<a class="headerlink" href="#the-drills-key" title="Permanent link">&para;</a></h3>
+<p>The <a href="../Restore/#the-monthly-drill">restore drill</a> decrypts, so wherever it runs holds a
+private key. Run it on a machine of its own, with a read-only store key and a scratch
+database, and the production server stays unable to read a backup. Scheduled on the
+production worker instead, the worker can read every backup sealed to that key — a choice
+to make knowingly, with a recipient that exists only for the drill and can be rotated on its
+own. The drill refuses a target that is a live database, and empties its target afterwards,
+so a copy of production does not stay in the scratch database.</p>
 <h3 id="the-wake-key">The wake key<a class="headerlink" href="#the-wake-key" title="Permanent link">&para;</a></h3>
 <p>A server that holds an extra identity can open the dumps sealed to it — by design, so it
 can restore them itself — and nothing else. Seal only the dumps that need it.</p>
@@ -1761,6 +1819,9 @@ can restore them itself — and nothing else. Seal only the dumps that need it.<
   the error — escaped. Errors never include the database password: it travels in
   <code>PGPASSWORD</code>, never on a command line. A Telegram transport error is logged by its class
   only, because its text contains the URL and therefore the token.</li>
+<li>A webhook receives the outcome as data — the prefix, keys, sizes, the error text — and
+  never a credential; with a <code>SECRET</code> the body is signed so the receiver can refuse a forged
+  one. Its URL is never logged.</li>
 <li>No message, token, password or private key is logged.</li>
 </ul>
 <h3 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h3>
@@ -1791,7 +1852,7 @@ repository rather than in a public issue. See <code>SECURITY.md</code> in the re
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2026 19:45:53 UTC">November 3, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     

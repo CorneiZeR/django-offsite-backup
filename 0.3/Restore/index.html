@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration">
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
       
       
         <meta name="author" content="Oleksii Kolosiuk">
@@ -1093,6 +1093,45 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="The monthly drill">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-it-runs-the-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where it runs: the identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-database-source-of-your-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A database source of your own
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-hand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By hand
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -1119,6 +1158,34 @@
     
   
     Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
   
 
     
@@ -1495,6 +1562,45 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="The monthly drill">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-it-runs-the-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where it runs: the identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-database-source-of-your-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A database source of your own
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#by-hand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        By hand
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -1662,39 +1768,97 @@ from on a new machine.</p>
 <li>Start the application; run <code>backup_offsite --reason manual</code> and check the message.</li>
 </ol>
 <h2 id="the-monthly-drill">The monthly drill<a class="headerlink" href="#the-monthly-drill" title="Permanent link">&para;</a></h2>
-<p>Restoring is a skill that decays. Once a month, on a calendar reminder:</p>
-<ol>
-<li>Take the newest whole backup: <code>backup_restore --stamp latest --into ./drill</code>. Note the
-   stamp and that every dump says <code>(verified)</code>.</li>
-<li>
-<p>Start a clean PostgreSQL of the <strong>same major</strong> as production:</p>
-<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>drill<span class="w"> </span>-e<span class="w"> </span><span class="nv">POSTGRES_PASSWORD</span><span class="o">=</span>drill<span class="w"> </span>-p<span class="w"> </span><span class="m">55432</span>:5432<span class="w"> </span>postgres:18
+<p>Restoring is a skill that decays, and a backup that was never restored is a hope. The drill
+does what a person would, end to end, and says the outcome where the backups are said:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>manage.py<span class="w"> </span>backup_drill<span class="w">                     </span><span class="c1"># or: offsite-backup drill</span>
+python<span class="w"> </span>manage.py<span class="w"> </span>backup_drill<span class="w"> </span>--without-media<span class="w">     </span><span class="c1"># the volumes are the slow part</span>
 </code></pre></div>
-</li>
+<ol>
+<li>The newest <strong>whole</strong> pass is found (as <code>--stamp latest</code>) and every object of it
+   downloaded and decrypted — the identity from <code>--identity FILE</code>, <code>DRILL['IDENTITY_FILE']</code>
+   or <code>AGE_IDENTITY</code>.</li>
+<li>Every database dump is verified, then restored into <strong><code>DRILL['DATABASE']</code></strong>, a throwaway
+   database the project names — emptied first (every schema but the system ones dropped),
+   loaded, and every table counted there with <code>count(*)</code>.</li>
+<li>With <code>DRILL['COMPARE_LIVE']</code> (on by default), the live database is counted too, and the
+   message shows both. Rows are compared, not required to match: production kept writing
+   after the backup. A table the live database has and the restore lacks is named
+   (<code>⚠️ Not in the backup, live now: ...</code>) — a migration since the pass, or a hole — without
+   failing the drill. A live database that cannot be counted is logged and left uncompared.</li>
+<li>Every media volume and the configuration archive is decrypted and read to its end as a
+   tar (unless <code>DRILL['MEDIA']</code> is false or <code>--without-media</code> is given) — files and bytes
+   counted.</li>
+<li>The throwaway database is emptied again and the workspace removed, whatever happened.</li>
+<li>The outcome goes through the notifiers: <strong>Restore drill passed</strong> with a line per database
+   and per kind of archive, or <strong>Restore drill FAILED</strong> naming every object that did not
+   come back and the step it failed at (<a href="../Notifications/#what-the-messages-look-like">Notifications</a>).
+   One database that does not restore does not stop the others; the command exits
+   non-zero at the end, naming each.</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="n">OFFSITE_BACKUP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="s1">'DRILL'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">'DATABASE'</span><span class="p">:</span> <span class="s1">'drill'</span><span class="p">,</span>                          <span class="c1"># an alias in DATABASES (or CONNECTIONS off Django)</span>
+        <span class="s1">'IDENTITY_FILE'</span><span class="p">:</span> <span class="s1">'/run/secrets/drill.key'</span><span class="p">,</span>    <span class="c1"># or AGE_IDENTITY, or --identity</span>
+        <span class="c1"># 'MEDIA': False,                             # leave the volumes unopened</span>
+        <span class="c1"># 'COMPARE_LIVE': False,                      # never count the live database</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+<span class="n">DATABASES</span><span class="p">[</span><span class="s1">'drill'</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">DATABASES</span><span class="p">[</span><span class="s1">'default'</span><span class="p">],</span> <span class="s1">'HOST'</span><span class="p">:</span> <span class="s1">'scratch-db'</span><span class="p">,</span> <span class="s1">'NAME'</span><span class="p">:</span> <span class="s1">'drill'</span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Never the live database.</strong> The drill refuses a target that is a database it backs up —
+the same alias, or another alias with the same host (<code>localhost</code>, <code>127.0.0.1</code> and <code>::1</code> are
+one), port (an empty one is <code>5432</code>) and name — before it reads the store, and again for every
+database the pass wrote. <code>check --deploy</code> reports that, or a target that names no database
+at all, as <code>E011</code>, before the month it would run. What the drill does to its target is
+destructive by design: point it at a database that holds nothing you want.</p>
+<p>From Python, <code>offsite_backup.run_drill(identity=None, identity_text=None, database=None,
+media=None)</code> returns the report (<code>stamp</code>, <code>target</code>, <code>databases</code>, <code>archives</code>, <code>seconds</code>) and
+raises <code>DrillFailedError</code> naming what failed.</p>
+<h3 id="where-it-runs-the-identity">Where it runs: the identity<a class="headerlink" href="#where-it-runs-the-identity" title="Permanent link">&para;</a></h3>
+<p>The drill needs the <strong>private key</strong>, which by design is not on the production server
+(<a href="../Security-model/#the-private-key">Security model</a>). Two ways to run it, in order of
+preference:</p>
+<ul>
+<li><strong>On a machine of its own</strong> — a small drill host or a CI job with the identity, a
+  <strong>read-only</strong> store key and a scratch PostgreSQL. It needs no copy of the project: the
+  <a href="../Plain-servers/">command line</a> runs the drill from a TOML setting with the same
+  <code>PREFIX</code>, <code>STORE</code> and <code>ENCRYPTION</code>, a <code>DATABASES</code> block whose <code>CONNECTIONS</code> hold the
+  drill's alias, and <code>COMPARE_LIVE</code> off (the live database is out of reach there).</li>
+<li><strong>In the project's scheduler</strong> — <code>beat_schedule(drill=...)</code> or <code>register(broker, drill=...)</code>
+  (<a href="../Scheduling/#the-monthly-drill">Scheduling</a>). Simple, and it compares with the live
+  database — but the worker then holds a key that opens every backup sealed to it. Accept
+  that only knowingly; seal the backups to a second recipient whose key exists only for
+  the drill, so it can be rotated on its own.</li>
+</ul>
+<h3 id="a-database-source-of-your-own">A database source of your own<a class="headerlink" href="#a-database-source-of-your-own" title="Permanent link">&para;</a></h3>
+<p>The drill asks the database source two more things than a pass does: <code>tables(alias)</code>, every
+table with its row count, and <code>clear(alias)</code>, empty the throwaway database. A source that
+does not implement them fails the drill by its name, and the rest still runs.</p>
+<h3 id="by-hand">By hand<a class="headerlink" href="#by-hand" title="Permanent link">&para;</a></h3>
+<p>The steps the command automates, for a machine that cannot run it:</p>
+<ol>
+<li><code>backup_restore --stamp latest --into ./drill</code>; note the stamp and that every dump says
+   <code>(verified)</code>.</li>
+<li>Start a clean PostgreSQL of the <strong>same major</strong> as production
+   (<code>docker run -d --name drill -e POSTGRES_PASSWORD=drill -p 55432:5432 postgres:18</code>).</li>
+<li>Load the dump into it — <code>psql</code>/<code>pg_restore</code>, or
+   <code>backup_restore --stamp &lt;stamp&gt; --apply --database drill --from-database default</code>.</li>
 <li>
-<p>Load the dump into it, either with <code>psql</code>/<code>pg_restore</code> directly or with an extra alias
-   (<code>DATABASES['drill']</code>) and
-   <code>backup_restore --stamp &lt;stamp&gt; --apply --database drill --from-database default</code>.</p>
-</li>
-<li>
-<p><strong>Count every table</strong> in both databases and compare:</p>
+<p>Count every table in both databases and compare:</p>
 <div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">format</span><span class="p">(</span><span class="s1">'SELECT %L AS t, count(*) FROM %I.%I'</span><span class="p">,</span><span class="w"> </span><span class="k">table_name</span><span class="p">,</span><span class="w"> </span><span class="n">table_schema</span><span class="p">,</span><span class="w"> </span><span class="k">table_name</span><span class="p">)</span>
 <span class="k">FROM</span><span class="w"> </span><span class="n">information_schema</span><span class="p">.</span><span class="n">tables</span>
 <span class="k">WHERE</span><span class="w"> </span><span class="n">table_schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'public'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">table_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'BASE TABLE'</span>
 <span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">table_name</span><span class="w"> </span><span class="err">\</span><span class="n">gexec</span>
 </code></pre></div>
-<p>Production keeps changing, so expect the newest rows to differ; every table present,
-and counts close, is the pass mark. For a custom-format dump, also compare the entry
-count of <code>pg_restore --list</code>.
-5. Unpack one media volume and open a few files.
-6. Unpack the configuration archive and read <code>rendered.env</code> — is every variable the
-   application needs there?
-7. Write down the date, the stamp, the table count and how long it took. Delete the drill
-   database and <code>./drill</code>.</p>
 </li>
+<li>
+<p>Unpack one media volume and open a few files; unpack the configuration archive and read
+   <code>rendered.env</code> — is every variable the application needs there?</p>
+</li>
+<li>Write down the date, the stamp, the table count and how long it took. Delete the drill
+   database and <code>./drill</code>.</li>
 </ol>
-<p>An automated drill command — restore the newest backup into a throwaway database, count
-rows per table against the live one, report to the same chat — is on the roadmap.</p>
 
 
 
@@ -1715,7 +1879,7 @@ rows per table against the live one, report to the same chat — is on the roadm
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2026 19:45:53 UTC">November 3, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
   </span>
 
     
