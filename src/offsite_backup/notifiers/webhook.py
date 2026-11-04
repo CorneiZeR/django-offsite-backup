@@ -26,10 +26,15 @@ __all__ = ('SIGNATURE_HEADER', 'WebhookNotifier', 'signature')
 logger = logging.getLogger('offsite_backup')
 
 SIGNATURE_HEADER = 'X-Offsite-Backup-Signature'
-#: the statuses worth another attempt: the receiver is busy or broken, not refusing
-_RETRIED = frozenset({429, 500, 502, 503, 504})
+#: worth another attempt: the receiver is busy (429) or broken (any 5xx), not refusing
+_BUSY = 429
+_BROKEN = range(500, 600)
 #: the first pause between attempts, doubled each time
 _BACKOFF = 1.0
+
+
+def _retried(status: int) -> bool:
+    return status == _BUSY or status in _BROKEN
 
 
 def signature(secret: str, body: bytes) -> str:
@@ -88,7 +93,7 @@ class WebhookNotifier(Notifier):
             if response.is_success:
                 return True
             failure = {'ob_status': response.status_code}
-            if response.status_code not in _RETRIED:
+            if not _retried(response.status_code):
                 break
         logger.error('Webhook refused or unreachable', extra={**failure, 'ob_attempts': attempt + 1})
         return False

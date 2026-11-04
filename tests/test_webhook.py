@@ -85,6 +85,14 @@ def test_a_busy_receiver_is_retried(monkeypatch):
     assert len(sent) == 2
 
 
+@pytest.mark.parametrize('status', [429, 500, 501, 507, 599])
+def test_every_5xx_and_a_429_is_retried(monkeypatch, status):
+    """The receiver busy or broken, whichever 5xx it answers: another attempt."""
+    notifier, sent = webhook(monkeypatch, Response(status), Response(200))
+    assert notifier.send(written(), 'x')
+    assert len(sent) == 2
+
+
 def test_a_network_error_is_retried_then_given_up(monkeypatch, caplog):
     """RETRIES more attempts, then False and one log line with the class only — never the URL."""
     error = ConnectionError(URL)
