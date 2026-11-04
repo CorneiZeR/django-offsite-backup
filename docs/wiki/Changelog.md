@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 — unreleased
+## 0.4.0 — 2026-11-04
 
 Nothing to edit in a Django project; [Upgrading](Upgrading.md#from-03-to-04) has the
 behaviours that move and what to consider turning on.

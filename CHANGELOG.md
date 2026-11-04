@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
-## 0.4.0 — unreleased
+## 0.4.0 — 2026-11-04
 
 No setting is renamed or removed; every new one is off until set. Three behaviours move:
 the base install no longer pulls Django (the `[django]` extra does), a restore's emptiness
