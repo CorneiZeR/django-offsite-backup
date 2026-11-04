@@ -2,8 +2,7 @@
 
 from collections.abc import Sequence
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.encryption.base import Sealer
 
 __all__ = ('AgeCli',)

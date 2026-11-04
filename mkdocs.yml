@@ -1,5 +1,5 @@
 site_name: django-offsite-backup
-site_description: Encrypted, immutable off-site backups of a Django project's databases, media and deployment configuration
+site_description: Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers
 site_author: Oleksii Kolosiuk
 site_url: https://corneizer.github.io/django-offsite-backup/latest/
 copyright: MIT
@@ -109,6 +109,7 @@ nav:
       - Deploy integration: Deploy-integration.md
       - Restore: Restore.md
       - Monitoring: Monitoring.md
+      - Without Django: Plain-servers.md
       - Testing: Testing.md
   - Reference:
       - System checks: System-checks.md

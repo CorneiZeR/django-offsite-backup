@@ -27,19 +27,33 @@
     A local directory or Docker volume as the store, messages to the log. No driver at all
     — and no immutability either; see [Stores: directory](Stores-directory.md).
 
-Requires Python 3.10–3.14 and Django 5.2+. Every pair in that range runs in CI, and an
+=== "A server without Django"
+
+    ```shell
+    pipx install 'django-offsite-backup[cli,s3,telegram]'
+    ```
+
+    The `offsite-backup` command, a TOML setting, the same passes — see
+    [Without Django](Plain-servers.md).
+
+Requires Python 3.10–3.14, and Django 5.2+ for the Django layer (a Django project has it
+already). Every pair in that range runs in CI, and an
 integration job runs a whole cycle — backup, restore into a clean database, row counts of
 every table compared — against PostgreSQL 16 and 18 and an S3 server with Object Lock.
 
 ## Extras
 
-The base install is Django alone. Every backend is named by a dotted path in the settings,
+The base install pulls nothing — not even Django, which a Django project brings itself and a
+plain server does not need. Every backend is named by a dotted path in the settings,
 imported only when a pass first needs it, and its driver is an extra:
 
 | extra | pulls | for |
 | --- | --- | --- |
+| `django` | `django>=5.2` | the Django layer — the app, the commands, the system checks — where the project does not already pin Django |
+| `cli` | `tomli>=2.0` on Python 3.10 only | the `offsite-backup` command's TOML setting ([Without Django](Plain-servers.md)) |
 | `s3` | `boto3>=1.34` | `offsite_backup.stores.s3.S3Store`, `offsite_backup.media.s3.S3Source` |
 | `telegram` | `httpx2>=2.0` | `offsite_backup.notifiers.telegram.TelegramNotifier` |
+| `webhook` | `httpx2>=2.0` | `offsite_backup.notifiers.webhook.WebhookNotifier` |
 | `aiogram` | `django-aiogram>=5.2` | `offsite_backup.notifiers.django_aiogram.TopicNotifier` |
 | `all` | all of the above | |
 
@@ -61,7 +75,7 @@ Python dependencies; install them in the image that runs the backup:
 | `pg_dump` | `PostgresSource` — its major version must be **at least the server's** | `E003`, and `E004` under `check --deploy` |
 | `zstd` | `COMPRESS` (on by default) and `DECOMPRESS` (restoring) — whatever program they name | `E003` |
 | `age` | `AgeCli`, both for sealing and for restoring | `E003` |
-| `psql`, `pg_restore` | restoring a database (`backup_restore --apply`) and verifying a custom-format dump; shipped with `pg_dump` in every PostgreSQL client package | `E003` |
+| `psql`, `pg_restore` | restoring a database (`backup_restore --apply`, the drill), verifying a custom-format dump, and every question asked of the server (is the target empty, row counts, its version); shipped with `pg_dump` in every PostgreSQL client package | `E003` |
 
 `tar` is **not** needed: volumes and the configuration archive are written with Python's
 `tarfile`. Measured on 613 MB in 2400 files, `tarfile` took 0.27 s against 0.72 s for the

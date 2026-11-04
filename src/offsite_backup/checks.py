@@ -5,6 +5,11 @@ are registered as deploy checks, so a plain ``manage.py`` never reaches S3 or th
 So are the paths a pass reads (E009, W005): a web or migration container has no reason to
 mount them, and a warning every deploy prints there is one people learn to ignore.
 Nothing is checked on a machine where backups are off.
+
+``settings_findings`` and ``deploy_findings`` are the checks themselves and need no Django:
+the command line runs them as ``offsite-backup checks``. ``check_settings`` and
+``check_deploy`` hand them to Django's checks framework, adding what only a Django project
+has — the once-per-night guard's cache or database, and a test run's notifiers.
 """
 
 import shutil
@@ -12,20 +17,33 @@ import sys
 from collections.abc import Sequence
 from typing import Any
 
-from django.core import checks
-
 from offsite_backup import conf
+from offsite_backup import findings as checks
 from offsite_backup.backend import Backend
 from offsite_backup.exceptions import BackendError
 from offsite_backup.registry import backend_class, missing_extra
 
-__all__ = ('backends', 'check_deploy', 'check_settings', 'register_all')
+__all__ = (
+    'backends',
+    'check_deploy',
+    'check_settings',
+    'deploy_findings',
+    'register_all',
+    'settings_findings',
+)
 
 _TAG = 'offsite_backup'
 
 
 def _under_test() -> bool:
     return 'pytest' in sys.modules or sys.argv[1:2] == ['test']
+
+
+def _django(found: list[checks.CheckMessage]) -> list[Any]:
+    """Each finding as Django's check message, so ``manage.py check`` levels and silences it."""
+    from django.core.checks import CheckMessage  # noqa: PLC0415 - the Django layer only
+
+    return [CheckMessage(item.level, item.msg, hint=item.hint, id=item.id) for item in found]
 
 
 def backends(settings: conf.Settings) -> tuple[list[Backend], list[checks.CheckMessage]]:
@@ -57,9 +75,8 @@ def backends(settings: conf.Settings) -> tuple[list[Backend], list[checks.CheckM
     return found, errors
 
 
-def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[checks.CheckMessage]:
-    """E001-E003, E007, E008, E010, W001-W004: everything that needs neither the network nor a mount."""
-    settings = conf.read()
+def settings_findings(settings: conf.Settings) -> list[checks.CheckMessage]:
+    """E001-E003, E007, E008, E010, W001, W002: everything that needs neither the network, a mount nor Django."""
     if not conf.enabled(settings):
         return []
     messages: list[checks.CheckMessage] = []
@@ -87,6 +104,15 @@ def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> l
                     id='offsite_backup.E003',
                 )
             )
+    return messages
+
+
+def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[Any]:
+    """``settings_findings``, plus the guard (E001, W003) and a test run's notifiers (W004)."""
+    settings = conf.read()
+    if not conf.enabled(settings):
+        return []
+    messages = settings_findings(settings)
     guard = settings['GUARD']
     if guard.get('ENABLED', True):
         messages += _guard(guard)
@@ -102,7 +128,7 @@ def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> l
                     id='offsite_backup.W004',
                 )
             )
-    return messages
+    return _django(messages)
 
 
 def _guard(guard: dict[str, Any]) -> list[checks.CheckMessage]:
@@ -155,19 +181,47 @@ def _guard_cache(alias: str) -> list[checks.CheckMessage]:
     return []
 
 
-def check_deploy(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[checks.CheckMessage]:
-    """E004-E006, E009, W005: the bucket's lock, ``pg_dump`` against the server, paths where the pass runs."""
-    settings = conf.read()
+def deploy_findings(settings: conf.Settings) -> list[checks.CheckMessage]:
+    """E004-E006, E009, E011, W005: the bucket's lock, ``pg_dump`` against the server, paths, the drill's target."""
     if not conf.enabled(settings) or conf.problems(settings):
         return []
     built, _ = backends(settings)
     messages: list[checks.CheckMessage] = []
     for backend in built:
         messages += backend.deploy_check()
-    return messages
+    return messages + _drill_target(settings, built)
+
+
+def _drill_target(settings: conf.Settings, built: list[Backend]) -> list[checks.CheckMessage]:
+    """E011: ``DRILL['DATABASE']`` names no database, or the live one — the drill would refuse to run."""
+    from offsite_backup.databases.base import DatabaseSource  # noqa: PLC0415 - base class only
+    from offsite_backup.drill import refuse_live  # noqa: PLC0415 - imports the pass
+
+    target = str(settings['DRILL'].get('DATABASE') or '').strip()
+    source = next((backend for backend in built if isinstance(backend, DatabaseSource)), None)
+    if not target or source is None:
+        return []
+    try:
+        refuse_live(source, target, source.targets())
+    except Exception as error:  # noqa: BLE001 - every way the target is wrong is this check's finding
+        return [
+            checks.Error(
+                str(error),
+                hint='Point DRILL["DATABASE"] at a throwaway database on another server, or another database name.',
+                id='offsite_backup.E011',
+            )
+        ]
+    return []
+
+
+def check_deploy(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[Any]:
+    """``deploy_findings``, for ``manage.py check --deploy``."""
+    return _django(deploy_findings(conf.read()))
 
 
 def register_all() -> None:
     """Register both checks (idempotent: Django's registry is a set)."""
-    checks.register(check_settings, _TAG)
-    checks.register(check_deploy, _TAG, deploy=True)
+    from django.core.checks import register  # noqa: PLC0415 - the Django layer only
+
+    register(check_settings, _TAG)
+    register(check_deploy, _TAG, deploy=True)

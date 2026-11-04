@@ -16,11 +16,20 @@ ruff check . && ruff format --check . && mypy && python -m pytest -q
 The unit suite needs no network and no binary beyond a POSIX shell: it runs against an
 in-memory S3 (`offsite_backup.testing.FakeS3`) and a pass-through sealer.
 
+The command line's tests also run where Django is not installed at all — the core must not
+need it:
+
+```shell
+uv venv /tmp/core && uv pip install --python /tmp/core -e '.[cli]' --group core-test
+/tmp/core/bin/python -m pytest -q tests/test_cli.py tests/test_without_django.py
+```
+
 ## Integration
 
 A full cycle against real services — backup, restore into a clean database, row counts of
 every table compared; media volumes byte for byte; Object Lock read back; rotation over real
-versions and delete markers.
+versions and delete markers; the restore drill into `target`; and a plain server's pass and
+drill from the command line, with `CONNECTIONS` and no Django setting.
 
 ```shell
 docker run -d --rm --name ob-pg -e POSTGRES_USER=ob -e POSTGRES_PASSWORD=ob -e POSTGRES_DB=source \

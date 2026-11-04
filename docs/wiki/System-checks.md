@@ -1,12 +1,14 @@
 # System checks
 
 The package registers two checks with Django's checks framework, both tagged
-`offsite_backup`:
+`offsite_backup`. Off Django, `offsite-backup checks [--deploy]` runs the same two and prints
+them ([Without Django](Plain-servers.md#commands)) — without `W003` and `W004`, which are
+about Django's cache and test runner.
 
 | check | runs on | reaches the network | codes |
 | --- | --- | --- | --- |
 | settings | every `manage.py` command that runs checks, and `manage.py check` | no | `E001`–`E003`, `E007`, `E008`, `E010`, `W001`–`W004` |
-| deploy | `manage.py check --deploy` only | yes — the bucket and each database | `E004`–`E006`, `E009`, `W005` |
+| deploy | `manage.py check --deploy` only | yes — the bucket and each database | `E004`–`E006`, `E009`, `E011`, `W005` |
 
 **Nothing is checked on a machine where backups are off** ([Settings](Settings.md)). The
 deploy check is also skipped while any `E001` is outstanding — fix the settings first.
@@ -25,7 +27,7 @@ Codes are stable: a code never changes meaning. Each is explained, with its fix,
 
 | code | when | where it comes from |
 | --- | --- | --- |
-| `offsite_backup.E001` | backups are configured by halves: `PREFIX`, a `STORE`/`ENCRYPTION` `BACKEND`, every source, or a backend's required option is unset — `None`, blank, `0`, or a list of only those counts as unset ([Settings](Settings.md#blank-means-unset)); `KEEP_NIGHTS` is not a positive integer. Also: `FORMAT` not `plain`/`custom`, `VOLUME_BYTES` out of range, an `ADDRESSING_STYLE` other than `auto`/`path`/`virtual`, a `VERIFY` path that is not a file, a `GUARD['BACKEND']` other than `cache`/`database`, a `GUARD['CACHE']` missing from `CACHES`, a `GUARD['DATABASE']` that is not a PostgreSQL database | settings |
+| `offsite_backup.E001` | backups are configured by halves: `PREFIX`, a `STORE`/`ENCRYPTION` `BACKEND`, every source, or a backend's required option is unset — `None`, blank, `0`, or a list of only those counts as unset ([Settings](Settings.md#blank-means-unset)); `KEEP_NIGHTS` is not a positive integer. Also: `FORMAT` not `plain`/`custom`, `CONNECTIONS` not a mapping of connection blocks, `VOLUME_BYTES` out of range, an `ADDRESSING_STYLE` other than `auto`/`path`/`virtual`, a `VERIFY` path that is not a file, a `GUARD['BACKEND']` other than `cache`/`database`, a `GUARD['CACHE']` missing from `CACHES`, a `GUARD['DATABASE']` that is not a PostgreSQL database | settings |
 | `offsite_backup.E002` | a `BACKEND` path that is empty, does not import, is not the family's base class — or names a shipped backend whose driver extra is not installed; a `TopicNotifier` `BOT_FACTORY` that does not import or is not callable | settings |
 | `offsite_backup.E003` | a binary a backend runs is not on `PATH`: `age`, `pg_dump`, `pg_restore`, `psql`, or the program `COMPRESS` / `DECOMPRESS` names | settings |
 | `offsite_backup.E004` | `pg_dump` is older than a database server it must dump | deploy |
@@ -34,7 +36,8 @@ Codes are stable: a code never changes meaning. Each is explained, with its fix,
 | `offsite_backup.E007` | `KEEP_NIGHTS` is not greater than `LOCK_DAYS` | settings |
 | `offsite_backup.E008` | `RECIPIENTS` holds a private age key, or something that is not an age recipient | settings |
 | `offsite_backup.E009` | a required `CONFIG` path (`REQUIRED`, or `STRICT`) does not exist where the check runs | deploy |
-| `offsite_backup.E010` | a notifier option has the wrong form: a `TOPIC_ID` that is not an integer (one check for both Telegram notifiers), a `TopicNotifier` `DELIVERY` other than `direct`/`queue` | settings |
+| `offsite_backup.E010` | a notifier option has the wrong form: a `TOPIC_ID` that is not an integer (one check for both Telegram notifiers), a `TopicNotifier` `DELIVERY` other than `direct`/`queue`; a `WebhookNotifier` `URL` that is not `http(s)://`, a `TIMEOUT` that is not a positive number, `RETRIES` that is not a whole number ≥ 0, `HEADERS` that is not a mapping | settings |
+| `offsite_backup.E011` | `DRILL['DATABASE']` is a live database — an alias the pass dumps, or one reaching the same host, port and name — or names no database at all: the drill would refuse to run | deploy |
 
 ## Warnings
 

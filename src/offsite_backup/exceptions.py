@@ -7,6 +7,7 @@ __all__ = (
     'BackupMissingError',
     'BackupUncheckedError',
     'BackupUnlockedError',
+    'DrillFailedError',
     'MisconfiguredError',
     'NotConfiguredError',
     'PipelineError',
@@ -52,3 +53,7 @@ class BackupMissingError(BackupError):
 
 class BackupUncheckedError(BackupError):
     """The morning check could not read the store."""
+
+
+class DrillFailedError(BackupError):
+    """A restore drill finished with parts that did not come back; the message names them."""

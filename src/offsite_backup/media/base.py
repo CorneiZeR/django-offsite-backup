@@ -13,8 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.backend import Backend
 from offsite_backup.exceptions import SourceMissingError
 from offsite_backup.pipeline import feed

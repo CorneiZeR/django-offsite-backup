@@ -2,6 +2,8 @@
 
 Encrypted, immutable off-site backups of a Django project's **databases, media and
 deployment configuration** — written by the machine they protect, readable only off it.
+The same passes run on a server with no Django project, from the `offsite-backup` command
+([Without Django](Plain-servers.md)).
 
 ```python
 OFFSITE_BACKUP = {
@@ -25,7 +27,9 @@ OFFSITE_BACKUP = {
 python manage.py backup_offsite                    # a whole pass, now
 python manage.py backup_offsite --without-media --reason deploy   # before a migration
 python manage.py backup_check                      # the morning check
+python manage.py backup_status                     # each kind's age, for a monitor
 python manage.py backup_restore --stamp latest     # get it back
+python manage.py backup_drill                      # prove it comes back, monthly
 ```
 
 ## What a pass does
@@ -40,8 +44,8 @@ python manage.py backup_restore --stamp latest     # get it back
    last: a configuration object for a stamp means every part before it went up.
 4. Only then rotates — counted in **whole UTC nights**, never in objects or age.
 5. Says what happened in a chat (Telegram, or through your
-   [django-aiogram](https://github.com/CorneiZeR/django-aiogram) bot), in one format a
-   phone shows at a glance.
+   [django-aiogram](https://github.com/CorneiZeR/django-aiogram) bot) or to a webhook, in one
+   format a phone shows at a glance.
 
 On S3 every object is uploaded with an Object Lock in **COMPLIANCE** mode, and the lock is
 read back after the upload: an object locked less than asked fails the pass. A stolen
@@ -86,14 +90,21 @@ backing up in silence. A blank value, `0` or `['']` counts as unset.
 
     ---
 
-    Step by step, and the monthly drill that proves the backups are worth keeping.
+    Step by step, and the monthly drill that restores the newest backup into a throwaway
+    database, counts every table and says so.
+
+-   **[Without Django](Plain-servers.md)**
+
+    ---
+
+    The same passes on a plain server: a TOML file, `offsite-backup run`, cron.
 
 </div>
 
 ## Requirements
 
-Python 3.10–3.14 and Django 5.2+. The base install pulls Django and nothing else; each
-driver is an extra (`[s3]`, `[telegram]`, `[aiogram]`). The binaries a pass runs — `pg_dump`,
+Python 3.10–3.14, and Django 5.2+ for the Django layer. The base install pulls nothing; Django
+and each driver are extras (`[django]`, `[cli]`, `[s3]`, `[telegram]`, `[webhook]`, `[aiogram]`). The binaries a pass runs — `pg_dump`,
 `zstd`, `age` — are checked by `manage.py check` (`E003`) rather than discovered at 03:00.
 
 Released under the MIT licence.
