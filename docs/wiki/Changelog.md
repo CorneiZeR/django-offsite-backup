@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 — 2026-11-04
+
+Nothing to edit on upgrade; [Upgrading](Upgrading.md#from-02-to-03) has the two checks that
+moved.
+
+**Path checks only where a pass runs.** `W005` — a media `ROOT`, an optional `CONFIG` path or
+the `RENDER_ENV` file not found — was printed by every container that ran `manage.py` on a
+deploy (the web service, a `migrate`), though none of them runs a pass or mounts the
+deployment directory. It is now a deploy check, beside `E009`: `check --deploy`, run where
+the pass runs, reports it, and a plain `check` or `migrate` does not. The pass logs each path
+it leaves out (`Configuration path not found; left out`, `Media directory not found`), so the
+worker says it too. [System checks](System-checks.md#why-the-path-checks-are-deploy-checks).
+
+**`E010` for notifier options.** A `TOPIC_ID` that is not an integer — one check shared by
+both Telegram notifiers — and a `DELIVERY` other than `direct`/`queue` are `E010` instead of
+`E001`. [System checks](System-checks.md#errors).
+
 ## 0.2.0 — 2026-11-03
 
 Nothing breaks: every new setting defaults to 0.1's behaviour. What to consider turning on

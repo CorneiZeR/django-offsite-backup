@@ -10,7 +10,7 @@ brief to hand them.
 Short enough for a system prompt or a `CLAUDE.md` / `AGENTS.md` / `.cursor/rules` file:
 
 ```text
-Project uses django-offsite-backup 0.2. Rules:
+Project uses django-offsite-backup 0.3. Rules:
 
 - Install with the extras the configuration names, nothing inferred:
   `django-offsite-backup[s3,telegram]` for an S3 store and Telegram messages,
@@ -71,7 +71,9 @@ Project uses django-offsite-backup 0.2. Rules:
   non-zero exit stop the deploy. Do not add `|| true`. Mount the deployment
   directory read-only into the service that runs it AND into the worker.
 - Validate with `python manage.py check` and `python manage.py check --deploy`.
-  Treat offsite_backup.E0xx/W0xx as the spec. Do not silence an error; only
+  Missing mounts (W005, E009 for a REQUIRED path) are reported by
+  `check --deploy` only — run it in each service that runs a pass (the deploy's
+  and the worker); a plain check is quiet about paths on purpose. Treat offsite_backup.E0xx/W0xx as the spec. Do not silence an error; only
   W001 (directory store) may be silenced, and only where the user chose it.
 - Tests must never notify. pytest is covered by the package's plugin
   automatically, pytest-xdist workers included; with Django's runner set

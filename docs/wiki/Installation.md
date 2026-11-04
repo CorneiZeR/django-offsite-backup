@@ -146,7 +146,7 @@ backend, no driver, no network until a pass runs. It has no models and no migrat
 
     ```shell
     python manage.py check
-    python manage.py check --deploy      # reaches the bucket and the database
+    python manage.py check --deploy      # reaches the bucket and the database; the mounts a pass reads
     python manage.py backup_offsite
     # backup_offsite: 2 objects, 18734112 bytes up
     ```

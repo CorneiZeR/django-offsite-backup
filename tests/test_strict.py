@@ -74,10 +74,10 @@ def test_an_empty_required_media_source_fails(tmp_path):
 
 
 def test_a_missing_required_path_is_e009_under_deploy_checks(tmp_path):
-    """check --deploy says it where the deploy runs the pass; a plain check only warns."""
+    """check --deploy says it where the deploy runs the pass; a plain check says nothing about paths."""
     source = PathsSource({'PATHS': [str(tmp_path / 'certs')], 'REQUIRED': True}, label='CONFIG')
     assert [message.id for message in source.deploy_check()] == ['offsite_backup.E009']
     assert [message.id for message in source.check()] == []
     optional = PathsSource({'PATHS': [str(tmp_path / 'certs')]}, label='CONFIG')
-    assert optional.deploy_check() == []
-    assert [message.id for message in optional.check()] == ['offsite_backup.W005']
+    assert [message.id for message in optional.deploy_check()] == ['offsite_backup.W005']
+    assert optional.check() == []

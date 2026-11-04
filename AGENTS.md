@@ -17,7 +17,7 @@ src/offsite_backup/
     conf.py         the setting: defaults, on/off/partly-configured
     registry.py     SHIPPED (path -> driver, extra), build()
     backend.py      what every backend shares (REQUIRED, SIGNALS, BINARIES, checks)
-    checks.py       system checks; network ones are deploy checks
+    checks.py       system checks; network and mount ones are deploy checks
     naming.py       object names; the night is read from the name
     pipeline.py     subprocess pipelines with pipefail semantics, no shell
     sealing.py      compress THEN encrypt

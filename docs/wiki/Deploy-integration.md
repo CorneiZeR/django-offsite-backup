@@ -73,8 +73,10 @@ services:
 ```
 
 Here `web` is the service the deploy runs the pass in (`docker compose run --rm web ...`,
-below) and `worker` runs the nightly pass. `W005` on `manage.py check` names a path that is
-missing in the container it runs in; for a `REQUIRED` path, `check --deploy` says `E009`.
+below) and `worker` runs the nightly pass. `manage.py check --deploy` names a path missing
+in the container it runs in: `W005`, or `E009` for a `REQUIRED` one. A plain `manage.py check`
+and `migrate` say nothing about paths, so a container without the mount deploys quietly; in
+the worker, which runs no system check, the pass logs what it left out.
 
 ## Docker Compose
 
@@ -143,7 +145,8 @@ not retry until it happens to pass.
   or build stage, against production settings if you can: `E004` (a `pg_dump` older than
   the server) and `E005`/`E006` (a bucket without Object Lock or its default rule) are
   better found there than at the deploy. Run it once in the service the deploy runs the
-  pass in, with the mount, for `E009` (a required configuration path missing there).
+  pass in, with the mount, for `E009` and `W005` (a required or an optional path missing
+  there).
 * Make sure the **CI job that runs your tests does not inherit the production notifier
   token** — see [Testing](Testing.md).
 * Run the deploy pass once by hand and restore it ([Restore](Restore.md)).

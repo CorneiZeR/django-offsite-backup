@@ -122,6 +122,26 @@ def test_deploy_checks_reach_the_bucket(configured, fake_s3):
     assert ids(check_deploy()) == ['offsite_backup.E005']
 
 
+def manage_check(**options):
+    out, err = StringIO(), StringIO()
+    call_command('check', stdout=out, stderr=err, **options)
+    return out.getvalue() + err.getvalue()
+
+
+def test_manage_check_without_the_config_mount_prints_no_w005(configured, settings, tmp_path):
+    """A web or migrations container without the deployment mount is not warned; check --deploy is."""
+    settings.OFFSITE_BACKUP['CONFIG']['PATHS'] = [str(tmp_path / 'not-mounted')]
+    assert 'offsite_backup.W005' not in manage_check()
+    assert 'offsite_backup.W005' in manage_check(deploy=True)
+
+
+def test_manage_check_without_the_media_mount_prints_no_w005(configured, settings, tmp_path):
+    """The same for a media directory that is not mounted here."""
+    settings.OFFSITE_BACKUP['MEDIA'][0]['ROOT'] = str(tmp_path / 'not-mounted')
+    assert 'offsite_backup.W005' not in manage_check()
+    assert 'offsite_backup.W005' in manage_check(deploy=True)
+
+
 def test_plain_manage_check_does_not_reach_the_network():
     """Network checks are registered with deploy=True only."""
     from django.core.checks.registry import registry

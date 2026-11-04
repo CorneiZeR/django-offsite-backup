@@ -8,6 +8,7 @@ from — so rebuilding it is a reconstruction, not a guess.
 
 import fnmatch
 import io
+import logging
 import os
 import tarfile
 import time
@@ -22,6 +23,8 @@ from offsite_backup.pipeline import feed
 from offsite_backup.sealing import Sealing
 
 __all__ = ('DEFAULT_EXCLUDE', 'REBUILT_FILE', 'PathsSource', 'env_line', 'rendered_environment')
+
+logger = logging.getLogger('offsite_backup')
 
 #: the rebuilt file's name in the archive: a restore sees at a glance it was reconstructed
 REBUILT_FILE = 'rendered.env'
@@ -108,6 +111,8 @@ class PathsSource(ConfigSource):
         if missing:
             msg = f'{self.label}: required path(s) missing: {", ".join(missing)}'
             raise SourceMissingError(msg)
+        for gone in self.missing_optional():
+            logger.warning('Configuration path not found; left out', extra={'ob_path': gone})
         with feed(sealing.stages(), into=into) as stdin, tarfile.open(fileobj=stdin, mode='w|') as tar:
             names = self.names_file
             if names is not None and names.is_file():
@@ -130,14 +135,28 @@ class PathsSource(ConfigSource):
                     tar.add(path, arcname=f'{root.name}/{path.relative_to(root).as_posix()}', recursive=False)
         return into
 
-    def check(self) -> list[checks.CheckMessage]:
-        """Every path and the names file exist here (a missing mount is found at start)."""
-        found = super().check()
+    def missing_optional(self) -> list[str]:
+        """The listed paths and the names file not found here, the required ones aside."""
         required = set(self.required_paths)
         missing = [str(path) for path in self.paths if not path.exists() and path not in required]
         names = self.names_file
         if names is not None and not names.is_file():
             missing.append(str(names))
+        return missing
+
+    def deploy_check(self) -> list[checks.CheckMessage]:
+        """E009 for a required path, W005 for the rest: only where a pass runs, never on every ``manage.py``."""
+        found = super().deploy_check()
+        required = [str(path) for path in self.required_paths if not path.exists()]
+        if required:
+            found.append(
+                checks.Error(
+                    f'{self.label}: required path(s) missing here: {", ".join(required)}.',
+                    hint='Mount the deployment directory into this container, or drop REQUIRED for it.',
+                    id='offsite_backup.E009',
+                )
+            )
+        missing = self.missing_optional()
         if missing:
             found.append(
                 checks.Warning(
@@ -147,16 +166,3 @@ class PathsSource(ConfigSource):
                 )
             )
         return found
-
-    def deploy_check(self) -> list[checks.CheckMessage]:
-        """E009: a required path is missing where the deploy runs the pass."""
-        missing = [str(path) for path in self.required_paths if not path.exists()]
-        if not missing:
-            return []
-        return [
-            checks.Error(
-                f'{self.label}: required path(s) missing here: {", ".join(missing)}.',
-                hint='Mount the deployment directory into this container, or drop REQUIRED for it.',
-                id='offsite_backup.E009',
-            )
-        ]

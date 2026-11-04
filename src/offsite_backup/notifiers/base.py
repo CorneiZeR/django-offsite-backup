@@ -44,11 +44,11 @@ class ChatNotifier(Notifier):
         return found
 
     def check(self) -> list[checks.CheckMessage]:
-        """``TOPIC_ID`` is an integer when set."""
+        """E010: ``TOPIC_ID`` is an integer when set — one check for both Telegram notifiers."""
         found = super().check()
         topic = self.option('TOPIC_ID')
         if not unset_id(topic) and not str(topic).strip().lstrip('-').isdigit():
             found.append(
-                checks.Error(f"{self.label}['TOPIC_ID'] is {topic!r}, not an integer.", id='offsite_backup.E001')
+                checks.Error(f"{self.label}['TOPIC_ID'] is {topic!r}, not an integer.", id='offsite_backup.E010')
             )
         return found

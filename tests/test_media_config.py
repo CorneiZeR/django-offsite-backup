@@ -123,10 +123,44 @@ def test_the_config_archive_carries_paths_and_the_rebuilt_environment(tmp_path, 
     assert 'LIVE=secret' not in rebuilt
 
 
-def test_a_missing_path_is_a_warning(tmp_path):
-    """A mount that is not there is found at start, not at night."""
-    found = PathsSource({'PATHS': [str(tmp_path / 'nope')]}, label='CONFIG').check()
-    assert [message.id for message in found] == ['offsite_backup.W005']
+def test_a_missing_path_is_w005_under_deploy_checks_only(tmp_path):
+    """Where a pass runs (check --deploy) a missing mount is warned; a plain check says nothing."""
+    source = PathsSource({'PATHS': [str(tmp_path / 'nope')]}, label='CONFIG')
+    assert [message.id for message in source.deploy_check()] == ['offsite_backup.W005']
+    assert source.check() == []
+
+
+def test_a_missing_names_file_is_w005_under_deploy_checks_only(tmp_path):
+    """RENDER_ENV not found is the same warning, in the same place."""
+    source = PathsSource({'PATHS': [], 'RENDER_ENV': str(tmp_path / 'vars.txt')}, label='CONFIG')
+    assert [message.id for message in source.deploy_check()] == ['offsite_backup.W005']
+    assert source.check() == []
+
+
+def test_a_missing_media_root_is_w005_under_deploy_checks_only(tmp_path):
+    """A media ROOT not mounted here is warned where a pass runs, not on every manage.py."""
+    source = DirectorySource({'ROOT': str(tmp_path / 'nope')}, label='MEDIA[0]')
+    assert [message.id for message in source.deploy_check()] == ['offsite_backup.W005']
+    assert source.check() == []
+
+
+def test_a_missing_optional_path_is_logged_by_the_pass(tmp_path, caplog):
+    """The worker, which runs no system check, still says which path it left out."""
+    gone = tmp_path / 'nope'
+    source = PathsSource({'PATHS': [str(gone)]}, label='CONFIG')
+    with caplog.at_level('WARNING', logger='offsite_backup'):
+        source.archive(tmp_path / 'c.tar', Sealing(Passthrough({})))
+    [record] = [r for r in caplog.records if r.getMessage() == 'Configuration path not found; left out']
+    assert record.ob_path == str(gone)
+
+
+def test_a_missing_media_root_is_logged_by_the_pass(tmp_path, caplog):
+    """A media pass over a directory that is not here says so instead of an empty night in silence."""
+    gone = tmp_path / 'nope'
+    with caplog.at_level('WARNING', logger='offsite_backup'):
+        assert DirectorySource({'ROOT': str(gone)}).volumes() == []
+    [record] = [r for r in caplog.records if r.getMessage() == 'Media directory not found']
+    assert record.ob_path == str(gone)
 
 
 def test_tar_reads_back_from_a_stream(tmp_path):

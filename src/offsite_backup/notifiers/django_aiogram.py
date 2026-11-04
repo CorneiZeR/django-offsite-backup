@@ -57,13 +57,13 @@ class TopicNotifier(ChatNotifier):
         return True
 
     def check(self) -> list[checks.CheckMessage]:
-        """``DELIVERY`` is known; ``BOT_FACTORY`` imports and is callable."""
+        """E010: ``DELIVERY`` is known; E002: ``BOT_FACTORY`` imports and is callable."""
         found = super().check()
         if self.delivery not in DELIVERIES:
             found.append(
                 checks.Error(
                     f"{self.label}['DELIVERY'] is {self.delivery!r}; expected one of {', '.join(DELIVERIES)}.",
-                    id='offsite_backup.E001',
+                    id='offsite_backup.E010',
                 )
             )
         factory = self.option('BOT_FACTORY')

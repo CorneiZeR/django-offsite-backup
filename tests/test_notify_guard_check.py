@@ -381,13 +381,33 @@ def test_a_zero_topic_is_the_main_thread():
 
 
 def test_topic_notifier_checks():
-    """Unknown delivery, a factory that does not import or is not callable, a topic that is not an integer."""
+    """Unknown delivery is E010; a factory that does not import or is not callable is E002."""
     ids = lambda notifier: [message.id for message in notifier.check()]  # noqa: E731
     assert ids(topic()) == []
-    assert ids(topic(DELIVERY='later')) == ['offsite_backup.E001']
+    assert ids(topic(DELIVERY='later')) == ['offsite_backup.E010']
     assert ids(topic(BOT_FACTORY='tests.backends.no_such')) == ['offsite_backup.E002']
     assert ids(topic(BOT_FACTORY='tests.backends.NOT_CALLABLE')) == ['offsite_backup.E002']
-    assert ids(topic(TOPIC_ID='backups')) == ['offsite_backup.E001']
+
+
+@pytest.mark.parametrize('topic_id', ['7', -3, 0, '', None])
+def test_an_integer_or_unset_topic_passes_both_notifiers(monkeypatch, topic_id):
+    """The shared check accepts what message() accepts."""
+    assert [message.id for message in topic(TOPIC_ID=topic_id).check()] == []
+    notifier, _ = telegram(monkeypatch, TOPIC_ID=topic_id)
+    assert [message.id for message in notifier.check() if message.id != 'offsite_backup.E003'] == []
+
+
+def test_a_topic_that_is_not_an_integer_is_e010_on_the_topic_notifier():
+    """TopicNotifier validates TOPIC_ID with the shared check."""
+    [error] = topic(TOPIC_ID='backups').check()
+    assert error.id == 'offsite_backup.E010'
+    assert "NOTIFY[0]['TOPIC_ID']" in error.msg
+
+
+def test_a_topic_that_is_not_an_integer_is_e010_on_the_telegram_notifier(monkeypatch):
+    """TelegramNotifier validates TOPIC_ID with the same check."""
+    notifier, _ = telegram(monkeypatch, TOPIC_ID='backups')
+    assert [message.id for message in notifier.check()] == ['offsite_backup.E010']
 
 
 def test_a_factory_that_raises_does_not_cost_the_backup():

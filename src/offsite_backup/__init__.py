@@ -6,7 +6,7 @@ driver and the pass itself are imported when first used (PEP 562 ``__getattr__``
 
 from typing import TYPE_CHECKING, Any
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 __all__ = (
     'BackupError',
