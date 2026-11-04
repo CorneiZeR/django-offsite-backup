@@ -218,15 +218,17 @@ class S3Store(Store):
         self.client.download_file(self.bucket, key, str(into), Config=transfer_config())
 
     def check(self) -> list[checks.CheckMessage]:
-        """E007: retention must outlast the lock, or rotation meets locked objects every night."""
+        """E007: this store's retention must outlast its lock, or rotation meets locked objects every night."""
         found = [*super().check(), *check_client_options(self.options, self.label)]
         from offsite_backup.conf import read  # noqa: PLC0415 - avoids a cycle at import
 
-        keep = read()['RETENTION'].get('KEEP_NIGHTS')
+        own = self.option('KEEP_NIGHTS')
+        keep = own if own is not None else read()['RETENTION'].get('KEEP_NIGHTS')
+        named = f"{self.label}['KEEP_NIGHTS']" if own is not None else "RETENTION['KEEP_NIGHTS']"
         if self.lock_days and isinstance(keep, int) and keep <= self.lock_days:
             found.append(
                 checks.Error(
-                    f"RETENTION['KEEP_NIGHTS'] is {keep}, not more than {self.label}['LOCK_DAYS'] = {self.lock_days}.",
+                    f"{named} is {keep}, not more than {self.label}['LOCK_DAYS'] = {self.lock_days}.",
                     hint='Keep at least one night more than the lock (e.g. 14 nights, 13 days), '
                     'so rotation only ever deletes objects whose lock has run out.',
                     id='offsite_backup.E007',

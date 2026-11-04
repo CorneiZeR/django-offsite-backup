@@ -6,14 +6,19 @@ from typing import Any
 
 from offsite_backup import naming
 from offsite_backup.pass_ import Components
+from offsite_backup.stores.base import Store
 
 __all__ = ('lines', 'rows')
 
 
-def rows(parts: Components, kinds: Sequence[str] = ()) -> list[dict[str, Any]]:
-    """Per kind: objects, bytes, nights and the oldest, the newest stamp and its lock, objects without media."""
+def rows(parts: Components, kinds: Sequence[str] = (), *, store: Store | None = None) -> list[dict[str, Any]]:
+    """Per kind: objects, bytes, nights and the oldest, the newest stamp and its lock, objects without media.
+
+    ``store`` is one of several stores; the first by default.
+    """
     prefix = parts.settings.prefix
-    stored = parts.store.versions(f'{prefix}/')
+    store = store or parts.store
+    stored = store.versions(f'{prefix}/')
     found: dict[str, dict[str, Any]] = defaultdict(
         lambda: {'objects': 0, 'bytes': 0, 'nights': set(), 'partial': 0, 'newest': '', 'newest_key': ''}
     )
@@ -37,10 +42,10 @@ def rows(parts: Components, kinds: Sequence[str] = ()) -> list[dict[str, Any]]:
     for kind in sorted(found):
         entry = found[kind]
         locked = None
-        if parts.store.LOCKS and entry['newest_key']:
+        if store.LOCKS and entry['newest_key']:
             held = stored[entry['newest_key']]
             current = next(version for version in held if version.latest and not version.marker)
-            until = parts.store.locked_until(entry['newest_key'], current)
+            until = store.locked_until(entry['newest_key'], current)
             locked = until.isoformat() if until else None
         nights = sorted(entry['nights'])
         table.append(
@@ -58,10 +63,10 @@ def rows(parts: Components, kinds: Sequence[str] = ()) -> list[dict[str, Any]]:
     return table
 
 
-def lines(prefix: str, table: list[dict[str, Any]]) -> list[str]:
-    """The table as text, a kind per line."""
+def lines(prefix: str, table: list[dict[str, Any]], *, store: str = '') -> list[str]:
+    """The table as text, a kind per line; ``store`` names which, among several."""
     return [
-        f'{prefix}/',
+        f'{prefix}/' + (f'  (store {store})' if store else ''),
         *(
             f'  {row["kind"]}/: {row["nights"]} nights since {row["oldest_night"] or "-"}, '
             f'{row["objects"]} objects, {row["bytes"] / 1024**2:.1f} MB, newest {row["newest"]}'

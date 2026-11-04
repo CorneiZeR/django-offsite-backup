@@ -44,6 +44,10 @@ class Backend:
         values = [value] if isinstance(value, str) else list(value)
         return [str(item).strip() for item in values if str(item).strip()]
 
+    def binaries(self) -> tuple[str, ...]:
+        """The executables this instance runs: ``BINARIES``, unless an option chooses them."""
+        return self.BINARIES
+
     def check(self) -> list[checks.CheckMessage]:
         """Local, offline checks: binaries present, options well formed."""
         return [
@@ -52,7 +56,7 @@ class Backend:
                 hint=f'Install {binary} in the image that runs the backup.',
                 id='offsite_backup.E003',
             )
-            for binary in self.BINARIES
+            for binary in self.binaries()
             if shutil.which(binary) is None
         ]
 

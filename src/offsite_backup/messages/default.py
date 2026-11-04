@@ -59,10 +59,12 @@ def _written(outcome: Outcome) -> str:
         f'💾 <b>Backup written</b>: {_where(outcome)}',
         reason_line(outcome.reason),
         '',
-        f'📦 Objects: {len(summary.uploaded)}',
+        f'📦 Objects: {summary.objects}',
         f'⚖️ Size: {summary.bytes / 1024**2:.1f} MB',
         f'⏱ Took: {summary.seconds:.0f}s',
     ]
+    if len(summary.stores) > 1:
+        lines.append(f'🗃 Stores: {escape(", ".join(summary.stores))}')
     if summary.depth is not None:
         lines.append(f'🗄 Kept: {summary.depth.nights} days, since {summary.depth.since:%Y-%m-%d}')
     if not summary.media:

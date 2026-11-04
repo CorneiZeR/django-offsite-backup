@@ -206,14 +206,18 @@ def test_backup_list_reports_nights_per_kind(configured, fake_s3, now):
 
 
 def test_fetch_brings_every_part_back_and_verifies_the_dump(configured, fake_s3, tmp_path, monkeypatch, now):
-    """Download, decrypt, verify, into one directory per kind."""
+    """Download, decrypt, verify, into one directory per kind; a volume's manifest comes with it."""
     from offsite_backup.pass_ import run
 
     run(now=now)
     identity = tmp_path / 'id.txt'
     identity.write_text('AGE-SECRET-KEY-1')
     restored = fetch('latest', into=tmp_path / 'out', identity=identity)
-    assert sorted(item.kind for item in restored) == ['config', 'db', 'media']
+    assert sorted(item.kind for item in restored) == ['config', 'db', 'media', 'media']
+    assert sorted(item.path.name for item in restored if item.kind == 'media') == [
+        f'{naming.stamp(now)}.001.manifest.json',
+        f'{naming.stamp(now)}.001.tar',
+    ]
     db = next(item for item in restored if item.kind == 'db')
     assert db.verified
     assert db.path.read_text().startswith('-- dump of default')
@@ -301,7 +305,7 @@ BLOCKER = """
 import importlib, pkgutil, sys
 class Block:
     def find_spec(self, name, path=None, target=None):
-        if name.split('.')[0] in {'boto3', 'botocore', 'httpx2', 'django_aiogram', 'aiogram', 'celery', 'taskiq'}:
+        if name.split('.')[0] in {'boto3', 'botocore', 'httpx2', 'django_aiogram', 'aiogram', 'celery', 'taskiq', 'pyrage', 'storages'}:
             raise ImportError(f'blocked {name}')
 sys.meta_path.insert(0, Block())
 import django
@@ -327,7 +331,7 @@ def test_importing_the_package_loads_no_driver():
     """``import offsite_backup`` stays cheap."""
     code = (
         'import sys, offsite_backup; '
-        "print(sorted(m for m in sys.modules if m.split('.')[0] in {'boto3', 'httpx2', 'django_aiogram', 'offsite_backup'}))"
+        "print(sorted(m for m in sys.modules if m.split('.')[0] in {'boto3', 'httpx2', 'django_aiogram', 'pyrage', 'offsite_backup'}))"
     )
     out = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, check=True).stdout
     assert out.strip() == "['offsite_backup']"
@@ -442,9 +446,9 @@ def test_restore_takes_the_identity_as_text(configured, fake_s3, now, monkeypatc
     seen = []
     real = restore._unseal
 
-    def unseal(parts, key, secret, into):
+    def unseal(parts, key, secret, into, *rest):
         seen.append((Path(secret), Path(secret).read_text(), oct(Path(secret).stat().st_mode & 0o777)))
-        return real(parts, key, secret, into)
+        return real(parts, key, secret, into, *rest)
 
     monkeypatch.setattr(restore, '_unseal', unseal)
     restore_database('latest', 'default', identity_text='AGE-SECRET-KEY-1WAKE')

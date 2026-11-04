@@ -1,9 +1,15 @@
-"""Stores: where backups are kept, and the versions, locks and deletes rotation needs."""
+"""Stores: where backups are kept, and the versions, locks and deletes rotation needs.
+
+``STORE`` may be a list: every pass is written to each store, each one's lock read back on
+its own, each rotated by its own ``KEEP_NIGHTS``. Reads (restore, list, the morning check's
+"tonight is done") go to the first store unless one is named.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from offsite_backup import findings as checks
 from offsite_backup.backend import Backend
 
 __all__ = ('Store', 'Version', 'Wrote')
@@ -26,6 +32,8 @@ class Wrote:
     key: str
     size: int
     locked_until: datetime | None = None
+    #: the ``NAME`` of the store it went to; blank for a single unnamed store
+    store: str = ''
 
 
 class Store(Backend):
@@ -33,6 +41,28 @@ class Store(Backend):
 
     #: whether objects are immutable once written (Object Lock)
     LOCKS = False
+
+    @property
+    def name(self) -> str:
+        """``NAME``: how messages, ``--store`` and the checks call this store among several."""
+        return str(self.option('NAME', '')).strip()
+
+    def keep_nights(self, default: int) -> int:
+        """``KEEP_NIGHTS`` on this store, else ``RETENTION['KEEP_NIGHTS']``: each store rotates on its own."""
+        return int(self.option('KEEP_NIGHTS', default))
+
+    def check(self) -> list[checks.CheckMessage]:
+        """A store's own ``KEEP_NIGHTS``, when given, is a positive integer."""
+        found = super().check()
+        keep = self.option('KEEP_NIGHTS')
+        if keep is not None and (not isinstance(keep, int) or isinstance(keep, bool) or keep < 1):
+            found.append(
+                checks.Error(
+                    f"{self.label}['KEEP_NIGHTS'] is {keep!r}; expected a positive integer.",
+                    id='offsite_backup.E001',
+                )
+            )
+        return found
 
     def put(self, path: Path, key: str, *, now: datetime | None = None) -> Wrote:
         """Store ``path`` under ``key`` (locked, where the store locks) and confirm it landed."""

@@ -8,6 +8,7 @@ from offsite_backup.notifiers.base import Notifier
 from offsite_backup.outcome import Outcome
 from offsite_backup.pipeline import run_into
 from offsite_backup.sealing import Sealing
+from offsite_backup.stores.filesystem import DirectoryStore
 
 DUMPED: list[str] = []
 RESTORED: list[tuple[str, str, bool]] = []
@@ -113,3 +114,10 @@ def fake_bot():
 
 
 NOT_CALLABLE = 42
+
+
+class RefusingStore(DirectoryStore):
+    """A directory store whose disk is full: every upload is refused."""
+
+    def put(self, path: Path, key: str, *, now=None):
+        raise OSError(28, 'No space left on device')

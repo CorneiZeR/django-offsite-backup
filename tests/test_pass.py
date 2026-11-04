@@ -26,12 +26,13 @@ def uploads(fake):
 
 
 def test_a_pass_writes_every_part_under_the_prefix(configured, fake_s3, now):
-    """Database, media volumes and config, each under its kind."""
+    """Database, media volumes with their manifests, and config, each under its kind."""
     summary = run(now=now)
     stamp = naming.stamp(now)
     assert stored(fake_s3) == [
         f'acme/prod/config/{stamp}.tar.zst.age',
         f'acme/prod/db/{stamp}.sql.zst.age',
+        f'acme/prod/media/{stamp}.001.manifest.json.age',
         f'acme/prod/media/{stamp}.001.tar.age',
     ]
     assert summary.bytes == sum(len(body(fake_s3, key)) for key in stored(fake_s3))
@@ -60,7 +61,7 @@ def test_media_volumes_are_whole_tars(configured, fake_s3, now, settings):
     """Each volume restores on its own, with the files' relative paths."""
     settings.OFFSITE_BACKUP['MEDIA'][0]['VOLUME_BYTES'] = 20 * 1024 + 2 * (300 + 2048)
     run(now=now)
-    volumes = [key for key in stored(fake_s3) if '/media/' in key]
+    volumes = [key for key in stored(fake_s3) if '/media/' in key and key.endswith('.tar.age')]
     assert len(volumes) == 2
     names = []
     for key in volumes:

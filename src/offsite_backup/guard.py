@@ -86,7 +86,8 @@ def _done_tonight(settings: conf.Settings, moment: datetime) -> bool:
     """Whether every part tonight's pass writes already holds a whole backup stamped with this UTC date.
 
     Every database's folder, not only the config: a pass where one database failed still
-    uploads the rest and the config, and its retry must not be taken for a done night.
+    uploads the rest and the config, and its retry must not be taken for a done night. And
+    every store: a pass one store refused is not done either.
     """
     from offsite_backup.check import newest_whole  # noqa: PLC0415 - avoids a cycle
 
@@ -97,10 +98,11 @@ def _done_tonight(settings: conf.Settings, moment: datetime) -> bool:
     if not kinds:
         kinds = [naming.media_kind(source.name) for source in parts.media]
     tonight = moment.astimezone(timezone.utc).date()
-    for kind in kinds:
-        newest = newest_whole(parts.store, naming.folder(settings.prefix, kind))
-        if newest is None or newest.date() != tonight:
-            return False
+    for store in parts.stores:
+        for kind in kinds:
+            newest = newest_whole(store, naming.folder(settings.prefix, kind))
+            if newest is None or newest.date() != tonight:
+                return False
     return True
 
 

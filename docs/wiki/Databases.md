@@ -8,8 +8,17 @@
 },
 ```
 
-PostgreSQL through `pg_dump`. For each alias: `pg_dump | zstd | age` into one file in the
-workspace, upload, delete, next. Nothing goes through Python memory.
+Three sources, one per engine — each a `BACKEND` of its own:
+
+| engine | backend | dumps with | object suffix |
+| --- | --- | --- | --- |
+| PostgreSQL | `offsite_backup.databases.postgres.PostgresSource` | `pg_dump` | `.sql.zst.age` / `.dump.zst.age` |
+| MySQL, MariaDB | `offsite_backup.databases.mysql.MySQLSource` | `mysqldump` / `mariadb-dump --single-transaction` | `.sql.zst.age` |
+| SQLite | `offsite_backup.databases.sqlite.SQLiteSource` | Python's online backup API | `.sqlite3.zst.age` |
+
+For each alias: dump `| zstd | age` into one file in the workspace, upload, delete, next.
+Nothing goes through Python memory. Most of this page is PostgreSQL's; what differs for
+the others is under [MySQL and MariaDB](#mysql-and-mariadb) and [SQLite](#sqlite).
 
 ## Which databases
 
@@ -165,9 +174,73 @@ own rotation will take it.
 
 `backup_restore --apply` and `restore_database()` — see [Restore](Restore.md).
 
+## MySQL and MariaDB
+
+```python
+'DATABASES': {
+    'BACKEND': 'offsite_backup.databases.mysql.MySQLSource',
+    'ALIASES': ['default'],
+    'CLIENT': 'mariadb',   # 'mysql' (default): mysqldump and mysql
+},
+```
+
+`ALIASES` works as for PostgreSQL. Each dump is
+
+```text
+mysqldump --defaults-extra-file=<0600 file> --single-transaction --quick --hex-blob --triggers
+          --no-tablespaces --default-character-set=utf8mb4 [--set-gtid-purged=OFF] <EXTRA_ARGS> <NAME>
+```
+
+* **One moment of the database.** `--single-transaction` reads every InnoDB table as of
+  the dump's start, without locking a table against the application. A MyISAM table is not
+  covered by it — it is read as it is while the dump runs; convert it, or accept that.
+* **The password never reaches argv**, nor `MYSQL_PWD` (deprecated by MySQL): `HOST`
+  (a path starting with `/` is a socket), `PORT`, `USER`, `PASSWORD`,
+  `OPTIONS['unix_socket']` and `OPTIONS['ssl']` go into an option file readable by this
+  process only, passed as `--defaults-extra-file` and removed when the dump ends.
+* `--set-gtid-purged=OFF` (MySQL only, which `mariadb-dump` does not know): a dump carrying
+  the server's GTID set refuses to load into any other server.
+* `--no-tablespaces` spares the dump user the `PROCESS` privilege. Routines and events are
+  not dumped by default — Django does not create them; `'EXTRA_ARGS': ['--routines',
+  '--events']` adds them for a project that does.
+* **Whole**: a restore checks the dump ends with `-- Dump completed`, the line both programs
+  write last (so do not pass `--skip-comments`).
+* **No Python driver needed**: the source runs only the client programs. A restore asks the
+  server through `mysql` / `mariadb` whether the target holds any table, refuses one that
+  does unless `--clean` — which drops every table and view first, foreign key checks off —
+  then feeds the dump to the client, which stops at the first error.
+
+The client should be at least as new as the server: `mysql-client` for MySQL,
+`mariadb-client` for MariaDB (`mysqldump` 8 against a MariaDB server trips on statistics
+tables MariaDB does not have).
+
+## SQLite
+
+```python
+'DATABASES': {
+    'BACKEND': 'offsite_backup.databases.sqlite.SQLiteSource',
+    'ALIASES': ['default'],
+},
+```
+
+Each alias's `NAME` is a file. It is copied with `sqlite3.Connection.backup` — the online
+backup API — into the pass's private workspace, then compressed and sealed from there and
+the copy removed. The backup API copies page by page and starts over when a writer touches
+a page it has copied, so the copy is **one moment** of the database while the application
+keeps writing; copying the file itself could catch a transaction half way, or miss what
+only the write-ahead log (`-wal`) holds. No binary is needed.
+
+* The workspace holds one plain copy of the database for the length of its sealing — mind
+  `WORKDIR` on a machine whose temporary directory is small or shared.
+* A database file that does not exist fails that database (`SourceMissingError`) instead
+  of creating an empty one; `check --deploy` reports it as `W005`, or `E009` with
+  `'REQUIRED': True`. An alias that is not SQLite, or an in-memory database, is `E001`.
+* **Verified** on restore: an SQLite header and `PRAGMA integrity_check` answering `ok`.
+* **Restored** with the same backup API over the target alias's file, which must hold no
+  table unless `--clean`. Close the application's connections to it first.
+
 ## Other databases
 
-PostgreSQL is the one source shipped. MySQL (`mysqldump --single-transaction`) and SQLite (the online
-backup API) are on the roadmap; meanwhile a subclass of
-`offsite_backup.databases.base.DatabaseSource` named in `BACKEND` works without any change
-to the package.
+A subclass of `offsite_backup.databases.base.DatabaseSource` named in `BACKEND` works
+without any change to the package: `targets()` (the `ALIASES` logic is the base class's),
+`suffix()`, `dump()`, `verify()` and `restore()`.

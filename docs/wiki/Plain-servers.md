@@ -87,6 +87,14 @@ check. What differs off Django:
 * **Databases** are named in `CONNECTIONS`, an alias each, with the keys Django's
   `DATABASES` has (`HOST`, `PORT`, `USER`, `PASSWORD`, `NAME`, `OPTIONS`). `ALIASES` says
   which are dumped — `['default']` unless set ([Databases](Databases.md#the-connection)).
+  `MySQLSource` and `SQLiteSource` take `CONNECTIONS` the same way (for SQLite, `NAME` is
+  the file).
+* **Every backend runs here but one.** The stores (one or [several](Stores-several.md)),
+  both sealers (`age` and `Pyrage`), every database source, and the media sources
+  `DirectorySource`, `S3Source` and `VolumeSource` (a Docker volume, through the `docker`
+  CLI) need no Django. `StorageSource` reads a Django storage and is refused by name:
+  `E002`, with `[django]` as the extra to install where Django is absent, or "needs a Django
+  project" where it is installed and there is no project.
 * **Paths** are best written absolute; a relative one is the working directory's, as under
   Django. `RENDER_ENV` is the exception: it is read against the setting file's directory,
   where Django would read `BASE_DIR`. A media `DirectorySource` needs its `ROOT` — there is
@@ -105,8 +113,8 @@ check. What differs off Django:
 | `run [--without-media] [--reason R] [--only KIND] [--path P]` | a pass now; `--path` adds a file or directory to the configuration archive (repeatable) — or, with no `[CONFIG]`, makes one of them alone | 0, 1 on failure |
 | `check` | the morning check — MISSING / UNCHECKED said through the notifiers | 0, 1 |
 | `status [--json] [--prometheus FILE] [--stale-hours H]` | the newest whole backup's age per kind, said to nobody ([Monitoring](Monitoring.md#the-age-of-every-kind)) | 0 fresh, 1 stale, 2 store unreadable |
-| `list [--kind K] [--json]` | what the store holds per kind | 0, 1 |
-| `restore --stamp S [--identity F] [--into DIR] [--kind K]` | download, decrypt, verify; `--apply --database ALIAS [--from-database A] [--clean]` loads a `CONNECTIONS` alias ([Restore](Restore.md)) | 0, 1 |
+| `list [--kind K] [--store NAME] [--json]` | what the store holds per kind | 0, 1 |
+| `restore --stamp S [--identity F] [--into DIR] [--kind K] [--database ALIAS] [--path P] [--store NAME]` | download, decrypt, verify — one database (`--database` narrows `--kind`), or some media files (`--path`, repeatable, checked against the manifests); `--apply --database ALIAS [--from-database A] [--clean]` loads a `CONNECTIONS` alias ([Restore](Restore.md)) | 0, 1 |
 | `drill [--identity F] [--database ALIAS] [--without-media]` | the restore drill ([Restore](Restore.md#the-monthly-drill)) | 0, 1 |
 | `checks [--deploy]` | the system checks, printed; `--deploy` adds the bucket's lock, `pg_dump` against the server, the paths and the drill's target | 0, 1 on an error, **3 when backups are off** |
 | `failed [--reason R] TEXT` | say that something *before* the pass failed — a dump that died in the caller's script — as the same FAILED message | 0 |

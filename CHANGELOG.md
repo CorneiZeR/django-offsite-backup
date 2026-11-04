@@ -9,7 +9,8 @@ major version.
 No setting is renamed or removed; every new one is off until set. Three behaviours move:
 the base install no longer pulls Django (the `[django]` extra does), a restore's emptiness
 check and `E004` ask the server through `psql`, and a failed `--reason upgrade` pass says
-the upgrade stops. Nothing to edit in a Django project.
+the upgrade stops. And every media volume now has a manifest beside it, which the pass's
+object count includes. Nothing to edit in a Django project.
 
 ### Operations
 
@@ -54,6 +55,54 @@ Changed
   keeps serving.`
 - The test runner classes live in `offsite_backup.testing.runner`; `offsite_backup.testing`
   still exports them, imported when first named.
+
+### Sources and stores
+
+Added
+
+- `media.docker_volume.VolumeSource`: a named Docker volume the worker does not mount, read
+  through a container that is created read-only with no network and never started, streamed
+  once with `docker cp`; `VOLUME`, `IMAGE`. A missing volume is never created. `E012` under
+  `check --deploy` when the daemon cannot be asked; `W005`/`E009` for a missing volume.
+- `media.django_storage.StorageSource`: media through any Django storage (`STORAGE`, `PREFIX`),
+  read a block at a time; a django-storages S3 file is streamed from its object's body rather
+  than spooled whole. `E001` for an unknown alias, `E012` for a `PREFIX` that cannot be listed.
+- Media manifests: `<stamp>.<NNN>.manifest.json.age` beside every volume — each file's path,
+  size and SHA-256, taken as it streams into the tar. Volumes are packed while files stream,
+  so a source is listed once.
+- Selective restore: `backup_restore --path` (repeatable; a file or a folder) downloads only
+  the volumes whose manifest lists a match and checks every file against its hash;
+  `restore_media()`; `backup_restore --database ALIAS` without `--apply` fetches one database.
+- `databases.mysql.MySQLSource` (`CLIENT: 'mysql' | 'mariadb'`, `EXTRA_ARGS`):
+  `--single-transaction`, the password in a 0600 option file, restore through the client.
+- `databases.sqlite.SQLiteSource`: the online backup API, verified by `PRAGMA integrity_check`,
+  restored with the same API.
+- Several stores: `STORE` takes a list of blocks, each with a `NAME` (`E001` when missing or
+  taken) and its own `KEEP_NIGHTS`. Every object goes to each store, locks read back on each,
+  each rotated on its own; a store that refuses is left out of the pass, not rotated, and the
+  pass fails by its name. The morning check and the database guard ask every store.
+  `--store NAME` on `backup_list` and `backup_restore`; `store=` on `fetch`, `restore_media`,
+  `restore_database`.
+- `encryption.pyrage.Pyrage` (`[pyrage]` extra): age without the binary, the same format both
+  ways; `PYTHON` for a server whose `sys.executable` is not Python.
+- `E012`; `Backend.binaries()` for a backend whose programs an option chooses.
+
+Changed
+
+- The pass's object count (message, `backup_offsite`, `ob_objects`) includes manifests, and
+  counts each object once however many stores hold it.
+- `fetch()` / `backup_restore --stamp` also brings back each volume's manifest.
+- `pass_.Components` holds `stores` (a list); `Components.store` is the first of them, as
+  before. `Wrote` carries the `store` it went to; `Summary` adds `objects`, `stores` and
+  `failed_stores`, and its `bytes` and `keys` count each object once.
+- `MediaSource.seal_volumes()` packs and seals while the files stream; `items()` is the one
+  method a source that can only stream overrides. `volumes()` and `seal_volume()` remain.
+- In the drill and the command line: `MySQLSource` and `SQLiteSource` answer `tables()`,
+  `clear()` and `same_database()` (SQLite by the file), and take `CONNECTIONS` like
+  `PostgresSource`; `VolumeSource` and `Pyrage` run without Django; `StorageSource` is refused
+  by name (`E002`) on a server with no Django project. The drill skips manifests, as what it
+  opens is the volumes; `offsite-backup run|list|restore` take `--store`, and `restore` takes
+  `--path` and narrows by `--database`, as the management commands do.
 
 ## 0.3.0 — 2026-11-04
 

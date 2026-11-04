@@ -16,8 +16,9 @@ class Command(BaseCommand):
     help = 'List what the store holds under PREFIX: per kind, nights, objects, bytes and the newest lock.'
 
     def add_arguments(self, parser: CommandParser) -> None:
-        """``--kind``, ``--json``."""
+        """``--kind``, ``--store``, ``--json``."""
         parser.add_argument('--kind', action='append', help='Only this kind (db, media, config, db-<alias>, ...).')
+        parser.add_argument('--store', help='The store of this NAME (default: the first store).')
         parser.add_argument('--json', action='store_true', help='Machine-readable output.')
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -27,12 +28,13 @@ class Command(BaseCommand):
             return
         try:
             parts = components()
-            table = listing.rows(parts, options['kind'] or ())
+            store = parts.store_named(options['store'])
+            table = listing.rows(parts, options['kind'] or (), store=store)
         except BackupError as error:
             raise CommandError(f'backup_list: {error}') from error
         prefix = parts.settings.prefix
         if options['json']:
-            self.stdout.write(json.dumps({'prefix': prefix, 'kinds': table}, indent=2))
+            self.stdout.write(json.dumps({'prefix': prefix, 'store': store.name, 'kinds': table}, indent=2))
             return
-        for line in listing.lines(prefix, table):
+        for line in listing.lines(prefix, table, store=store.name if len(parts.stores) > 1 else ''):
             self.stdout.write(line)

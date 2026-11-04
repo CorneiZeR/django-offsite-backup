@@ -15,7 +15,6 @@ from offsite_backup import findings as checks
 from offsite_backup.databases.base import DatabaseSource
 from offsite_backup.exceptions import BackupError, PipelineError
 from offsite_backup.pipeline import run_into
-from offsite_backup.registry import import_string
 from offsite_backup.sealing import Sealing
 
 __all__ = ('PostgresSource',)
@@ -64,13 +63,6 @@ class PostgresSource(DatabaseSource):
     def format(self) -> str:
         """``plain`` (default) or ``custom``."""
         return str(self.option('FORMAT', 'plain'))
-
-    def targets(self) -> list[str]:
-        """The aliases this run dumps, computing them when ``ALIASES`` is a callable's path."""
-        aliases = self.option('ALIASES', ['default'])
-        if isinstance(aliases, str):
-            aliases = import_string(aliases)()
-        return [str(alias).strip() for alias in aliases if str(alias).strip()]
 
     def suffix(self) -> str:
         """``sql.zst.age`` for plain, ``dump.zst.age`` for custom (``-Z0``, then zstd)."""

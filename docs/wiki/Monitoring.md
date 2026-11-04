@@ -156,6 +156,7 @@ Everything is logged to the `offsite_backup` logger, with fields in the record's
 | INFO | `Nightly backup skipped: ...` (off, done, or being done) | — |
 | INFO | `Databases not backed up yet` (the morning check) | `ob_kinds` |
 | ERROR (with traceback) | `Database not backed up` | `ob_alias` |
+| ERROR (with traceback) | `Store not written; left out of this pass` — one of [several stores](Stores-several.md) refused an object | `ob_store` |
 | WARNING | `Backup still locked; left for a later night` | `ob_key`, `ob_until` |
 | WARNING | `Backup depth not read` | `ob_folder` |
 | WARNING | `Last-success marker not written` | `ob_path`, `ob_error` |
@@ -165,6 +166,8 @@ Everything is logged to the `offsite_backup` logger, with fields in the record's
 | ERROR (with traceback) | `Database not restored by the drill`, `Archive not opened by the drill` | `ob_key`, `ob_step` |
 | ERROR (with traceback) | `Drill database not emptied` | `ob_alias` |
 | WARNING | `Live database not counted` (the drill) | `ob_alias`, `ob_error` (the class only) |
+| WARNING | `Media volume not found` — a `VolumeSource` Docker volume that does not exist (`W005` under `check --deploy`) | `ob_volume` |
+| WARNING | `Media file is a hard link; left out` — in a Docker volume | `ob_path` |
 | ERROR | `Notifier not built`, `Notifier raised` | `ob_notifier`, `ob_error` |
 | ERROR | `Backup message not formatted` | `ob_error` |
 | ERROR | `Telegram refused the backup message` | `ob_status`, `ob_description` |

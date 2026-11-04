@@ -2,7 +2,7 @@
 
 ## 0.4.0 — unreleased
 
-Nothing to edit in a Django project; [Upgrading](Upgrading.md#from-03-to-04) has the three
+Nothing to edit in a Django project; [Upgrading](Upgrading.md#from-03-to-04) has the
 behaviours that move and what to consider turning on.
 
 ### Operations
@@ -29,6 +29,30 @@ drill on a server with no Django project, from a TOML file whose top level is
 `OFFSITE_BACKUP`, with `${NAME}` read from the environment and `--env-file` files.
 `PostgresSource` takes its connections from `CONNECTIONS`. Django is the `[django]` extra;
 the core imports without it. [Without Django](Plain-servers.md).
+
+### Sources and stores
+
+**More sources.** MySQL and MariaDB (`mysqldump --single-transaction`, the password in a
+private option file) and SQLite (the online backup API) beside PostgreSQL
+([Databases](Databases.md)); a Docker volume the worker does not mount, read through a
+container that never starts, and any Django storage, streamed a block at a time
+([Media](Media.md)).
+
+**Manifests and selective restore.** Every media volume has a sealed manifest beside it —
+path, size and SHA-256 of each file. `backup_restore --path` brings back one file or one
+folder, downloading only the volumes that hold it and checking every file against its hash;
+`--database ALIAS` brings back one database ([Restore](Restore.md#some-media-files)).
+
+**Several stores.** `STORE` takes a list: every pass goes to each store, each read back,
+locked and rotated on its own; a store that refuses fails the pass by its name, never a
+silent partial ([Several stores](Stores-several.md)).
+
+**pyrage.** `encryption.pyrage.Pyrage` seals in age's format without the binary; either
+opens what the other sealed ([Encryption](Encryption.md#without-the-binary-pyrage)).
+
+Every new source runs under the drill and the command line too — MySQL, MariaDB and SQLite
+are counted and emptied by the drill like PostgreSQL; a Django storage needs a Django project
+and is refused by name without one ([Without Django](Plain-servers.md)).
 
 ## 0.3.0 — 2026-11-04
 

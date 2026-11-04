@@ -91,4 +91,5 @@ def test_a_whole_pass_runs_from_the_command_line_without_django(tmp_path):
         str(setting),
     )
     assert result.stdout.strip().splitlines()[-1] == '[0, 0, 0]', result.stderr
-    assert sorted(path.parent.name for path in (tmp_path / 'backups').rglob('*.age')) == ['config', 'media']
+    # the media volume and its manifest
+    assert sorted(path.parent.name for path in (tmp_path / 'backups').rglob('*.age')) == ['config', 'media', 'media']

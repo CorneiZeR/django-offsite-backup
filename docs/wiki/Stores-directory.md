@@ -29,8 +29,9 @@ That is a warning, not an error, on purpose: a directory store is a legitimate c
 a staging machine, or for a disk that is in fact mounted from elsewhere. Silence it with
 `SILENCED_SYSTEM_CHECKS = ['offsite_backup.W001']` once you have decided.
 
-A project has one store. Several at once — a local volume for a fast restore and
-S3 for disaster, each with its own retention — is on the roadmap.
+Kept beside an S3 store rather than instead of one, it is the fast copy: `STORE` takes a
+list — a local volume for last night's restore, S3 with Object Lock for disaster, each with
+its own `KEEP_NIGHTS` ([Several stores](Stores-several.md)).
 
 ## How files are written
 

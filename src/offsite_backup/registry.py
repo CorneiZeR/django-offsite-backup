@@ -22,6 +22,9 @@ SHIPPED: dict[str, tuple[str, str]] = {
     'offsite_backup.notifiers.telegram.TelegramNotifier': ('httpx2', 'telegram'),
     'offsite_backup.notifiers.django_aiogram.TopicNotifier': ('django_aiogram', 'aiogram'),
     'offsite_backup.notifiers.webhook.WebhookNotifier': ('httpx2', 'webhook'),
+    'offsite_backup.encryption.pyrage.Pyrage': ('pyrage', 'pyrage'),
+    # a Django storage needs Django, and a Django project to name it in (checked by the source)
+    'offsite_backup.media.django_storage.StorageSource': ('django', 'django'),
 }
 
 B = TypeVar('B', bound=Backend)
@@ -47,7 +50,11 @@ def missing_extra(path: str) -> str | None:
     if path not in SHIPPED:
         return None
     module, extra = SHIPPED[path]
-    if importlib.util.find_spec(module) is not None:
+    try:
+        found = importlib.util.find_spec(module)
+    except (ImportError, ValueError):  # a package that is there and refuses to be found is not installed
+        found = None
+    if found is not None:
         return None
     if module == 'boto3':
         from offsite_backup.stores import s3  # noqa: PLC0415 - imports no driver

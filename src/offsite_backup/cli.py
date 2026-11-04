@@ -132,6 +132,7 @@ def _parser() -> argparse.ArgumentParser:
 
     listing = commands.add_parser('list', help='What the store holds, per kind.')
     listing.add_argument('--kind', action='append')
+    listing.add_argument('--store', help='The store of this NAME (default: the first store).')
     listing.add_argument('--json', action='store_true')
 
     restore = commands.add_parser('restore', help='Download, decrypt and verify a stamp; --apply loads a database.')
@@ -139,8 +140,15 @@ def _parser() -> argparse.ArgumentParser:
     restore.add_argument('--identity', help='The age identity file; default: $AGE_IDENTITY.')
     restore.add_argument('--into', type=Path)
     restore.add_argument('--kind', action='append')
+    # its own dest: `run --path` (a path added to the configuration archive) is read before any command
+    restore.add_argument(
+        '--path', dest='media_paths', action='append', help='Only this media file, or everything under this folder.'
+    )
+    restore.add_argument('--store', help='Read from the store of this NAME (default: the first store).')
     restore.add_argument('--apply', action='store_true')
-    restore.add_argument('--database', help='With --apply: the CONNECTIONS alias to load into.')
+    restore.add_argument(
+        '--database', help="Only this database's dump; with --apply, the CONNECTIONS alias to load into."
+    )
     restore.add_argument('--from-database', help='With --apply: whose backup (default: --database).')
     restore.add_argument('--clean', action='store_true', help='With --apply: replace a non-empty database.')
 
@@ -181,7 +189,8 @@ def _run(args: argparse.Namespace, settings: conf.Settings) -> int:
 
     reason = (args.reason or '').strip() or str(settings['DEFAULT_REASON'])
     summary = run(media=not args.without_media, reason=reason, only=args.only)
-    _say(f'offsite-backup: {len(summary.uploaded)} objects, {summary.bytes} bytes up')
+    stores = f' to each of {len(summary.stores)} stores' if len(summary.stores) > 1 else ''
+    _say(f'offsite-backup: {summary.objects} objects, {summary.bytes} bytes up{stores}')
     return 0
 
 
@@ -211,32 +220,51 @@ def _list(args: argparse.Namespace, settings: conf.Settings) -> int:
     from offsite_backup import listing  # noqa: PLC0415
     from offsite_backup.pass_ import components  # noqa: PLC0415
 
-    table = listing.rows(components(), args.kind or ())
+    parts = components()
+    store = parts.store_named(args.store)
+    table = listing.rows(parts, args.kind or (), store=store)
     if args.json:
-        _say(json.dumps({'prefix': settings.prefix, 'kinds': table}, indent=2))
+        _say(json.dumps({'prefix': settings.prefix, 'store': store.name, 'kinds': table}, indent=2))
     else:
-        for line in listing.lines(settings.prefix, table):
+        for line in listing.lines(settings.prefix, table, store=store.name if len(parts.stores) > 1 else ''):
             _say(line)
     return 0
 
 
 def _restore(args: argparse.Namespace, settings: conf.Settings) -> int:
-    from offsite_backup.restore import fetch, restore_database  # noqa: PLC0415
+    from offsite_backup.restore import database_kinds, fetch, restore_database, restore_media  # noqa: PLC0415
 
     if args.clean and not args.apply:
         _err('offsite-backup: --clean only means something with --apply')
         return 2
+    if args.media_paths and (args.apply or args.database):
+        _err('offsite-backup: --path restores media files; it does not combine with --database or --apply')
+        return 2
+    into = args.into or Path(f'restore-{args.stamp}')
+    kinds = list(args.kind or ())
+    if args.media_paths:
+        for item in restore_media(
+            args.stamp, args.media_paths, into=into, identity=args.identity, kinds=kinds, store=args.store
+        ):
+            _say(f'{item.path}' + ('  (verified)' if item.verified else ''))
+        return 0
     if args.apply:
         if not args.database:
             _err('offsite-backup: --apply needs --database ALIAS')
             return 2
         key = restore_database(
-            args.stamp, args.database, identity=args.identity, clean=args.clean, source_alias=args.from_database
+            args.stamp,
+            args.database,
+            identity=args.identity,
+            clean=args.clean,
+            source_alias=args.from_database,
+            store=args.store,
         )
         _say(f'offsite-backup: {key} loaded into {args.database!r}')
         return 0
-    into = args.into or Path(f'restore-{args.stamp}')
-    for restored in fetch(args.stamp, into=into, identity=args.identity, kinds=args.kind or ()):
+    if args.database:
+        kinds = database_kinds(args.database, kinds)
+    for restored in fetch(args.stamp, into=into, identity=args.identity, kinds=kinds, store=args.store):
         _say(f'{restored.path}' + ('  (verified)' if restored.verified else ''))
     return 0
 

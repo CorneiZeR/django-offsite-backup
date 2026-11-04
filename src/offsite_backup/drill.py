@@ -25,6 +25,7 @@ from pathlib import Path
 from offsite_backup import conf, naming
 from offsite_backup.databases.base import DatabaseSource
 from offsite_backup.exceptions import BackupError, DrillFailedError, MisconfiguredError
+from offsite_backup.media.base import MANIFEST_SUFFIX
 from offsite_backup.notify import notify
 from offsite_backup.outcome import DRILL_FAILED, DRILLED, Drill, DrilledArchive, DrilledDatabase, Outcome
 from offsite_backup.pass_ import Components, components
@@ -54,6 +55,11 @@ def refuse_live(source: DatabaseSource, target: str, live: list[str]) -> None:
                 'the drill restores into a throwaway database only'
             )
             raise MisconfiguredError(msg)
+
+
+def _is_manifest(key: str) -> bool:
+    name = naming.parse(key)
+    return name is not None and name.suffix == MANIFEST_SUFFIX
 
 
 def _error_text(error: BaseException) -> str:
@@ -157,7 +163,10 @@ def _prepare(parts: Components, report: Drill, *, with_media: bool) -> tuple[lis
     archives = [
         key
         for key in keys
-        if key not in databases and (with_media or not _kind(prefix, key).startswith(naming.media_kind('')))
+        if key not in databases
+        and (with_media or not _kind(prefix, key).startswith(naming.media_kind('')))
+        # a manifest is not a tar: it describes the volume beside it, which is what is opened
+        and not _is_manifest(key)
     ]
     if databases:
         if parts.databases is None:

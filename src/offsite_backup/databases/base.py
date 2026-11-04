@@ -12,6 +12,7 @@ from typing import Any, ClassVar
 from offsite_backup import conf
 from offsite_backup.backend import Backend
 from offsite_backup.exceptions import MisconfiguredError
+from offsite_backup.registry import import_string
 from offsite_backup.sealing import Sealing
 
 __all__ = ('DatabaseSource',)
@@ -26,8 +27,11 @@ class DatabaseSource(Backend):
     DEFAULT_PORT: ClassVar[str] = ''
 
     def targets(self) -> list[str]:
-        """The database aliases this run dumps."""
-        raise NotImplementedError
+        """``ALIASES`` (default ``['default']``), computed when it is a callable's dotted path."""
+        aliases = self.option('ALIASES', ['default'])
+        if isinstance(aliases, str):
+            aliases = import_string(aliases)()
+        return [str(alias).strip() for alias in aliases if str(alias).strip()]
 
     def suffix(self) -> str:
         """The object suffix, e.g. ``sql.zst.age``."""

@@ -39,13 +39,26 @@ docker run -d --rm --name ob-s3 -e MINIO_ROOT_USER=minio -e MINIO_ROOT_PASSWORD=
   -p 9000:9000 cgr.dev/chainguard/minio:latest server /data
 
 OFFSITE_BACKUP_TEST_S3_ENDPOINT=http://127.0.0.1:9000 \
-  python -m pytest -m integration --ds=tests.integration_settings tests/integration
+  python -m pytest -m 'integration and not mysql' --ds=tests.integration_settings tests/integration
 ```
 
 It needs `age`, `age-keygen`, `zstd`, `pg_dump`, `psql` and `pg_restore` on PATH, the client
 at least as new as the server. Variables: `OFFSITE_BACKUP_TEST_PG_{HOST,PORT,USER,PASSWORD,SOURCE,TARGET}`,
 `OFFSITE_BACKUP_TEST_S3_{ENDPOINT,ACCESS_KEY,SECRET_KEY}`. Each run creates fresh buckets:
 COMPLIANCE locks cannot be lifted, so do not point it at a store you care about.
+`OFFSITE_BACKUP_TEST_DOCKER=1` adds the Docker volume cases (a daemon, `busybox:stable`).
+
+MySQL and MariaDB run apart, marked `mysql` (deselect them with `-m 'integration and not mysql'`
+above), with the server's own client on PATH:
+
+```shell
+docker run -d --rm --name ob-mysql -e MYSQL_ROOT_PASSWORD=ob -p 3306:3306 mysql:8.4
+OFFSITE_BACKUP_TEST_MYSQL_PORT=3306 python -m pytest -m mysql tests/integration/test_mysql.py
+# MariaDB: mariadb:11.4 and OFFSITE_BACKUP_TEST_MYSQL_CLIENT=mariadb (mariadb-dump, mariadb)
+```
+
+Variables: `OFFSITE_BACKUP_TEST_MYSQL_{HOST,PORT,USER,PASSWORD,CLIENT}`; it creates and drops
+the databases `ob_source` and `ob_target`.
 
 ## Pull requests
 

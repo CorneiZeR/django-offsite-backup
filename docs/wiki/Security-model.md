@@ -12,7 +12,8 @@ cannot destroy one it has written.** This page says how far that holds, and wher
 | S3 key for the store | server environment | yes — writes, lists, reads ciphertext |
 | S3 key for an S3 media source | server environment | yes — reads the media bucket |
 | notifier token | server environment, or django-aiogram's settings | yes |
-| database password | server environment, `PGPASSWORD` for `pg_dump` | yes |
+| database password | server environment; `PGPASSWORD` for `pg_dump`, a 0600 option file for `mysqldump` | yes |
+| the Docker socket (a `VolumeSource` only) | mounted into the worker | **yes** — root on the host |
 | a wake key (optional) | server | yes — opens only the dumps sealed to it |
 
 ## What the server can and cannot do
@@ -98,11 +99,28 @@ so a copy of production does not stay in the scratch database.
 A server that holds an extra identity can open the dumps sealed to it — by design, so it
 can restore them itself — and nothing else. Seal only the dumps that need it.
 
+### The Docker socket
+
+A `VolumeSource` reads a volume the worker does not mount, through the Docker daemon — so
+the worker holds the daemon's socket, and whoever controls the worker can start any
+container on the host: **root on the host**. The source itself only creates a container
+(never starts it), mounts the volume read-only with no network, and reads it with
+`docker cp`; the risk is the socket, not what the source does with it. Mount the volume
+read-only into the worker and use `DirectorySource` where you can; where you cannot, a
+socket proxy that allows only `volume inspect`, `create`, `archive` (what `docker cp` uses)
+and `rm` narrows it.
+
+### Several stores
+
+A second store is a second copy, not a second lock: a `DirectoryStore` beside S3 adds a
+fast restore and an unlocked copy on the machine. The off-site, locked store is what
+survives an intruder; a pass that could not write to it fails by its name.
+
 ### What leaves the machine besides backups
 
 * Messages carry the prefix, sizes, durations and, on failure, the first 500 characters of
   the error — escaped. Errors never include the database password: it travels in
-  `PGPASSWORD`, never on a command line. A Telegram transport error is logged by its class
+  `PGPASSWORD` (PostgreSQL) or a 0600 option file (MySQL, MariaDB), never on a command line. A Telegram transport error is logged by its class
   only, because its text contains the URL and therefore the token.
 * A webhook receives the outcome as data — the prefix, keys, sizes, the error text — and
   never a credential; with a `SECRET` the body is signed so the receiver can refuse a forged

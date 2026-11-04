@@ -54,4 +54,5 @@ class Command(BaseCommand):
             summary = run(media=not options['without_media'], reason=reason, only=options['only'])
         except BackupError as error:
             raise CommandError(f'backup_offsite: {error}') from error
-        self.stdout.write(f'backup_offsite: {len(summary.uploaded)} objects, {summary.bytes} bytes up')
+        stores = f' to each of {len(summary.stores)} stores' if len(summary.stores) > 1 else ''
+        self.stdout.write(f'backup_offsite: {summary.objects} objects, {summary.bytes} bytes up{stores}')

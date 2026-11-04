@@ -26,3 +26,6 @@ htmlcov/
 
 # macOS
 .DS_Store
+
+# what `offsite-backup restore` writes by default (restore-<stamp>/)
+restore-*/

@@ -189,11 +189,30 @@ def test_media_round_trips(configure, bucket, databases, keys, django_db_blocker
     restored = fetch(summary.stamp, into=tmp_path / 'out', identity=keys[0], kinds=['media'])
     out = tmp_path / 'extracted'
     for item in restored:
-        with tarfile.open(item.path) as tar:
-            tar.extractall(out, filter='data')
+        if item.path.suffix == '.tar':
+            with tarfile.open(item.path) as tar:
+                tar.extractall(out, filter='data')
     for path in media.rglob('*'):
         if path.is_file():
             assert (out / path.relative_to(media)).read_bytes() == path.read_bytes()
+
+
+def test_one_media_file_comes_back_from_its_volume_alone(
+    configure, bucket, databases, keys, django_db_blocker, tmp_path, settings
+):
+    """Real age, real S3: the manifests point at the one volume, and the file matches its hash."""
+    from offsite_backup.pass_ import run
+    from offsite_backup.restore import restore_media
+
+    media = configure(bucket)
+    settings.OFFSITE_BACKUP['MEDIA'][0]['VOLUME_BYTES'] = 1024 * 1024
+    with django_db_blocker.unblock():
+        summary = run(only=['media', 'config'])
+    assert sum(key.endswith('.tar.age') for key in summary.keys) == 2
+    [restored] = restore_media(summary.stamp, ['photos'], into=tmp_path / 'out', identity=keys[0])
+    assert restored.verified
+    assert restored.key.endswith('.002.tar.age')  # big.bin, at the root, filled the first
+    assert restored.path.read_bytes() == (media / 'photos' / 'one.jpg').read_bytes()
 
 
 def test_a_restore_refuses_a_non_empty_database(configure, bucket, databases, keys, django_db_blocker):

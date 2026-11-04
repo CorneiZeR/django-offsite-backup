@@ -178,6 +178,21 @@ DATABASES['drill'] = {**DATABASES['default'], 'NAME': 'acme_drill'}
 OFFSITE_BACKUP['DRILL'] = {'DATABASE': 'drill'}
 ```
 
+### `E012` — a media source cannot be reached from here
+
+```text
+?: (offsite_backup.E012) OFFSITE_BACKUP['MEDIA'][0]: the Docker daemon could not be asked about 'acme_media' (...Cannot connect to the Docker daemon...).
+	HINT: Mount the Docker socket into the container that runs the backup, or set DOCKER_HOST.
+```
+
+| source | cause | fix |
+| --- | --- | --- |
+| `VolumeSource` | no `docker` CLI, no socket, or the socket's permissions | mount `/var/run/docker.sock` into the container that runs the pass (or set `DOCKER_HOST`) and install the CLI — or, better, mount the volume read-only and use `DirectorySource` ([Media](Media.md#where-the-media-lives)) |
+| `StorageSource` | the storage's credentials, location or network, as `listdir(PREFIX)` met them | the storage's own settings in that container; a `PREFIX` that does not exist |
+
+A deploy check: it runs only under `check --deploy`, where the pass runs. A *missing*
+volume is not `E012` but `W005` (`E009` when required).
+
 ### `W001` — a directory store
 
 No immutability, on the machine it protects. Fine for a fast local copy or a staging
@@ -212,8 +227,9 @@ of the CI test job.
 	HINT: Mount the deployment directory (read-only) into every container that runs the backup.
 ```
 
-A media `ROOT`, a `CONFIG` path or the `RENDER_ENV` file is not there in the container
-`check --deploy` ran in. Usually a volume mounted into the web service and not the worker,
+A media `ROOT`, a `VolumeSource` volume (as `docker volume ls` names it — compose prefixes
+the project), an SQLite database file, a `CONFIG` path or the `RENDER_ENV` file is not there
+in the container `check --deploy` ran in. Usually a volume mounted into the web service and not the worker,
 or the other way round. A plain `manage.py check` or `migrate` never says it — those
 containers need no mount ([why](System-checks.md#why-the-path-checks-are-deploy-checks)) —
 and in the worker the pass logs `Configuration path not found; left out` or
@@ -265,6 +281,20 @@ or when `DEFAULT_REASON` is `deploy`.
 
 Usually a malformed recipient that slipped past `E008` (several keys in one string), or —
 in a restore — the wrong identity: `no identity matched any of the recipients`.
+
+### `1 store(s) not written, the others hold the pass`
+
+One of [several stores](Stores-several.md) refused an object; the error after its name is
+the store's own (`OSError: [Errno 28] No space left on device`, an S3 code). The other
+stores hold tonight's pass; the one named holds nothing of it and was not rotated. Fix the
+store and run `backup_offsite` (or let the nightly retry run) — the whole pass goes to
+every store again.
+
+### `restore_media`: `does not match the manifest` / `lacks what its manifest lists`
+
+A media file's bytes are not what the pass recorded, or a volume lacks a file its manifest
+lists: the volume is not what was written. Try the same path from another stamp, or from
+another store (`--store`), and treat the store as suspect.
 
 ### `DrillFailedError: N part(s) of <stamp> did not come back — ...`
 

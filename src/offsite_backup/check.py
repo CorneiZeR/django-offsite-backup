@@ -4,7 +4,9 @@ It asks the store for the newest *whole* backup — objects of a pass without me
 count, so a deploy at noon cannot hide a night that never ran — under the config folder
 and under every database's folder. Older than ``STALE_HOURS`` or absent: MISSING, said
 and raised (so the scheduler's failure mail fires too). Store unreadable: UNCHECKED, as
-loud. Media written tonight does not stand in for a database that was not.
+loud. Media written tonight does not stand in for a database that was not. With several
+stores every one is asked, and a folder is named with its store (``offsite: db/``): the
+copy that stopped arriving is the one nobody looks at until it is needed.
 """
 
 import logging
@@ -50,7 +52,12 @@ def check_last_night(*, now: datetime | None = None) -> datetime | None:
             kinds += [naming.db_kind(alias) for alias in parts.databases.targets()]
         if not kinds:
             kinds = [naming.media_kind(source.name) for source in parts.media]
-        newest = {kind: newest_whole(parts.store, naming.folder(settings.prefix, kind)) for kind in kinds}
+        several = len(parts.stores) > 1
+        newest = {
+            (f'{store.name}: ' if several else '') + kind: newest_whole(store, naming.folder(settings.prefix, kind))
+            for store in parts.stores
+            for kind in kinds
+        }
     except Exception as error:
         text = f'{type(error).__name__}: {error}'
         notify(replace(base, kind=UNCHECKED, error=text), settings)
@@ -59,10 +66,14 @@ def check_last_night(*, now: datetime | None = None) -> datetime | None:
     # a database with no backup at all appeared after the last pass (a new tenant): not yet
     # backed up, which is not MISSING. One whose dumps always fail is named by every FAILED
     # message of the nightly pass itself, so it is not silent either
-    databases = {kind: when for kind, when in newest.items() if kind.startswith('db')}
-    # only beside a database that is backed up: one with nothing at all and nothing to compare is MISSING
-    backed_up = any(when is not None for when in databases.values())
-    new = sorted(kind for kind, when in databases.items() if when is None) if backed_up else []
+    new: list[str] = []
+    for store in parts.stores:
+        # per store: a store that never received anything must not hide behind another's backups
+        mine = (f'{store.name}: ' if several else '') + 'db'
+        databases = {kind: when for kind, when in newest.items() if kind.startswith(mine)}
+        # only beside a database that is backed up: one with nothing at all and nothing to compare is MISSING
+        if any(when is not None for when in databases.values()):
+            new += sorted(kind for kind, when in databases.items() if when is None)
     if new:
         logger.info('Databases not backed up yet', extra={'ob_kinds': new})
     stale = {kind: when for kind, when in newest.items() if kind not in new and (when is None or moment - when > limit)}
