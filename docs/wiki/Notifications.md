@@ -145,6 +145,9 @@ parse, and an error text with a `<` in it would otherwise be lost silently.
 * A **429** is retried once after Telegram's `retry_after`, if that is 30 seconds or less.
 * Neither the token nor the text is ever logged. A connection error is logged by its
   class only — the URL, and so the token, is in the message of several of them.
+* The HTTP client logs every request with its URL at INFO, and the Bot API's URL holds the
+  token: a filter on the `httpx2` logger writes `<redacted>` in its place (and in place of a
+  webhook's URL), however the project configured its logging.
 
 ## Through django-aiogram
 

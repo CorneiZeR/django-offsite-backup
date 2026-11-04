@@ -125,7 +125,8 @@ survives an intruder; a pass that could not write to it fails by its name.
 * A webhook receives the outcome as data — the prefix, keys, sizes, the error text — and
   never a credential; with a `SECRET` the body is signed so the receiver can refuse a forged
   one. Its URL is never logged.
-* No message, token, password or private key is logged.
+* No message, token, password or private key is logged — the HTTP client's own request line
+  included: the notifiers' token and webhook URL are redacted from it.
 
 ### Tests
 

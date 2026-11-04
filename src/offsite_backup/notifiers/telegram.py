@@ -8,6 +8,7 @@ import logging
 import time
 from typing import Any
 
+from offsite_backup.notifiers import redact
 from offsite_backup.notifiers.base import ChatNotifier
 from offsite_backup.outcome import Outcome
 
@@ -29,6 +30,7 @@ class TelegramNotifier(ChatNotifier):
 
         base = str(self.option('API_URL', 'https://api.telegram.org')).rstrip('/')
         url = f'{base}/bot{self.option("TOKEN")}/sendMessage'
+        redact.hide(self.option('TOKEN'))
         with httpx2.Client(timeout=float(self.option('TIMEOUT', 10))) as client:
             return client.post(url, json=payload)
 

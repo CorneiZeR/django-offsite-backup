@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-11-04
+
+- **The Telegram token and the webhook URL stay out of the HTTP client's log.** `httpx2` logs every
+  request at INFO with its URL, and the Bot API carries the token in the path: wherever the logging
+  shows INFO for `httpx2` (the command line does), the token was written to the journal. A filter on
+  the client's logger now replaces both with `<redacted>`, whoever configured the logging. **Rotate a
+  bot token that ran under 0.4.0's command line, or under a Django project logging `httpx2` at INFO.**
+
 ## 0.4.0 — 2026-11-04
 
 Nothing to edit in a Django project; [Upgrading](Upgrading.md#from-03-to-04) has the
