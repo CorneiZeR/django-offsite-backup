@@ -156,9 +156,27 @@ deploy check, not a plain one, so that containers that never run a pass are not 
 | --- | --- |
 | `['TOPIC_ID'] is ..., not an integer` | the numeric topic id, or empty (`0` and empty mean the main thread) — the same check on `TelegramNotifier` and `TopicNotifier` |
 | `['DELIVERY'] is ...; expected one of direct, queue` | `'direct'` or `'queue'` ([Notifications](Notifications.md#direct-or-queued)) |
+| `['URL'] is not an http:// or https:// URL` | the receiver's full URL ([Notifications](Notifications.md#a-webhook)) |
+| `['TIMEOUT'] is ..., not a positive number of seconds` | a number above 0, e.g. `10` |
+| `['RETRIES'] is ..., not a whole number of 0 or more` | `0` for no retry, `2` by default |
+| `['HEADERS'] is not a mapping of names to values` | `{'Authorization': 'Bearer ...'}` |
 
 A malformed option would make Telegram refuse every message, so it is an error at start
 rather than a silent night.
+
+### `E011` — the drill's target is a live database
+
+`DRILL['DATABASE']` names a database the pass backs up — the same alias, or another alias
+whose host, port and database name are the same (`localhost`, `127.0.0.1` and `::1` are one
+host; an empty port is the default one) — or an alias that names no database at all. The
+drill empties and overwrites its target, so it refuses to run, and `check --deploy` says so
+first. Point `DRILL['DATABASE']` at a scratch database: another server, or another database
+name on the same one.
+
+```python
+DATABASES['drill'] = {**DATABASES['default'], 'NAME': 'acme_drill'}
+OFFSITE_BACKUP['DRILL'] = {'DATABASE': 'drill'}
+```
 
 ### `W001` — a directory store
 
@@ -247,6 +265,23 @@ or when `DEFAULT_REASON` is `deploy`.
 
 Usually a malformed recipient that slipped past `E008` (several keys in one string), or —
 in a restore — the wrong identity: `no identity matched any of the recipients`.
+
+### `DrillFailedError: N part(s) of <stamp> did not come back — ...`
+
+The drill names every object that did not come back and the step it failed at:
+`download and decrypt` (the identity does not open it, or the store refused), `verify` (a
+cut-short dump), `empty 'drill'` / `restore into 'drill'` (the throwaway database refused —
+its role, its version, a missing extension), `count 'drill'`, or `list` (a media volume or
+the configuration archive that does not read to its end as a tar). `the restored database has
+no tables` means the dump loaded nothing. Everything else in the drill still ran; the
+message lists what came back. `empty 'drill' afterwards` means the clean-up failed and a copy
+of production is still in the throwaway database: empty it by hand.
+
+### `offsite-backup: no setting — pass --config FILE or set OFFSITE_BACKUP_CONFIG`
+
+The command line found no TOML file to read; exit 2. A file that is not there, an
+`--env-file` that is not there and TOML that does not parse are 2 as well, each naming the
+file. See [Without Django](Plain-servers.md).
 
 ### A database restore says "is not empty"
 

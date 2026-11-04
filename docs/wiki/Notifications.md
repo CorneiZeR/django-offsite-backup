@@ -11,7 +11,8 @@
 ],
 ```
 
-Every outcome — written, failed, missing, unchecked — is said where a person reads it.
+Every outcome — written, failed, missing, unchecked, and a drill passed or failed — is said
+where a person reads it.
 `NOTIFY` is a list; every notifier in it gets every message.
 
 ## What the messages look like
@@ -51,7 +52,8 @@ around it.
     #backup #prod #deploy #failed
     ```
 
-    The error is cut at 500 characters. The deploy line appears only for `--reason deploy`.
+    The error is cut at 500 characters. The deploy line appears only for `--reason deploy`;
+    `--reason upgrade` says instead `The upgrade stops here; the running <NAME> keeps serving.`
 
 === "Missing"
 
@@ -77,6 +79,40 @@ around it.
     ```
 
     As loud as missing, on purpose: a check that could not look has not seen a backup.
+
+=== "Drill passed"
+
+    ```text
+    🧪 Restore drill passed: acme/prod
+    📅 Backup of 2026-03-10T03-00Z, restored into drill
+
+    🗃 default: 46 tables, 69 535 rows (live: 46 tables, 69 600 rows)
+    🖼 media: 2 volumes, 12 034 files, 5312.4 MB
+    ⚙️ config: 42 files, 0.4 MB
+    ⏱ Took: 812s
+
+    #backup #prod #drill #ok
+    ```
+
+    A line per database — the live figures only with `COMPARE_LIVE` — and per kind of archive.
+    A table the live database has and the restore lacks adds
+    `⚠️ Not in the backup, live now: public.new_table`. [Restore](Restore.md#the-monthly-drill).
+
+=== "Drill failed"
+
+    ```text
+    🚨 Restore drill FAILED: acme/prod
+    📅 Backup of 2026-03-10T03-00Z
+
+    1 part(s) of 2026-03-10T03-00Z did not come back — acme/prod/db-analytics/2026-03-10T03-00Z.sql.zst.age: restore into 'drill': PipelineError: `psql` exited with status 3: ...
+
+    🗃 default: 46 tables, 69 535 rows (live: 46 tables, 69 600 rows)
+
+    #backup #prod #drill #failed
+    ```
+
+    Every object that did not come back is named with the step it failed at; what did come
+    back is listed under it.
 
 The second line comes from `--reason`:
 
@@ -160,13 +196,80 @@ It replaces `BOT`: the escape hatch for an older django-aiogram, or any other wr
 can be adapted to those two methods. It is called at every send; a path that does not
 import, or does not name a callable, is `E002`.
 
+## A webhook
+
+`pip install 'django-offsite-backup[webhook]'` — a JSON `POST` to any URL, with
+[httpx2](https://pydantic.dev/docs/httpx2/): an incident tool, a chat that takes webhooks,
+your own endpoint.
+
+```python
+'NOTIFY': [
+    {
+        'BACKEND': 'offsite_backup.notifiers.webhook.WebhookNotifier',
+        'URL': os.environ.get('BACKUP_WEBHOOK_URL', ''),
+        'SECRET': os.environ.get('BACKUP_WEBHOOK_SECRET', ''),
+        # 'HEADERS': {'Authorization': 'Bearer ...'},
+        # 'TIMEOUT': 10, 'RETRIES': 2,
+    },
+],
+```
+
+| option | |
+| --- | --- |
+| `URL` | required; `http://` or `https://`, else `E010` |
+| `SECRET` | optional; signs every body (below) |
+| `HEADERS` | a mapping of extra headers, e.g. an `Authorization`; not a mapping is `E010` |
+| `TIMEOUT` | seconds per attempt, default 10; not a positive number is `E010` |
+| `RETRIES` | attempts after the first on a network error, a 429 or a 5xx, default 2, waiting 1 s, 2 s, 4 s…; not a whole number ≥ 0 is `E010` |
+
+The body is the outcome as data beside the formatted text, so a receiver can route on
+`kind` and still show the message:
+
+```json
+{
+  "kind": "written",
+  "prefix": "acme/prod",
+  "env": "prod",
+  "name": "",
+  "reason": "nightly",
+  "error": "",
+  "summary": {"stamp": "2026-03-10T03-00Z", "bytes": 5570142208, "keys": ["acme/prod/db/2026-03-10T03-00Z.sql.zst.age", "..."], "seconds": 1044.2, "failed": {}, "removed": [], "depth": {"nights": 14, "since": "2026-02-25"}, "...": "..."},
+  "drill": null,
+  "newest": null,
+  "text": "💾 <b>Backup written</b>: ...",
+  "sent_at": "2026-03-10T03:17:24.981Z"
+}
+```
+
+`kind` is `written`, `failed`, `missing`, `unchecked`, `drilled` or `drill_failed`; times are
+ISO 8601. With a `SECRET`, every request carries
+
+```text
+X-Offsite-Backup-Signature: sha256=<hex HMAC-SHA256 of the exact body bytes, keyed with SECRET>
+```
+
+— recompute it over the raw body and compare in constant time before trusting the body:
+
+```python
+import hashlib, hmac
+
+expected = 'sha256=' + hmac.new(secret.encode(), request.body, hashlib.sha256).hexdigest()
+if not hmac.compare_digest(expected, request.headers['X-Offsite-Backup-Signature']):
+    return 403
+```
+
+`sent_at` is inside the signed body, so a receiver can also refuse a replay of an old one.
+Any other answer than a 2xx, 429 or 5xx is final. The URL is **never logged** — a webhook
+URL often carries its own token — nor the body or the secret: a failure is logged as
+`Webhook refused or unreachable` with the status or the error's class.
+
 ## The log
 
 ```python
 'NOTIFY': [{'BACKEND': 'offsite_backup.notifiers.log.LogNotifier'}],
 ```
 
-Writes to the `offsite_backup` logger: INFO for a written backup, ERROR for anything else,
+Writes to the `offsite_backup` logger: INFO for a written backup and a passed drill, ERROR for anything else,
 the text in the record's `ob_text` extra field. It reaches no network, so it keeps working
 under tests.
 
@@ -194,7 +297,7 @@ class SlackNotifier(Notifier):
 
     def send(self, outcome, text):
         try:
-            ...  # post text; outcome.kind is 'written', 'failed', 'missing' or 'unchecked'
+            ...  # post text; outcome.kind is 'written', 'failed', 'missing', 'unchecked', 'drilled' or 'drill_failed'
         except Exception:
             return False
         return True
@@ -215,7 +318,9 @@ OFFSITE_BACKUP = {..., 'MESSAGES': 'acme.backups.format_outcome'}
 
 `offsite_backup.outcome.Outcome` carries `kind`, `prefix`, `env`, `name`, `reason`,
 `summary` (objects uploaded, bytes, seconds, removed, failed databases, depth), `error`,
-and for the morning check `newest`, `stale_hours` and `now`. A formatter that raises is
+for the morning check `newest`, `stale_hours` and `now`, and for a drill `drill` (the
+stamp, the target, a record per database and per archive, what failed, seconds).
+`Outcome.as_dict()` is all of it as JSON-ready data — what the webhook sends. A formatter that raises is
 logged (`Backup message not formatted`) and nothing is sent — the outcome itself still
 stands. `offsite_backup.messages.default` is the reference; its `reason_line()` and
 `reason_tag()` are reusable.

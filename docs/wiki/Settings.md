@@ -1,7 +1,9 @@
 # Settings
 
-One dict, `OFFSITE_BACKUP`, in `settings.py`. Every key has a default; the backends each
-take a block of their own — `BACKEND`, a dotted path, plus that backend's options.
+One dict, `OFFSITE_BACKUP`, in `settings.py` — or, on a server with no Django project, the
+same keys at the top level of a TOML file ([Without Django](Plain-servers.md#the-setting)).
+Every key has a default; the backends each take a block of their own — `BACKEND`, a dotted
+path, plus that backend's options.
 
 ```python
 import os
@@ -53,7 +55,8 @@ OFFSITE_BACKUP = {
 **Credentials come from the environment, in your settings.** The package never reads
 `os.environ` for its configuration (the exceptions are `AGE_IDENTITY`, the private key
 a *restore* reads — see [Restore](Restore.md) — and `OFFSITE_BACKUP_SILENCE`, the test
-runner's switch — see [Testing](Testing.md#parallel-workers)). Read each one with a default of `''`, as
+runner's switch — see [Testing](Testing.md#parallel-workers); off Django, the command line
+expands `${NAME}` in its TOML file — see [Without Django](Plain-servers.md#the-setting)). Read each one with a default of `''`, as
 above: an unset variable then means "off", not a `KeyError` at import.
 
 ## Blank means unset
@@ -121,7 +124,7 @@ wrong with it. `ENABLED: True` or `False` overrides the rule either way.
 
 ## Top-level keys
 
-Every key of `offsite_backup.conf.DEFAULTS`. `RETENTION`, `CHECK` and `GUARD` merge with
+Every key of `offsite_backup.conf.DEFAULTS`. `RETENTION`, `CHECK`, `GUARD` and `DRILL` merge with
 their defaults key by key, so `'GUARD': {'CACHE': 'redis'}` keeps `RUNNING_SECONDS`; every
 other key replaces its default whole.
 
@@ -146,7 +149,8 @@ other key replaces its default whole.
 | `LAST_SUCCESS_FILE` | path | `''` | a file rewritten with the ISO time of every successful pass — [Monitoring](Monitoring.md) | — |
 | `DEFAULT_REASON` | `str` | `'manual'` | the reason `backup_offsite` uses when `--reason` is not given — [Deploy integration](Deploy-integration.md) | — |
 | `STRICT` | `bool` | `False` | every `CONFIG` path and every media source is required, and an unreadable file fails the pass — [below](#strict-and-required) | `E009` |
-| `WORKDIR` | path | `''` | where the temporary workspace is made; `''` is the system's temporary directory | — |
+| `WORKDIR` | path | `''` | where the temporary workspace is made — a pass's, a restore's, a drill's; `''` is the system's temporary directory | — |
+| `DRILL` | dict | see below | the restore drill — [Restore](Restore.md#the-monthly-drill) | `E011` (deploy) |
 
 At least one of `DATABASES`, `MEDIA` and `CONFIG` must be set, or `E001` says
 "nothing to back up".
@@ -173,6 +177,15 @@ At least one of `DATABASES`, `MEDIA` and `CONFIG` must be set, or `E001` says
 | `RUNNING_SECONDS` | `int` | `3600` | `cache` backend: how long a pass whose worker died holds the night |
 | `DONE_SECONDS` | `int` | `93600` (26 h) | `cache` backend: how long "done" is remembered — past the end of its UTC date |
 | `DATABASE` | database alias | `'default'` | `database` backend: the database the lock is taken on; an alias that is not a PostgreSQL database in `DATABASES` is `E001` |
+
+### `DRILL`
+
+| key | type | default | |
+| --- | --- | --- | --- |
+| `DATABASE` | database alias | `''` | the throwaway database every dump is restored into — an alias in `DATABASES` (or the source's `CONNECTIONS`). Required for a drill of a backup that holds databases. The same alias as a live one, or one that reaches the same host, port and database name, is refused — and is `E011` under `check --deploy`, as is an alias that names no database |
+| `IDENTITY_FILE` | path | `''` | the age identity the drill decrypts with, when `--identity` is not given; `''` falls back to `AGE_IDENTITY` |
+| `MEDIA` | `bool` | `True` | decrypt and list every media volume too (`--without-media` turns it off for one run) |
+| `COMPARE_LIVE` | `bool` | `True` | count the live databases too, and show both figures |
 
 ### `STRICT` and `REQUIRED`
 
@@ -249,8 +262,10 @@ Only these options make the client: no `~/.aws`, no instance role, no `AWS_*` va
 | `FORMAT` | `'plain'` or `'custom'` | `'plain'` | `pg_dump` output format; anything else is `E001` |
 | `NO_OWNER` | `bool` | `True` | adds `--no-owner --no-privileges` |
 | `EXTRA_ARGS` | list of `str` | `[]` | appended to the `pg_dump` command |
+| `CONNECTIONS` | dict of alias → connection block | `None` | the connections themselves, read instead of Django's `DATABASES` — what a server with no Django project uses ([Databases](Databases.md#the-connection)); not a mapping of blocks is `E001` |
 
-The connection comes from Django's `DATABASES[alias]`: `HOST`, `PORT`, `USER`, `NAME`,
+The connection comes from `CONNECTIONS[alias]` when it is set, from Django's
+`DATABASES[alias]` otherwise: `HOST`, `PORT`, `USER`, `NAME`,
 `PASSWORD` (passed in `PGPASSWORD`, never on the command line) and
 `OPTIONS['sslmode']` / `OPTIONS['sslrootcert']`.
 
@@ -323,6 +338,18 @@ Needs the `[aiogram]` extra.
 | `DELIVERY` | `'direct'` or `'queue'` | `'direct'` | `direct` calls `bot.send_raw` from the process running the pass, which then needs the bot token; `queue` calls `bot.send`, handing the message to the queue a bot container consumes ([Notifications](Notifications.md#direct-or-queued)); anything else is `E010` |
 | `BOT` | alias | `None` | one of django-aiogram's bots; the default bot when absent |
 | `BOT_FACTORY` | dotted path | `None` | a callable returning an object with `send_raw` / `send`, used instead of `BOT` — another bot wrapper, or an older django-aiogram; one that does not import or is not callable is `E002` |
+
+### `NOTIFY`: `offsite_backup.notifiers.webhook.WebhookNotifier`
+
+Needs the `[webhook]` extra. [Notifications](Notifications.md#a-webhook).
+
+| option | type | default | |
+| --- | --- | --- | --- |
+| `URL` | URL | — | **required**; `http://` or `https://`, else `E010` |
+| `SECRET` | `str` | `''` | signs every body: `X-Offsite-Backup-Signature: sha256=<HMAC-SHA256>` |
+| `HEADERS` | dict of `str` | `{}` | extra request headers; not a mapping is `E010` |
+| `TIMEOUT` | seconds | `10` | per attempt; not a positive number is `E010` |
+| `RETRIES` | `int` | `2` | attempts after the first on a network error, a 429 or a 5xx; not a whole number ≥ 0 is `E010` |
 
 ### `NOTIFY`: `offsite_backup.notifiers.log.LogNotifier`
 

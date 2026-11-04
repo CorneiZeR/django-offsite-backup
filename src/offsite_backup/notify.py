@@ -11,12 +11,10 @@ import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
-from django.utils.module_loading import import_string
-
 from offsite_backup import conf
 from offsite_backup.notifiers.base import Notifier
 from offsite_backup.outcome import Outcome
-from offsite_backup.registry import build
+from offsite_backup.registry import build, import_string
 
 __all__ = ('SILENCE_ENV', 'capture', 'formatter', 'notifiers', 'notify', 'silence', 'silence_process', 'silenced')
 

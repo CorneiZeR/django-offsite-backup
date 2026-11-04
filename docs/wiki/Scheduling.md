@@ -1,11 +1,12 @@
 # Scheduling
 
-Two jobs, both in UTC:
+Two jobs, both in UTC — and a third, monthly, when you ask for it:
 
 | job | when | what |
 | --- | --- | --- |
 | the nightly pass | 03:00 UTC | everything, media included; guarded to once per night |
 | the morning check | 09:00 UTC | is there a whole backup younger than `STALE_HOURS`? — [Monitoring](Monitoring.md) |
+| the restore drill | off unless scheduled; e.g. the 1st, 05:00 UTC | restore the newest whole backup into a throwaway database and report — [Restore](Restore.md#the-monthly-drill) |
 
 Object names, nights and the guard are all UTC, whatever `TIME_ZONE` says. Run the
 morning check a few hours after the pass, so a slow night is not reported missing, and
@@ -130,10 +131,36 @@ not retried. Both
 commands exit non-zero on failure, so cron's mail, a systemd `OnFailure=` unit or the
 CronJob's failed status sees it as well as the chat.
 
+On a server with no Django project, the same jobs are `offsite-backup run --reason nightly`
+and `offsite-backup check` — [Without Django](Plain-servers.md#scheduling).
+
 With Docker Compose and a host crontab:
 
 ```cron
 0 3 * * *  cd /srv/acme && docker compose exec -T worker python manage.py backup_offsite --reason nightly
+```
+
+## The monthly drill
+
+Off by default in both adapters — it needs a throwaway database (`DRILL['DATABASE']`) and the
+private key where it runs; read [where it runs](Restore.md#where-it-runs-the-identity) first.
+
+```python
+# Celery: the 1st of the month, 05:00 in the beat's timezone — (day of month, hour, minute)
+CELERY_BEAT_SCHEDULE = {**beat_schedule(drill=(1, 5, 0)), ...}
+
+# taskiq: a cron expression, UTC
+backup_nightly, backup_check = register(broker, drill='0 5 1 * *')
+# the drill task: broker.find_task('offsite_backup.drill')
+```
+
+The task is `offsite_backup.drill` (`run_drill()`). It is **not retried**: a drill that
+failed has said why, and another attempt would restore the same backup again. It skips
+where backups are off, and otherwise raises on failure, so the scheduler's own failure
+report fires beside the chat's. Without a scheduler:
+
+```cron
+0 5 1 * *  cd /app && python manage.py backup_drill
 ```
 
 ## Retries and the guard

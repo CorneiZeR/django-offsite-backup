@@ -15,12 +15,15 @@ object, and rotated by **whole nights** — never by age alone, never by object 
 - `age` encryption to one or more recipients; `zstd` compression before it
 - a pass before every deploy without media (fast, and never mistaken for a night)
 - a once-per-night guard, and a morning check that notices the night that never ran
-- every outcome said in Telegram (or through django-aiogram, or a log), in one glanceable format
+- every outcome said in Telegram (or through django-aiogram, a webhook, or a log), in one glanceable format
 - restore that downloads, decrypts, verifies — and, on request, loads a database
+- a monthly restore drill: the newest backup restored into a throwaway database, every table counted, reported
+- each kind's age for a monitor: an exit code for cron and healthchecks, a Prometheus textfile
 - system checks that refuse a half-configured machine by name and a bucket without a lock
+- the same passes on a server with no Django project, from the `offsite-backup` command and a TOML file
 
 Every backend is a dotted path in settings and imported only when named; each driver is an
-extra. A base install pulls Django and nothing else.
+extra. A base install pulls nothing — Django included, which a Django project brings itself.
 
 ## 30-second setup
 
@@ -70,9 +73,14 @@ python manage.py check --deploy                                  # bucket lock, 
 python manage.py backup_offsite                                  # a pass now
 python manage.py backup_offsite --without-media --reason deploy  # before a migration
 python manage.py backup_check                                    # the morning check
+python manage.py backup_status                                  # each kind's age; exit 1 when stale
 python manage.py backup_list
 python manage.py backup_restore --stamp latest --identity key.txt --into ./restore
+python manage.py backup_drill                                    # restore into DRILL['DATABASE'], count, report
 ```
+
+On a server without Django: `pipx install 'django-offsite-backup[cli,s3,telegram]'`, the same
+keys in a TOML file, and `offsite-backup --config backup.toml run --reason nightly`.
 
 The image needs `pg_dump` (at least the server's major), `zstd` and `age`. The bucket must be
 created **with Object Lock** and a default COMPLIANCE rule of `LOCK_DAYS` days.
@@ -80,8 +88,9 @@ created **with Object Lock** and a default COMPLIANCE rule of `LOCK_DAYS` days.
 ## Documentation
 
 **<https://corneizer.github.io/django-offsite-backup/>** — installation, every setting,
-S3 providers, retention and locks, restore drills, the security model, troubleshooting by
-check code, and a page for AI assistants wiring the package into a project.
+S3 providers, retention and locks, restore drills, monitoring, running without Django, the
+security model, troubleshooting by check code, and a page for AI assistants wiring the
+package into a project.
 
 ## License
 

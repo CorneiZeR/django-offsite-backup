@@ -83,6 +83,16 @@ which holds every secret the application has (`rendered.env`). Keep it off serve
 where two people can reach it, and restore from your own machine. If it ever reached a
 server, make a new pair and treat the old backups as exposed.
 
+### The drill's key
+
+The [restore drill](Restore.md#the-monthly-drill) decrypts, so wherever it runs holds a
+private key. Run it on a machine of its own, with a read-only store key and a scratch
+database, and the production server stays unable to read a backup. Scheduled on the
+production worker instead, the worker can read every backup sealed to that key — a choice
+to make knowingly, with a recipient that exists only for the drill and can be rotated on its
+own. The drill refuses a target that is a live database, and empties its target afterwards,
+so a copy of production does not stay in the scratch database.
+
 ### The wake key
 
 A server that holds an extra identity can open the dumps sealed to it — by design, so it
@@ -94,6 +104,9 @@ can restore them itself — and nothing else. Seal only the dumps that need it.
   the error — escaped. Errors never include the database password: it travels in
   `PGPASSWORD`, never on a command line. A Telegram transport error is logged by its class
   only, because its text contains the URL and therefore the token.
+* A webhook receives the outcome as data — the prefix, keys, sizes, the error text — and
+  never a credential; with a `SECRET` the body is signed so the receiver can refuse a forged
+  one. Its URL is never logged.
 * No message, token, password or private key is logged.
 
 ### Tests

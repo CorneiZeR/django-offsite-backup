@@ -90,3 +90,52 @@ def test_taskiq_retries_can_be_turned_off():
 
     nightly, _ = register(InMemoryBroker(), retries=0)
     assert 'retry_on_error' not in nightly.labels
+
+
+def test_celery_schedules_the_drill_only_when_asked():
+    """beat_schedule() has no drill entry; drill=(day, hour, minute) adds a monthly one."""
+    pytest.importorskip('celery')
+    from offsite_backup.schedule.celery import beat_schedule
+
+    assert 'offsite-backup-drill' not in beat_schedule()
+    entry = beat_schedule(drill=(1, 5, 30))['offsite-backup-drill']
+    assert entry['task'] == 'offsite_backup.drill'
+    assert entry['schedule'].day_of_month == {1}
+    assert entry['schedule'].hour == {5}
+    assert entry['schedule'].minute == {30}
+
+
+def test_celery_drill_task_runs_the_drill(monkeypatch):
+    """The task runs the drill and answers what came back; it is not retried."""
+    pytest.importorskip('celery')
+    from celery import Celery
+
+    from offsite_backup import conf, drill
+    from offsite_backup.outcome import Drill
+
+    app = Celery('t', set_as_current=True)
+    app.conf.task_always_eager = True
+    from offsite_backup.schedule import celery as adapter  # noqa: F401
+
+    monkeypatch.setattr(conf, 'enabled', lambda *a: True)
+    monkeypatch.setattr(drill, 'run_drill', lambda: Drill(stamp='s', prefix='p', target='t'))
+    task = app.tasks['offsite_backup.drill']
+    assert not getattr(task, 'autoretry_for', ())
+    assert task.apply().result == {'stamp': 's', 'databases': 0, 'archives': 0}
+
+
+def test_taskiq_registers_the_drill_only_when_asked():
+    """register() without drill= defines no drill task; with it, a monthly scheduled one."""
+    pytest.importorskip('taskiq')
+    from taskiq import InMemoryBroker
+
+    from offsite_backup.schedule.taskiq import register
+
+    broker = InMemoryBroker()
+    register(broker)
+    assert broker.find_task('offsite_backup.drill') is None
+    other = InMemoryBroker()
+    register(other, drill='0 5 1 * *')
+    task = other.find_task('offsite_backup.drill')
+    assert task.labels['schedule'] == [{'cron': '0 5 1 * *', 'cron_offset': None}]
+    assert 'retry_on_error' not in task.labels

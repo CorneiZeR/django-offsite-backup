@@ -72,12 +72,77 @@ After every successful pass the file is rewritten with the pass's time in ISO fo
 Something already watching the machine can read its age — a node-exporter textfile
 collector, a Docker healthcheck, a monitoring agent's file-age check. It is written by
 **every** successful pass, deploy passes and passes by hand included, so it answers "did
-anything succeed lately", not "did last night run"; the morning check answers that. A file
+anything succeed lately", not "did last night run"; the morning check — or
+[`backup_status`](#the-age-of-every-kind), per kind — answers that. A file
 that cannot be written is logged (`Last-success marker not written`) and does not fail the
 pass. Mount the path where your monitor can see it — the worker writes it at night, the
 deploy's one-off container before a migration.
 
-A metrics endpoint is on the roadmap.
+## The age of every kind
+
+The morning check says MISSING once a day, in the chat. A monitor wants the same answer
+whenever it asks, silently, and as a number:
+
+```shell
+python manage.py backup_status                # or: offsite-backup status
+# acme/prod/ (stale after 26 h)
+#   config/: 2026-03-10 03:00 UTC, 6.2 h ago
+#   db/: 2026-03-10 03:00 UTC, 6.2 h ago
+#   media/: 2026-03-10 03:00 UTC, 6.2 h ago
+```
+
+For every kind — the config, every database the pass would dump today, **and** every media
+source — it reads the newest **whole** backup from the store, as the morning check does
+(objects of a pass without media do not count), and its age. Nothing is notified.
+
+| finding | exit |
+| --- | --- |
+| every kind has a whole backup within `STALE_HOURS` (or `--stale-hours H`) | 0 |
+| a kind's newest is older, or there is none (`STALE` on its line) | **1** |
+| the store could not be read | **2** |
+| backups are off on this machine | 0, "nothing to do" |
+
+That makes it a healthcheck as it is — a cron job's exit status, a Docker `HEALTHCHECK`, a
+monitoring agent's command check, a push to a dead man's switch on success. `--json` is for
+a script; from Python, `offsite_backup.freshness()` returns the same figures
+(`kinds`, each with `kind`, `newest`, `seconds`, `stale`) and raises `BackupUncheckedError`
+when the store cannot be read.
+
+### Prometheus
+
+```shell
+python manage.py backup_status --prometheus /var/lib/node_exporter/textfile/offsite_backup.prom
+```
+
+writes the text exposition format for node-exporter's textfile collector (or any scraper
+that reads a file) — atomically, so a scrape never reads half a file — and still exits as
+above. Run it from cron every few minutes, or after the pass:
+
+```text
+offsite_backup_up{prefix="acme/prod"} 1
+offsite_backup_checked_timestamp_seconds{prefix="acme/prod"} 1773133200
+offsite_backup_last_success_timestamp_seconds{prefix="acme/prod",kind="db"} 1773111600
+offsite_backup_stale{prefix="acme/prod",kind="db"} 0
+```
+
+| metric | |
+| --- | --- |
+| `offsite_backup_up` | 1 when the store was read; 0 — and nothing else is written — when it was not |
+| `offsite_backup_checked_timestamp_seconds` | when the store was asked |
+| `offsite_backup_last_success_timestamp_seconds{kind}` | when the newest whole backup of the kind was written; absent for a kind with none |
+| `offsite_backup_stale{kind}` | 1 when the kind has no whole backup within the threshold |
+
+An alert, for example:
+
+```yaml
+- alert: OffsiteBackupStale
+  expr: offsite_backup_stale == 1 or offsite_backup_up == 0
+  for: 30m
+- alert: OffsiteBackupNotChecked
+  expr: time() - offsite_backup_checked_timestamp_seconds > 3 * 3600
+```
+
+The second catches the textfile itself going stale — the job that writes it stopped.
 
 ## The log
 
@@ -96,25 +161,32 @@ Everything is logged to the `offsite_backup` logger, with fields in the record's
 | WARNING | `Last-success marker not written` | `ob_path`, `ob_error` |
 | WARNING | `Media file not listed`, `Media file not readable; left out` | `ob_path`, `ob_error` |
 | WARNING | `Configuration path not found; left out`, `Media directory not found` — a mount missing where the pass ran (`W005` under `check --deploy`) | `ob_path` |
+| INFO | `Restore drill passed` | `ob_prefix`, `ob_stamp` |
+| ERROR (with traceback) | `Database not restored by the drill`, `Archive not opened by the drill` | `ob_key`, `ob_step` |
+| ERROR (with traceback) | `Drill database not emptied` | `ob_alias` |
+| WARNING | `Live database not counted` (the drill) | `ob_alias`, `ob_error` (the class only) |
 | ERROR | `Notifier not built`, `Notifier raised` | `ob_notifier`, `ob_error` |
 | ERROR | `Backup message not formatted` | `ob_error` |
 | ERROR | `Telegram refused the backup message` | `ob_status`, `ob_description` |
 | ERROR | `Telegram unreachable`, `Backup message not sent through the bot` | `ob_error` (the class only) |
-| INFO / ERROR | `Backup written` / `Backup failed` ... from `LogNotifier` | `ob_prefix`, `ob_text` |
+| ERROR | `Webhook refused or unreachable` | `ob_status` or `ob_error` (the class only), `ob_attempts` |
+| ERROR | `Webhook body not built` | `ob_error` |
+| INFO / ERROR | `Backup written` / `Backup failed` ... from `LogNotifier` (INFO for a written backup and a passed drill) | `ob_prefix`, `ob_text` |
 
 No message, token, password or private key is ever logged.
 
 ## Heartbeats of scheduled tasks
 
 A project that tracks when each of its scheduled tasks last ran — a heartbeat table, a
-"last run" dashboard — sees the package's two tasks as **never run** until each has run
-once: the nightly pass after its first 03:00, the check after its first 09:00. Register
-them under their task names, the same for Celery and taskiq:
+"last run" dashboard — sees the package's tasks as **never run** until each has run
+once: the nightly pass after its first 03:00, the check after its first 09:00, the drill
+after its first month. Register them under their task names, the same for Celery and taskiq:
 
 | task | default schedule (UTC) |
 | --- | --- |
 | `offsite_backup.nightly` | 03:00 |
 | `offsite_backup.check` | 09:00 |
+| `offsite_backup.drill` | only when scheduled — e.g. the 1st of the month, 05:00 ([Scheduling](Scheduling.md#the-monthly-drill)) |
 
 ## What the store holds
 

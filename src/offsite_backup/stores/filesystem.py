@@ -9,8 +9,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.stores.base import Store, Version, Wrote
 
 __all__ = ('DirectoryStore',)

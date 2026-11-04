@@ -7,8 +7,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import IO
 
-from django.core import checks
-
+from offsite_backup import conf
+from offsite_backup import findings as checks
 from offsite_backup.exceptions import MisconfiguredError, SourceMissingError
 from offsite_backup.media.base import MediaEntry, MediaSource
 
@@ -23,9 +23,7 @@ class DirectorySource(MediaSource):
     @property
     def root(self) -> Path:
         """The directory archived; names inside the tar are relative to it."""
-        from django.conf import settings  # noqa: PLC0415 - read when the source is used
-
-        root = str(self.option('ROOT') or getattr(settings, 'MEDIA_ROOT', '') or '')
+        root = str(self.option('ROOT') or conf.django_setting('MEDIA_ROOT', '') or '')
         if not root.strip():
             # an empty path is the working directory, which is not anybody's media
             msg = f"{self.label}['ROOT'] is empty and so is MEDIA_ROOT"

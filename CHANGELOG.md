@@ -4,6 +4,57 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
+## 0.4.0 — unreleased
+
+No setting is renamed or removed; every new one is off until set. Three behaviours move:
+the base install no longer pulls Django (the `[django]` extra does), a restore's emptiness
+check and `E004` ask the server through `psql`, and a failed `--reason upgrade` pass says
+the upgrade stops. Nothing to edit in a Django project.
+
+### Operations
+
+Added
+
+- The restore drill: `manage.py backup_drill`, `offsite-backup drill`, `run_drill()`. The
+  newest whole backup restored into the throwaway `DRILL['DATABASE']` (never a live one —
+  the same alias, or the same host, port and name, is refused), every table counted there
+  and live (`COMPARE_LIVE`), every media volume (`MEDIA`) and the configuration archive
+  decrypted and listed, the outcome said (`drilled` / `drill_failed` messages), the target
+  emptied. One database that does not come back does not stop the others; `DrillFailedError`
+  names each with its step. Identity from `--identity`, `DRILL['IDENTITY_FILE']` or
+  `AGE_IDENTITY`.
+- `E011` (deploy): `DRILL['DATABASE']` is a live database or names none.
+- Drill schedule entries, off by default: Celery `beat_schedule(drill=(day, hour, minute))`
+  and the `offsite_backup.drill` task; taskiq `register(broker, drill='0 5 1 * *')`.
+- `DatabaseSource.tables()` and `clear()`, what the drill asks of a source; `PostgresSource`
+  implements both through `psql`.
+- `WebhookNotifier` (`[webhook]`): a JSON POST of `Outcome.as_dict()` and the text; `SECRET`
+  signs the body (`X-Offsite-Backup-Signature: sha256=…`); `HEADERS`, `TIMEOUT`, `RETRIES`
+  on a network error, 429 or 5xx; `E010` for each option of the wrong form.
+- `manage.py backup_status` / `offsite-backup status` / `freshness()`: each kind's newest
+  whole backup and its age; exit 1 when stale, 2 when the store cannot be read;
+  `--prometheus FILE` writes a textfile atomically; `--json`.
+- The `offsite-backup` command (also `python -m offsite_backup`): `run` (with `--path`),
+  `check`, `status`, `list`, `restore`, `drill`, `checks` (exit 3 when off), `failed`. A
+  TOML setting with `${NAME}` / `${NAME:-default}` from the environment and `--env-file`
+  files; `conf.configure()` for the same from Python.
+- `PostgresSource` `CONNECTIONS`: connection blocks by alias, read instead of Django's
+  `DATABASES`.
+- Extras `django`, `cli`, `webhook`.
+
+Changed
+
+- Django is no longer a dependency of the base install: the core, every backend and the
+  command line import without it; the app, the commands, the system checks' registration,
+  the scheduling adapters and the test runner are the Django layer. Backends answer
+  `check()` with `offsite_backup.findings`, which the Django layer hands to Django.
+- A restore's "is the target empty" and `E004`'s server version are asked through `psql`
+  rather than a Django connection.
+- A failed pass with `--reason upgrade` says `The upgrade stops here; the running <NAME>
+  keeps serving.`
+- The test runner classes live in `offsite_backup.testing.runner`; `offsite_backup.testing`
+  still exports them, imported when first named.
+
 ## 0.3.0 — 2026-11-04
 
 No setting is added, renamed or removed. Two check results move; nothing to edit on upgrade

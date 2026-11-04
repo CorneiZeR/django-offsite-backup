@@ -10,11 +10,10 @@ the worker, django-aiogram's rate limiting and event log apply, and ``True`` mea
 import logging
 from typing import Any
 
-from django.core import checks
-from django.utils.module_loading import import_string
-
+from offsite_backup import findings as checks
 from offsite_backup.notifiers.base import ChatNotifier
 from offsite_backup.outcome import Outcome
+from offsite_backup.registry import import_string
 
 __all__ = ('DELIVERIES', 'TopicNotifier')
 

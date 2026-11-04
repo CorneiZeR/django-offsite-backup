@@ -277,3 +277,110 @@ def test_the_database_guard_against_a_real_advisory_lock(configure, bucket, data
         other.close()
         assert run_nightly() is not None
         assert run_nightly() is None
+
+
+def table_names(connections, alias):
+    with connections[alias].cursor() as cursor:
+        cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+        return sorted(row[0] for row in cursor.fetchall())
+
+
+@pytest.mark.parametrize('fmt', ['plain', 'custom'])
+def test_the_drill_restores_counts_and_empties_the_target(
+    configure, bucket, databases, keys, django_db_blocker, settings, fmt
+):
+    """Every table restored into the throwaway database with live's counts; the target is empty afterwards."""
+    from offsite_backup.drill import run_drill
+    from offsite_backup.pass_ import run
+
+    configure(bucket, fmt=fmt)
+    settings.OFFSITE_BACKUP['DRILL'] = {'DATABASE': 'target', 'IDENTITY_FILE': str(keys[0])}
+    with django_db_blocker.unblock():
+        run(reason='manual')
+        report = run_drill()
+        assert table_names(databases, 'target') == []
+    [database] = report.databases
+    assert (database.tables, database.rows) == (3, 9500)
+    assert (database.live_tables, database.live_rows) == (3, 9500)
+    assert database.missing == []
+    assert {archive.kind for archive in report.archives} == {'media', 'config'}
+    assert sum(archive.files for archive in report.archives if archive.kind == 'media') == 2
+
+
+def test_the_drill_refuses_the_live_database(configure, bucket, databases, keys, django_db_blocker, settings):
+    """DRILL['DATABASE'] naming the live database restores nothing over it."""
+    from offsite_backup.drill import run_drill
+    from offsite_backup.exceptions import MisconfiguredError
+    from offsite_backup.pass_ import run
+
+    configure(bucket)
+    settings.OFFSITE_BACKUP['DRILL'] = {'DATABASE': 'default', 'IDENTITY_FILE': str(keys[0])}
+    with django_db_blocker.unblock():
+        run(only=['db'])
+        with pytest.raises(MisconfiguredError, match='the live database'):
+            run_drill()
+        assert counts(databases, 'default')['shop_order'] == 7000
+
+
+def test_a_plain_server_backs_up_and_drills_postgres_from_the_command_line(
+    bucket, databases, keys, tmp_path, django_db_blocker
+):
+    """No Django setting: the TOML file, CONNECTIONS for PostgreSQL, S3 with the lock read back, age."""
+    from django.conf import settings
+
+    from offsite_backup.cli import main
+
+    live, scratch = settings.DATABASES['default'], settings.DATABASES['target']
+    (tmp_path / 'service.env').write_text(f'SVC_DB_PASSWORD={live["PASSWORD"]}\nS3_SECRET={SECRET}\n')
+    setting = tmp_path / 'offsite-backup.toml'
+    setting.write_text(
+        f"""
+PREFIX = "acme/service"
+ENV = "test"
+
+[STORE]
+BACKEND = "offsite_backup.stores.s3.S3Store"
+ENDPOINT_URL = "{ENDPOINT}"
+REGION = "us-east-1"
+BUCKET = "{bucket}"
+ACCESS_KEY = "{ACCESS}"
+SECRET_KEY = "${{S3_SECRET}}"
+LOCK_DAYS = {LOCK_DAYS}
+
+[ENCRYPTION]
+BACKEND = "offsite_backup.encryption.age_cli.AgeCli"
+RECIPIENTS = "{keys[1]}"
+
+[DATABASES]
+BACKEND = "offsite_backup.databases.postgres.PostgresSource"
+FORMAT = "custom"
+ALIASES = ["default"]
+
+[DATABASES.CONNECTIONS.default]
+HOST = "{live['HOST']}"
+PORT = "{live['PORT']}"
+USER = "{live['USER']}"
+PASSWORD = "${{SVC_DB_PASSWORD}}"
+NAME = "{live['NAME']}"
+
+[DATABASES.CONNECTIONS.drill]
+HOST = "{scratch['HOST']}"
+PORT = "{scratch['PORT']}"
+USER = "{scratch['USER']}"
+PASSWORD = "${{SVC_DB_PASSWORD}}"
+NAME = "{scratch['NAME']}"
+
+[RETENTION]
+KEEP_NIGHTS = {LOCK_DAYS + 1}
+
+[DRILL]
+DATABASE = "drill"
+"""
+    )
+    common = ['--config', str(setting), '--env-file', str(tmp_path / 'service.env')]
+    assert main([*common, 'checks', '--deploy']) == 0
+    assert main([*common, 'run', '--reason', 'nightly']) == 0
+    assert main([*common, 'status']) == 0
+    assert main([*common, 'drill', '--identity', str(keys[0])]) == 0
+    with django_db_blocker.unblock():
+        assert table_names(databases, 'target') == []
