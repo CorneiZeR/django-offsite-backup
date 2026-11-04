@@ -22,6 +22,7 @@ SHIPPED: dict[str, tuple[str, str]] = {
     'offsite_backup.media.s3.S3Source': ('boto3', 's3'),
     'offsite_backup.notifiers.telegram.TelegramNotifier': ('httpx2', 'telegram'),
     'offsite_backup.notifiers.django_aiogram.TopicNotifier': ('django_aiogram', 'aiogram'),
+    'offsite_backup.encryption.pyrage.Pyrage': ('pyrage', 'pyrage'),
 }
 
 B = TypeVar('B', bound=Backend)

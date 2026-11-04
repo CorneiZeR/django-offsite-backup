@@ -91,11 +91,14 @@ Everything is logged to the `offsite_backup` logger, with fields in the record's
 | INFO | `Nightly backup skipped: ...` (off, done, or being done) | — |
 | INFO | `Databases not backed up yet` (the morning check) | `ob_kinds` |
 | ERROR (with traceback) | `Database not backed up` | `ob_alias` |
+| ERROR (with traceback) | `Store not written; left out of this pass` — one of [several stores](Stores-several.md) refused an object | `ob_store` |
 | WARNING | `Backup still locked; left for a later night` | `ob_key`, `ob_until` |
 | WARNING | `Backup depth not read` | `ob_folder` |
 | WARNING | `Last-success marker not written` | `ob_path`, `ob_error` |
 | WARNING | `Media file not listed`, `Media file not readable; left out` | `ob_path`, `ob_error` |
 | WARNING | `Configuration path not found; left out`, `Media directory not found` — a mount missing where the pass ran (`W005` under `check --deploy`) | `ob_path` |
+| WARNING | `Media volume not found` — a `VolumeSource` Docker volume that does not exist (`W005` under `check --deploy`) | `ob_volume` |
+| WARNING | `Media file is a hard link; left out` — in a Docker volume | `ob_path` |
 | ERROR | `Notifier not built`, `Notifier raised` | `ob_notifier`, `ob_error` |
 | ERROR | `Backup message not formatted` | `ob_error` |
 | ERROR | `Telegram refused the backup message` | `ob_status`, `ob_description` |

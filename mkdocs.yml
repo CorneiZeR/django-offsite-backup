@@ -96,6 +96,7 @@ nav:
       - 'Stores: S3': Stores-S3.md
       - S3 providers: S3-providers.md
       - 'Stores: directory': Stores-directory.md
+      - Several stores: Stores-several.md
   - What is backed up:
       - Databases: Databases.md
       - Media: Media.md

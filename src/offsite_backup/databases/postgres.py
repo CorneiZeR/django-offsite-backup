@@ -6,15 +6,12 @@ visible in ``ps`` and an error text is posted to a chat.
 
 import re
 import subprocess
-from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any
 
 from django.core import checks
-from django.utils.module_loading import import_string
 
-from offsite_backup.databases.base import DatabaseSource
-from offsite_backup.exceptions import BackupError, MisconfiguredError
+from offsite_backup.databases.base import DatabaseSource, database_settings
+from offsite_backup.exceptions import BackupError
 from offsite_backup.pipeline import run_into
 from offsite_backup.sealing import Sealing
 
@@ -32,17 +29,6 @@ def _is_custom(path: Path) -> bool:
         return handle.read(5) == b'PGDMP'
 
 
-def _database(alias: str) -> Mapping[str, Any]:
-    """The connection settings of ``alias`` — from ``connections``, so aliases added at run time count."""
-    from django.db import connections  # noqa: PLC0415 - only when a database is touched
-
-    try:
-        return connections.databases[alias]
-    except KeyError as error:
-        msg = f'DATABASES has no alias {alias!r}'
-        raise MisconfiguredError(msg) from error
-
-
 class PostgresSource(DatabaseSource):
     """``ALIASES`` (a list, or a dotted path to a callable returning one), ``FORMAT`` plain|custom."""
 
@@ -53,14 +39,6 @@ class PostgresSource(DatabaseSource):
         """``plain`` (default) or ``custom``."""
         return str(self.option('FORMAT', 'plain'))
 
-    def targets(self) -> list[str]:
-        """The aliases this run dumps, computing them when ``ALIASES`` is a callable's path."""
-        aliases = self.option('ALIASES', ['default'])
-        if isinstance(aliases, str):
-            found: Callable[[], Any] = import_string(aliases)
-            aliases = found()
-        return [str(alias).strip() for alias in aliases if str(alias).strip()]
-
     def suffix(self) -> str:
         """``sql.zst.age`` for plain, ``dump.zst.age`` for custom (``-Z0``, then zstd)."""
         return 'sql.zst.age' if self.format == 'plain' else 'dump.zst.age'
@@ -68,7 +46,7 @@ class PostgresSource(DatabaseSource):
     @staticmethod
     def connection(alias: str) -> tuple[list[str], dict[str, str]]:
         """``--host/--port/--username/--dbname`` and the environment carrying the secrets."""
-        database = _database(alias)
+        database = database_settings(alias)
         argv = []
         for flag, key in (('--host', 'HOST'), ('--port', 'PORT'), ('--username', 'USER')):
             if database.get(key):

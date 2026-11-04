@@ -17,8 +17,9 @@ class Command(BaseCommand):
     help = 'List what the store holds under PREFIX: per kind, nights, objects, bytes and the newest lock.'
 
     def add_arguments(self, parser: CommandParser) -> None:
-        """``--kind``, ``--json``."""
+        """``--kind``, ``--store``, ``--json``."""
         parser.add_argument('--kind', action='append', help='Only this kind (db, media, config, db-<alias>, ...).')
+        parser.add_argument('--store', help='The store of this NAME (default: the first store).')
         parser.add_argument('--json', action='store_true', help='Machine-readable output.')
 
     def handle(self, *args: Any, **options: Any) -> None:  # noqa: C901 - one table, read in one place
@@ -29,7 +30,8 @@ class Command(BaseCommand):
         try:
             parts = components()
             prefix = parts.settings.prefix
-            stored = parts.store.versions(f'{prefix}/')
+            store = parts.store_named(options['store'])
+            stored = store.versions(f'{prefix}/')
         except BackupError as error:
             raise CommandError(f'backup_list: {error}') from error
         kinds: dict[str, dict[str, Any]] = defaultdict(
@@ -55,10 +57,10 @@ class Command(BaseCommand):
         for kind in sorted(kinds):
             entry = kinds[kind]
             locked = None
-            if parts.store.LOCKS and entry['newest_key']:
+            if store.LOCKS and entry['newest_key']:
                 held = stored[entry['newest_key']]
                 current = next(version for version in held if version.latest and not version.marker)
-                until = parts.store.locked_until(entry['newest_key'], current)
+                until = store.locked_until(entry['newest_key'], current)
                 locked = until.isoformat() if until else None
             nights = sorted(entry['nights'])
             rows.append(
@@ -74,9 +76,9 @@ class Command(BaseCommand):
                 }
             )
         if options['json']:
-            self.stdout.write(json.dumps({'prefix': prefix, 'kinds': rows}, indent=2))
+            self.stdout.write(json.dumps({'prefix': prefix, 'store': store.name, 'kinds': rows}, indent=2))
             return
-        self.stdout.write(f'{prefix}/')
+        self.stdout.write(f'{prefix}/' + (f'  (store {store.name})' if len(parts.stores) > 1 else ''))
         for row in rows:
             self.stdout.write(
                 f'  {row["kind"]}/: {row["nights"]} nights since {row["oldest_night"] or "-"}, '

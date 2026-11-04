@@ -92,6 +92,16 @@ class Settings:
         return [media] if isinstance(media, Mapping) else list(media)
 
     @property
+    def store_blocks(self) -> list[tuple[str, Mapping[str, Any]]]:
+        """``STORE`` as ``(label, block)`` pairs: one block, or a list of them (several stores)."""
+        store = self.values['STORE']
+        if isinstance(store, Mapping):
+            return [(label('STORE'), store)]
+        if isinstance(store, (list, tuple)):
+            return [(label('STORE', index), block) for index, block in enumerate(store) if isinstance(block, Mapping)]
+        return []
+
+    @property
     def keep_nights(self) -> int:
         """Whole nights kept per kind."""
         return int(self.values['RETENTION']['KEEP_NIGHTS'])
@@ -124,9 +134,10 @@ def _blocks(conf: Settings) -> list[tuple[str, Mapping[str, Any], type[Backend]]
     from offsite_backup.media.base import MediaSource  # noqa: PLC0415
     from offsite_backup.stores.base import Store  # noqa: PLC0415
 
-    found: list[tuple[str, Mapping[str, Any], type[Backend]]] = []
+    found: list[tuple[str, Mapping[str, Any], type[Backend]]] = [
+        (name, block, Store) for name, block in conf.store_blocks
+    ]
     families: tuple[tuple[str, type[Backend]], ...] = (
-        ('STORE', Store),
         ('ENCRYPTION', Sealer),
         ('DATABASES', DatabaseSource),
         ('CONFIG', ConfigSource),
@@ -153,6 +164,22 @@ def _empty(value: Any) -> bool:
         # [os.environ.get('X', '')] is [''] on a machine without X
         return all(_empty(item) for item in value)
     return False
+
+
+def _store_names(stores: list[tuple[str, Mapping[str, Any]]]) -> list[str]:
+    """Several stores: each needs a ``NAME`` of its own, which messages and ``--store`` use."""
+    if len(stores) == 1:
+        return []
+    found: list[str] = []
+    seen: set[str] = set()
+    for name, block in stores:
+        given = str(block.get('NAME') or '').strip()
+        if not given:
+            found.append(f"{name}['NAME'] (several stores need a name each)")
+        elif given in seen:
+            found.append(f"{name}['NAME'] ({given!r} is taken by another store)")
+        seen.add(given)
+    return found
 
 
 def enabled(conf: Settings | None = None) -> bool:
@@ -186,11 +213,11 @@ def problems(conf: Settings | None = None) -> list[str]:
     missing: list[str] = []
     if not conf.prefix:
         missing.append(label('PREFIX'))
-    missing.extend(
-        label(key, 'BACKEND')
-        for key in ('STORE', 'ENCRYPTION')
-        if not isinstance(conf[key], Mapping) or _empty(conf[key].get('BACKEND'))
-    )
+    stores = conf.store_blocks or [(label('STORE'), {})]
+    missing.extend(f"{name}['BACKEND']" for name, block in stores if _empty(block.get('BACKEND')))
+    if not isinstance(conf['ENCRYPTION'], Mapping) or _empty(conf['ENCRYPTION'].get('BACKEND')):
+        missing.append(label('ENCRYPTION', 'BACKEND'))
+    missing.extend(_store_names(stores))
     if not (conf['DATABASES'] or conf.media_blocks or conf['CONFIG']):
         missing.append(f'{label("DATABASES")}, {label("MEDIA")} or {label("CONFIG")} (nothing to back up)')
     from offsite_backup.notifiers.base import Notifier  # noqa: PLC0415 - base class only

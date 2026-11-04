@@ -9,14 +9,18 @@ compressed, encrypted to a public key the server holds (so the server can write 
 and cannot read one), uploaded to S3 with **Object Lock COMPLIANCE** read back on every
 object, and rotated by **whole nights** — never by age alone, never by object count.
 
-- PostgreSQL (one database, a list, or a list computed at run time), plain or custom format
-- media from a directory, a Docker volume or an S3 bucket, in volumes of whole files
+- PostgreSQL (one database, a list, or a list computed at run time), plain or custom format;
+  MySQL and MariaDB (one transaction); SQLite (the online backup API)
+- media from a directory, a Docker volume (mounted or not), an S3 bucket or any Django storage,
+  in volumes of whole files, each with a manifest of what it holds
 - the deployment directory plus the environment rebuilt from a list of variable names
-- `age` encryption to one or more recipients; `zstd` compression before it
+- `age` encryption to one or more recipients (the binary, or pyrage without it); `zstd` compression before it
+- several stores at once — a local copy and S3 — each read back, locked and rotated on its own
 - a pass before every deploy without media (fast, and never mistaken for a night)
 - a once-per-night guard, and a morning check that notices the night that never ran
 - every outcome said in Telegram (or through django-aiogram, or a log), in one glanceable format
-- restore that downloads, decrypts, verifies — and, on request, loads a database
+- restore that downloads, decrypts, verifies — and, on request, loads a database; one database,
+  or one media file or folder without downloading the rest
 - system checks that refuse a half-configured machine by name and a bucket without a lock
 
 Every backend is a dotted path in settings and imported only when named; each driver is an

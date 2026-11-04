@@ -30,15 +30,19 @@ python manage.py backup_restore --stamp latest     # get it back
 
 ## What a pass does
 
-1. Dumps every database with `pg_dump`, compresses it with `zstd`, encrypts it with
-   [age](https://age-encryption.org) to a **public** key, and uploads it. A database that
-   fails does not cost the others their night.
-2. Packs the media into **volumes** of whole files (4 GiB by default), each a complete tar
-   on its own, streamed through encryption one at a time — media larger than the free disk
-   works.
+1. Dumps every database — PostgreSQL with `pg_dump`, MySQL and MariaDB with
+   `mysqldump --single-transaction`, SQLite with its online backup API — compresses it with
+   `zstd`, encrypts it with [age](https://age-encryption.org) (or pyrage, the same format
+   without the binary) to a **public** key, and uploads it. A database that fails does not
+   cost the others their night.
+2. Packs the media — a directory, a Docker volume, an S3 bucket or any Django storage —
+   into **volumes** of whole files (4 GiB by default), each a complete tar on its own with a
+   manifest beside it, streamed through encryption one at a time — media larger than the
+   free disk works, and one file comes back without the rest.
 3. Archives the deployment directory and the environment **rebuilt from a list of names**,
    last: a configuration object for a stamp means every part before it went up.
-4. Only then rotates — counted in **whole UTC nights**, never in objects or age.
+4. Only then rotates — counted in **whole UTC nights**, never in objects or age — in
+   every store, when there are [several](Stores-several.md), each by its own window.
 5. Says what happened in a chat (Telegram, or through your
    [django-aiogram](https://github.com/CorneiZeR/django-aiogram) bot), in one format a
    phone shows at a glance.

@@ -131,10 +131,10 @@ other key replaces its default whole.
 | `PREFIX` | `str` | `''` | every key lives under `<PREFIX>/`; rotation never leaves it. Surrounding `/` are stripped. Required | `E001` |
 | `ENV` | `str` | `''` | the environment, for the message's hashtag (`#prod`) | — |
 | `NAME` | `str` | `''` | a service name; shown in a message only when `PREFIX` is empty | — |
-| `STORE` | block | `None` | where backups are kept — [S3](Stores-S3.md) or [a directory](Stores-directory.md). Required | `E001`, `E002` |
-| `ENCRYPTION` | block | `None` | how they are sealed — [Encryption](Encryption.md). Required | `E001`, `E002`, `E008` |
-| `DATABASES` | block | `None` | [Databases](Databases.md) | `E001`, `E002` |
-| `MEDIA` | list of blocks (or one block) | `[]` | [Media](Media.md) | `E001`, `E002`, `W005` (deploy) |
+| `STORE` | block, or a list of blocks | `None` | where backups are kept — [S3](Stores-S3.md) or [a directory](Stores-directory.md); a list writes every pass to [several stores](Stores-several.md), each with a `NAME`. Required | `E001`, `E002` |
+| `ENCRYPTION` | block | `None` | how they are sealed — [Encryption](Encryption.md): the `age` binary or pyrage. Required | `E001`, `E002`, `E008` |
+| `DATABASES` | block | `None` | [Databases](Databases.md): PostgreSQL, MySQL/MariaDB or SQLite | `E001`, `E002`, `E009`/`W005` (deploy, SQLite) |
+| `MEDIA` | list of blocks (or one block) | `[]` | [Media](Media.md) | `E001`, `E002`, `E009`, `E011`, `W005` (deploy) |
 | `CONFIG` | block | `None` | [Configuration archive](Configuration-archive.md) | `E002`, `E009`, `W005` (deploy) |
 | `COMPRESS` | list of `str` (argv) | `['zstd', '-19', '--long=27', '-T0', '-q']` | the compression stage for databases and the configuration archive; empty turns compression off | `E003` (`zstd` on `PATH` when non-empty) |
 | `DECOMPRESS` | list of `str` (argv) | `['zstd', '-d', '-q', '--long=31']` | the stage a restore runs on anything that starts with zstd's magic bytes | — |
@@ -155,7 +155,7 @@ At least one of `DATABASES`, `MEDIA` and `CONFIG` must be set, or `E001` says
 
 | key | type | default | |
 | --- | --- | --- | --- |
-| `KEEP_NIGHTS` | positive `int` | `14` | whole UTC nights kept per kind. Must be greater than the store's `LOCK_DAYS` (`E007`); not a positive integer is `E001` |
+| `KEEP_NIGHTS` | positive `int` | `14` | whole UTC nights kept per kind. Must be greater than the store's `LOCK_DAYS` (`E007`); not a positive integer is `E001`. A store's own `KEEP_NIGHTS` overrides it for that store |
 
 ### `CHECK`
 
@@ -205,6 +205,13 @@ and an optional one as `W005`; a plain `manage.py check` says nothing about path
 Every backend reads its own block: `BACKEND` plus the options below. An option listed as
 **required** is named by `E001` when empty on a machine where backups are on.
 
+### `STORE`: options every store takes
+
+| option | type | default | |
+| --- | --- | --- | --- |
+| `NAME` | `str` | `''` | how messages, the morning check and `--store` call this store. **Required, and distinct, when `STORE` is a list** (`E001`); a single store needs none ([Several stores](Stores-several.md)) |
+| `KEEP_NIGHTS` | positive `int` | `RETENTION['KEEP_NIGHTS']` | this store's own window: a short one for a local copy, a long one off-site. Not a positive integer is `E001`; checked against this store's `LOCK_DAYS` (`E007`) |
+
 ### `STORE`: `offsite_backup.stores.s3.S3Store`
 
 Needs the `[s3]` extra. [Stores: S3](Stores-S3.md).
@@ -239,6 +246,16 @@ Only these options make the client: no `~/.aws`, no instance role, no `AWS_*` va
 | --- | --- | --- | --- |
 | `RECIPIENTS` | `str` or list of `str` | — | **required**; public keys (`age1…`, `ssh-ed25519 …`, `ssh-rsa …`). A string splits on commas, newlines and — between `age1…` keys — whitespace ([above](#blank-means-unset)). A private key or anything else is `E008` |
 
+### `ENCRYPTION`: `offsite_backup.encryption.pyrage.Pyrage`
+
+Needs the `[pyrage]` extra; runs no binary. The same format as `age`, either way round
+([Encryption](Encryption.md#without-the-binary-pyrage)).
+
+| option | type | default | |
+| --- | --- | --- | --- |
+| `RECIPIENTS` | `str` or list of `str` | — | **required**; as for `AgeCli`. A private key, or a recipient pyrage cannot read, is `E008` |
+| `PYTHON` | path | `sys.executable` | the interpreter each sealing stage runs; set it where `sys.executable` is not Python (a uWSGI worker) |
+
 ### `DATABASES`: `offsite_backup.databases.postgres.PostgresSource`
 
 [Databases](Databases.md). Runs `pg_dump` (`E003`, `E004`).
@@ -253,6 +270,29 @@ Only these options make the client: no `~/.aws`, no instance role, no `AWS_*` va
 The connection comes from Django's `DATABASES[alias]`: `HOST`, `PORT`, `USER`, `NAME`,
 `PASSWORD` (passed in `PGPASSWORD`, never on the command line) and
 `OPTIONS['sslmode']` / `OPTIONS['sslrootcert']`.
+
+### `DATABASES`: `offsite_backup.databases.mysql.MySQLSource`
+
+[Databases](Databases.md#mysql-and-mariadb). Runs the dump program and the client of `CLIENT` (`E003`).
+
+| option | type | default | |
+| --- | --- | --- | --- |
+| `ALIASES` | list of aliases, or a dotted path to a callable returning one | `['default']` | as for PostgreSQL |
+| `CLIENT` | `'mysql'` or `'mariadb'` | `'mysql'` | `mysqldump` and `mysql`, or `mariadb-dump` and `mariadb`; anything else is `E001` |
+| `EXTRA_ARGS` | list of `str` | `[]` | appended to the dump command (e.g. `['--routines', '--events']`) |
+
+The connection comes from `DATABASES[alias]`: `HOST` (a path starting with `/` is a socket),
+`PORT`, `USER`, `PASSWORD`, `NAME`, `OPTIONS['unix_socket']` and `OPTIONS['ssl']`
+(`ca`, `cert`, `key`) — written to a 0600 option file, never the command line.
+
+### `DATABASES`: `offsite_backup.databases.sqlite.SQLiteSource`
+
+[Databases](Databases.md#sqlite). Runs no binary.
+
+| option | type | default | |
+| --- | --- | --- | --- |
+| `ALIASES` | list of aliases, or a dotted path to a callable returning one | `['default']` | SQLite aliases of `DATABASES`; one that is not SQLite, or is in memory, is `E001` |
+| `REQUIRED` | `bool` | `False` | a database file missing where `check --deploy` runs is `E009` instead of `W005` |
 
 ### `MEDIA`: options every media source takes
 
@@ -272,6 +312,24 @@ The connection comes from Django's `DATABASES[alias]`: `HOST`, `PORT`, `USER`, `
 | option | type | default | |
 | --- | --- | --- | --- |
 | `ROOT` | path | `settings.MEDIA_ROOT` | the directory archived; missing is `W005` under `check --deploy`, and logged by the pass. Under `STRICT` a file in it that cannot be read fails the pass |
+
+### `MEDIA`: `offsite_backup.media.docker_volume.VolumeSource`
+
+Runs `docker` (`E003`) and needs the daemon's socket. [Media](Media.md).
+
+| option | type | default | |
+| --- | --- | --- | --- |
+| `VOLUME` | `str` | — | **required**; the named volume, as `docker volume ls` shows it. Missing is `W005` (`E009` when `REQUIRED`) under `check --deploy`; a daemon that cannot be asked is `E011` |
+| `IMAGE` | `str` | `'busybox:stable'` | the image the throwaway container is created from — never started, so any image present will do |
+
+### `MEDIA`: `offsite_backup.media.django_storage.StorageSource`
+
+[Media](Media.md).
+
+| option | type | default | |
+| --- | --- | --- | --- |
+| `STORAGE` | alias | `'default'` | a storage of `STORAGES`; one it does not define is `E001` |
+| `PREFIX` | `str` | `''` | a folder of the storage; only files under it. One that cannot be listed under `check --deploy` is `E011` |
 
 ### `MEDIA`: `offsite_backup.media.s3.S3Source`
 
@@ -338,6 +396,7 @@ Every family has a base class: `offsite_backup.stores.base.Store`,
 `offsite_backup.media.base.MediaSource`, `offsite_backup.config.base.ConfigSource`,
 `offsite_backup.notifiers.base.Notifier`. Name your subclass by its dotted path in
 `BACKEND`; the package needs no change. Declare `REQUIRED`, `SIGNALS` and `BINARIES` on the
-class to take part in `E001`, the on/off decision and `E003`, and override `check()` (offline)
+class (or override `binaries()` when an option chooses the programs) to take part in `E001`,
+the on/off decision and `E003`, and override `check()` (offline)
 and `deploy_check()` (network, run by `check --deploy`) for anything else. A path that is
 not a subclass of the family's base is `E002`.

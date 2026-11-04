@@ -29,7 +29,8 @@
 
 Requires Python 3.10–3.14 and Django 5.2+. Every pair in that range runs in CI, and an
 integration job runs a whole cycle — backup, restore into a clean database, row counts of
-every table compared — against PostgreSQL 16 and 18 and an S3 server with Object Lock.
+every table compared — against PostgreSQL 16 and 18 and an S3 server with Object Lock, and
+another against MySQL 8.4 and MariaDB 11.4.
 
 ## Extras
 
@@ -41,7 +42,12 @@ imported only when a pass first needs it, and its driver is an extra:
 | `s3` | `boto3>=1.34` | `offsite_backup.stores.s3.S3Store`, `offsite_backup.media.s3.S3Source` |
 | `telegram` | `httpx2>=2.0` | `offsite_backup.notifiers.telegram.TelegramNotifier` |
 | `aiogram` | `django-aiogram>=5.2` | `offsite_backup.notifiers.django_aiogram.TopicNotifier` |
+| `pyrage` | `pyrage>=1.2.3` | `offsite_backup.encryption.pyrage.Pyrage` — age without the `age` binary |
 | `all` | all of the above | |
+
+The MySQL/MariaDB, SQLite, Docker-volume and Django-storage backends need no extra: the
+first two run the database's own client or the standard library, the Docker one the
+`docker` CLI, and a Django storage brings its own package (django-storages and its driver).
 
 Nothing is inferred from what happens to be installed. When a configured backend's driver
 is missing, `manage.py check` says so with the install line (`E002`):
@@ -60,8 +66,10 @@ Python dependencies; install them in the image that runs the backup:
 | --- | --- | --- |
 | `pg_dump` | `PostgresSource` — its major version must be **at least the server's** | `E003`, and `E004` under `check --deploy` |
 | `zstd` | `COMPRESS` (on by default) and `DECOMPRESS` (restoring) — whatever program they name | `E003` |
-| `age` | `AgeCli`, both for sealing and for restoring | `E003` |
+| `age` | `AgeCli`, both for sealing and for restoring — not needed with `Pyrage` | `E003` |
 | `psql`, `pg_restore` | restoring a database (`backup_restore --apply`) and verifying a custom-format dump; shipped with `pg_dump` in every PostgreSQL client package | `E003` |
+| `mysqldump`, `mysql` — or `mariadb-dump`, `mariadb` | `MySQLSource`, by its `CLIENT`: dumping and restoring | `E003` |
+| `docker` | `VolumeSource`, with the daemon's socket | `E003`, and `E011` under `check --deploy` |
 
 `tar` is **not** needed: volumes and the configuration archive are written with Python's
 `tarfile`. Measured on 613 MB in 2400 files, `tarfile` took 0.27 s against 0.72 s for the

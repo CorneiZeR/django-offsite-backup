@@ -99,9 +99,36 @@ for this dedicated, narrowly used identity only — never the backups' main key.
 The server's wake key opens those dumps and nothing else. Treat it as a secret of the
 server, with the same care as its database password.
 
+## Without the binary: pyrage
+
+```python
+'ENCRYPTION': {
+    'BACKEND': 'offsite_backup.encryption.pyrage.Pyrage',
+    'RECIPIENTS': os.environ.get('BACKUP_AGE_RECIPIENTS', ''),
+},
+```
+
+`pip install 'django-offsite-backup[pyrage]'` — [pyrage](https://pypi.org/project/pyrage/)
+is age's Rust implementation in a wheel, for an image where installing the `age` binary is
+the hard part. It is **the same format**: a backup sealed by `Pyrage` opens with `age -d`,
+and one sealed by `age` opens with `Pyrage` — CI seals with each and opens with the other.
+So switching between the two needs no re-encryption, and a restore on your own machine can
+use whichever is installed there.
+
+`RECIPIENTS`, `E008` and the extra recipients work exactly as for `AgeCli`; a recipient
+pyrage itself cannot read is `E008` as well. Identity files are age's: `AGE-SECRET-KEY-1…`
+lines (comments allowed), or one SSH private key.
+
+A pipeline stage is a process, so each sealing stage is this interpreter running
+`python -m offsite_backup.encryption.pyrage seal age1…` (or `open <identity file>` on
+restore), streaming stdin to stdout through `pyrage.encrypt_io` / `decrypt_io` — memory
+stays flat whatever the size, and the stage fails the pass like any other under `pipefail`.
+Recipients are public keys and the identity is a file path, so argv holds no secret. Where
+`sys.executable` is not Python — inside uWSGI — set `'PYTHON': '/usr/local/bin/python'`.
+
 ## Not yet
 
-A pure-Python backend (`pyrage`, no `age` binary), an explicit "no encryption" backend, and
-helpers to re-seal recent backups to a new recipient are on the roadmap. For tests,
+An explicit "no encryption" backend and helpers to re-seal recent backups to a new
+recipient are on the roadmap. For tests,
 `offsite_backup.testing.Passthrough` stands in for `age` — and raises `W002` so it is never
 mistaken for encryption ([Testing](Testing.md)).

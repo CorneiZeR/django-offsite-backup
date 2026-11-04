@@ -6,13 +6,19 @@ Order (each step's reason is a failure it prevents):
    -> delete the local file. A database that fails is recorded and the pass goes on:
    one database that cannot be dumped does not cost the others, the media or the config
    their night.
-2. Unless the pass is without media: every media source, one volume at a time.
+2. Unless the pass is without media: every media source, one volume at a time, each
+   followed by its manifest.
 3. The configuration archive LAST: a config object for a stamp means every part before
    it went up, and the morning check relies on that.
 4. Only after everything is uploaded, rotation — making room before the new backup exists
    is how a bad night becomes an empty bucket.
 5. Depth, the message, the last-success marker.
-6. Any database that failed raises now, naming every one, after the rest went up.
+6. Any database or store that failed raises now, naming every one, after the rest went up.
+
+With several stores every object goes to each of them. A store that refuses one is
+recorded, written to no more and not rotated tonight (its night is lost; rotating it would
+make room for a backup it does not hold), while the others carry the pass on — which then
+fails by the store's name: one store's outage is never a silent partial.
 """
 
 import logging
@@ -28,7 +34,7 @@ from offsite_backup.config.base import ConfigSource
 from offsite_backup.databases.base import DatabaseSource
 from offsite_backup.encryption.base import Sealer
 from offsite_backup.exceptions import BackupFailedError, MisconfiguredError
-from offsite_backup.media.base import MediaSource
+from offsite_backup.media.base import MANIFEST_SUFFIX, ManifestRow, MediaSource, write_manifest
 from offsite_backup.notify import notify
 from offsite_backup.outcome import FAILED, WRITTEN, Outcome, Summary
 from offsite_backup.registry import build
@@ -49,11 +55,27 @@ class Components:
     """Every backend a pass uses, built from the settings."""
 
     settings: conf.Settings
-    store: Store
+    stores: list[Store]
     sealer: Sealer
     databases: DatabaseSource | None = None
     media: list[MediaSource] = field(default_factory=list)
     config: ConfigSource | None = None
+
+    @property
+    def store(self) -> Store:
+        """The first store: where a restore, a listing and the guard read unless told otherwise."""
+        return self.stores[0]
+
+    def store_named(self, name: str | None) -> Store:
+        """The store whose ``NAME`` is ``name``; the first one for none."""
+        if not name:
+            return self.store
+        for store in self.stores:
+            if store.name == name:
+                return store
+        known = ', '.join(repr(store.name) for store in self.stores if store.name) or 'none'
+        msg = f'no store is named {name!r} (named: {known})'
+        raise MisconfiguredError(msg)
 
     def sealing(self, extra_recipients: Sequence[str] = ()) -> Sealing:
         """Compression and encryption as configured."""
@@ -65,7 +87,7 @@ def components(settings: conf.Settings | None = None) -> Components:
     settings = settings or conf.load()
     found = Components(
         settings=settings,
-        store=build(settings['STORE'], Store, label=conf.label('STORE')),
+        stores=[build(block, Store, label=name) for name, block in settings.store_blocks],
         sealer=build(settings['ENCRYPTION'], Sealer, label=conf.label('ENCRYPTION')),
     )
     if settings['DATABASES']:
@@ -107,11 +129,31 @@ class _Pass:
     moment: datetime
     here: Path = Path()
     kinds: list[str] = field(default_factory=list)
+    healthy: list[Store] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Every store is written to until it refuses an object."""
+        self.healthy = list(self.parts.stores)
+        self.summary.stores = [store.name for store in self.parts.stores]
 
     def ship(self, path: Path, kind: str) -> None:
-        """Upload one sealed file under its kind, then delete it locally."""
+        """Upload one sealed file under its kind to every store still standing, then delete it locally."""
         key = naming.join(self.summary.prefix, kind, path.name)
-        self.summary.uploaded.append(self.parts.store.put(path, key, now=self.moment))
+        for store in list(self.healthy):
+            try:
+                wrote = store.put(path, key, now=self.moment)
+            except Exception as error:
+                if len(self.parts.stores) == 1:
+                    raise
+                logger.exception('Store not written; left out of this pass', extra={'ob_store': store.name})
+                self.summary.failed_stores[store.name] = _error_text(error)
+                self.healthy.remove(store)
+                continue
+            self.summary.uploaded.append(replace(wrote, store=store.name))
+        if not self.healthy:
+            named = '; '.join(f'{name}: {text}' for name, text in self.summary.failed_stores.items())
+            msg = f'no store took the backup — {named}'
+            raise BackupFailedError(msg)
         path.unlink()
 
     def databases(self, sealing: Sealing) -> None:
@@ -137,15 +179,24 @@ class _Pass:
                 (self.here / name).unlink(missing_ok=True)
 
     def media(self, sealing: Sealing) -> None:
-        """Every source, one volume at a time."""
+        """Every source, one volume at a time, each followed by its manifest."""
         if not self.with_media:
             return
+        stamp = self.summary.stamp
         for source in self.parts.media:
             kind = naming.media_kind(source.name)
             self.kinds.append(kind)
-            for number, volume in enumerate(source.volumes(), start=1):
-                name = naming.object_name(self.summary.stamp, source.suffix(), number=number)
-                self.ship(source.seal_volume(volume, self.here / name, sealing), kind)
+
+            def path_for(number: int, source: MediaSource = source) -> Path:
+                return self.here / naming.object_name(stamp, source.suffix(), number=number)
+
+            def ship(path: Path, rows: list[ManifestRow], kind: str = kind) -> None:
+                number = naming.parse(path.name).number  # type: ignore[union-attr]
+                manifest = self.here / naming.object_name(stamp, MANIFEST_SUFFIX, number=number)
+                self.ship(path, kind)
+                self.ship(write_manifest(rows, manifest, sealing, volume=path.name), kind)
+
+            source.seal_volumes(path_for, sealing, ship)
 
     def config(self, sealing: Sealing) -> None:
         """The configuration archive — last."""
@@ -157,16 +208,27 @@ class _Pass:
         self.ship(source.archive(self.here / name, sealing), naming.CONFIG)
 
     def rotate(self) -> None:
-        """Rotate every kind this pass wrote to, then read the depth."""
+        """Rotate every kind this pass wrote to, in every store that holds tonight, then read the depth."""
         prefix = self.summary.prefix
-        for kind in self.kinds:
-            result = rotate(
-                self.parts.store, naming.folder(prefix, kind), self.parts.settings.keep_nights, now=self.moment
-            )
-            self.summary.removed += result.removed
-            self.summary.held += result.held
+        default = self.parts.settings.keep_nights
+        for store in self.healthy:
+            for kind in self.kinds:
+                result = rotate(store, naming.folder(prefix, kind), store.keep_nights(default), now=self.moment)
+                self.summary.removed += result.removed
+                self.summary.held += result.held
         depth_kind = next((kind for kind in self.kinds if kind.startswith('db')), naming.CONFIG)
-        self.summary.depth = depth(self.parts.store, naming.folder(prefix, depth_kind))
+        self.summary.depth = depth(self.healthy[0], naming.folder(prefix, depth_kind))
+
+    def failure(self) -> str:
+        """Every database and store that did not take tonight, by name; blank for none."""
+        lines = []
+        if self.summary.failed_stores:
+            named = '; '.join(f'{name}: {text}' for name, text in self.summary.failed_stores.items())
+            lines.append(f'{len(self.summary.failed_stores)} store(s) not written, the others hold the pass — {named}')
+        if self.summary.failed:
+            named = '; '.join(f'{alias}: {text}' for alias, text in self.summary.failed.items())
+            lines.append(f'{len(self.summary.failed)} database(s) not backed up, the rest went up — {named}')
+        return '\n'.join(lines)
 
 
 def run(
@@ -176,7 +238,7 @@ def run(
     only: Sequence[str] | None = None,
     now: datetime | None = None,
 ) -> Summary:
-    """One pass now. Raises when not configured, on any failure, and when any database failed."""
+    """One pass now. Raises when not configured, on any failure, and when any database or store failed."""
     settings = conf.load()
     selected = set(only or KINDS)
     unknown = selected - set(KINDS)
@@ -207,15 +269,14 @@ def run(
         notify(replace(base, kind=FAILED, error=_error_text(error), summary=summary), settings)
         raise
     summary.seconds = time.monotonic() - started
-    if summary.failed:
-        named = '; '.join(f'{alias}: {text}' for alias, text in summary.failed.items())
-        message = f'{len(summary.failed)} database(s) not backed up, the rest went up — {named}'
+    message = state.failure()
+    if message:
         notify(replace(base, kind=FAILED, error=message, summary=summary), settings)
         raise BackupFailedError(message)
     _mark_success(settings, moment)
     logger.info(
         'Backup written',
-        extra={'ob_prefix': settings.prefix, 'ob_objects': len(summary.uploaded), 'ob_bytes': summary.bytes},
+        extra={'ob_prefix': settings.prefix, 'ob_objects': summary.objects, 'ob_bytes': summary.bytes},
     )
     notify(replace(base, kind=WRITTEN, summary=summary), settings)
     return summary
@@ -231,10 +292,11 @@ def back_up_database(
     """One database off the machine now, outside the nightly pass; answers with its key.
 
     For the moment a database is about to go (removed, put to sleep): raises when backups
-    are not configured, so a removal that cannot be backed up does not happen. Uploaded
-    under ``db-<alias>/``; nothing rotates that folder while the database is not a target.
-    ``extra_recipients`` seal it to more keys (e.g. one the server holds, so it can restore
-    it itself); ``keep_apart`` writes it under ``<PREFIX>/released/`` where no rotation reads.
+    are not configured — or when any store did not take it — so a removal that cannot be
+    backed up does not happen. Uploaded under ``db-<alias>/``; nothing rotates that folder
+    while the database is not a target. ``extra_recipients`` seal it to more keys (e.g. one
+    the server holds, so it can restore it itself); ``keep_apart`` writes it under
+    ``<PREFIX>/released/`` where no rotation reads.
     """
     parts = components()
     if parts.databases is None:
@@ -243,15 +305,17 @@ def back_up_database(
     moment = now or datetime.now(timezone.utc)
     base = parts.settings.prefix + (f'/{naming.RELEASED}' if keep_apart else '')
     name = naming.object_name(naming.stamp(moment), parts.databases.suffix())
+    key = naming.join(base, naming.db_kind(alias), name)
     with tempfile.TemporaryDirectory(prefix='offsite-backup-', dir=parts.settings['WORKDIR'] or None) as workspace:
         path = parts.databases.dump(alias, Path(workspace) / name, parts.sealing(extra_recipients))
-        wrote = parts.store.put(path, naming.join(base, naming.db_kind(alias), name), now=moment)
-    logger.info('Database backed up', extra={'ob_alias': alias, 'ob_key': wrote.key})
-    return wrote.key
+        for store in parts.stores:
+            store.put(path, key, now=moment)
+    logger.info('Database backed up', extra={'ob_alias': alias, 'ob_key': key})
+    return key
 
 
 def keep_apart(key: str, *, now: datetime | None = None) -> str:
-    """Copy one stored backup under ``<PREFIX>/released/``, locked afresh; answer the new key.
+    """Copy one stored backup under ``<PREFIX>/released/`` in every store, locked afresh; answer the new key.
 
     The original stays where the rotation that owns it will take it; the copy is the one
     nothing rotates — so a reused alias never mixes two databases' history.
@@ -265,4 +329,6 @@ def keep_apart(key: str, *, now: datetime | None = None) -> str:
         msg = f'{key!r} is not under {prefix}/'
         raise ValueError(msg)
     target = released + key.removeprefix(f'{prefix}/')
-    return parts.store.copy(key, target, now=now).key
+    for store in parts.stores:
+        store.copy(key, target, now=now)
+    return target

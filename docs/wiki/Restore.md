@@ -7,8 +7,10 @@ every month so the procedure is known to work before the day it is needed.
 
 * The **private key** — from your password manager. Never copy it to the production
   server for a routine restore; restore from your own machine, or from a throwaway one.
-* A machine with the project's image (or a checkout with the package installed), `age`,
-  `zstd`, and `psql`/`pg_restore` of the server's major version or newer.
+* A machine with the project's image (or a checkout with the package installed), `age`
+  (or the `[pyrage]` extra — either opens what the other sealed), `zstd`, and the database's
+  client: `psql`/`pg_restore` of the server's major version or newer, `mysql` / `mariadb`
+  for MySQL and MariaDB; nothing for SQLite.
 * Settings that point at the same store and `PREFIX`. A **read-only** S3 key is enough and
   better than the server's.
 
@@ -29,7 +31,8 @@ acme/prod/
   media/: 14 nights since 2026-02-25, 28 objects, 74322.0 MB, newest 2026-03-10T03-00Z, locked until 2026-03-23T03:02:10+00:00
 ```
 
-`--kind db` narrows it (repeat for several); `--json` is for scripts.
+`--kind db` narrows it (repeat for several); `--json` is for scripts. With
+[several stores](Stores-several.md) it lists the first; `--store NAME` lists another.
 
 ## 2. Download and decrypt
 
@@ -51,7 +54,11 @@ restore/media/2026-03-10T03-00Z.002.tar
 * Every object of that stamp is downloaded, decrypted and — if it starts with zstd's magic
   bytes — decompressed, into `<into>/<kind>/`. `--into` defaults to `./restore-<stamp>`.
 * `--kind db` (repeatable) takes only some kinds — skip a night's media when you need the
-  database.
+  database. `--database ALIAS` takes that one database's dump (its kind, `db` or
+  `db-<alias>`) and nothing else.
+* `--store NAME` reads from another of [several stores](Stores-several.md) — the local copy
+  while the off-site one is out of reach, or the other way round. The first store is the
+  default, for every command and function on this page (`store=` in Python).
 * Every database dump is **verified**: a plain dump must end with
   `PostgreSQL database dump complete`; a custom-format one must pass
   `pg_restore --list`. A dump that fails says so and stops.
@@ -63,7 +70,7 @@ What you get:
 | kind | file | open with |
 | --- | --- | --- |
 | `db`, `db-<alias>` | `<stamp>.sql` (plain) or `<stamp>.dump` (custom) | `psql`, `pg_restore` |
-| `media`, `media-<name>` | `<stamp>.<NNN>.tar`, one per volume | `tar -xf` — each volume on its own |
+| `media`, `media-<name>` | `<stamp>.<NNN>.tar`, one per volume, and `<stamp>.<NNN>.manifest.json` beside each | `tar -xf` — each volume on its own; the manifest lists its files |
 | `config` | `<stamp>.tar` | `tar -xf`; `rendered.env` is the environment |
 
 **A custom-format dump under a legacy `.sql…` name** — written by a predecessor that named
@@ -91,9 +98,11 @@ python manage.py backup_restore --stamp latest --apply --database default
     python manage.py backup_restore --stamp latest --apply --database scratch --from-database default
     ```
 
-* The target must be **empty**. `--clean` replaces a non-empty one: it runs
-  `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` first. Objects in other schemas are
-  not dropped.
+* The target must be **empty**. `--clean` replaces a non-empty one: for PostgreSQL it runs
+  `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` first (objects in other schemas are
+  not dropped); for MySQL and MariaDB it drops every table and view; for SQLite the file is
+  overwritten. MySQL dumps load through `mysql` / `mariadb`, SQLite through the online
+  backup API ([Databases](Databases.md#mysql-and-mariadb)).
 
 From Python:
 
@@ -105,7 +114,7 @@ restore_database('2026-03-10T03-00Z', 'default', clean=True)  # identity from AG
 ```
 
 `restore_database(source, alias, *, identity=None, clean=False, source_alias=None,
-identity_text=None)` answers with the key it loaded.
+identity_text=None, store=None)` answers with the key it loaded.
 
 `identity_text` is the private key's **text**, for code that holds it rather than a file:
 it is written to a private `0600` temporary file for `age` and removed afterwards. It is
@@ -119,6 +128,36 @@ restore_database(key, 'tenant_42', identity_text=settings.WAKE_IDENTITY)
 ```
 
 ## 4. Media and configuration
+
+### Some media files
+
+```shell
+python manage.py backup_restore --stamp latest --path invoices/2026/03 --path logo.png --into ./restore
+```
+
+```text
+restore/media/invoices/2026/03/0001.pdf  (verified)
+restore/media/invoices/2026/03/0002.pdf  (verified)
+restore/media/logo.png  (verified)
+```
+
+`--path` (repeatable) is a file's name in the archive, or a folder: everything under it
+(`invoices/2026` takes `invoices/2026/...`, never `invoices/2026-old/...`). Every volume has
+a [manifest](Media.md#manifests); the restore downloads the manifests, then **only the
+volumes that hold a match**, extracts the matches under `<into>/<kind>/`, and checks each
+file against the SHA-256 its manifest recorded — `(verified)`. A file that differs, or a
+manifest promising a file its volume lacks, stops the restore with an error. A volume
+written before manifests existed (0.3 and earlier) is downloaded and searched whole, and
+its files are not verified. `--kind media-private` narrows it to one source; `--path` does
+not combine with `--database` or `--apply`.
+
+```python
+from offsite_backup.restore import restore_media
+
+restored = restore_media('latest', ['invoices/2026/03'], into=Path('restore'), identity='key.txt')
+```
+
+### Everything
 
 ```shell
 mkdir -p media && for v in restore/media/*.tar; do tar -xf "$v" -C media; done

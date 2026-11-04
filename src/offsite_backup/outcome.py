@@ -28,16 +28,32 @@ class Summary:
     failed: dict[str, str] = field(default_factory=dict)
     seconds: float = 0.0
     depth: Depth | None = None
+    #: every configured store's ``NAME``, in order; ``uploaded`` holds one write per store
+    stores: list[str] = field(default_factory=list)
+    #: a store that refused an object: written to no more, not rotated, the pass failed by its name
+    failed_stores: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def _first(self) -> dict[str, Wrote]:
+        found: dict[str, Wrote] = {}
+        for wrote in self.uploaded:
+            found.setdefault(wrote.key, wrote)
+        return found
 
     @property
     def bytes(self) -> int:
-        """Bytes sent."""
-        return sum(wrote.size for wrote in self.uploaded)
+        """Bytes of the backup — once, however many stores hold a copy."""
+        return sum(wrote.size for wrote in self._first.values())
 
     @property
     def keys(self) -> list[str]:
-        """Keys written."""
-        return [wrote.key for wrote in self.uploaded]
+        """Keys written, each once."""
+        return list(self._first)
+
+    @property
+    def objects(self) -> int:
+        """Objects in the backup, each counted once."""
+        return len(self._first)
 
 
 @dataclass(frozen=True)

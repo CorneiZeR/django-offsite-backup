@@ -42,12 +42,12 @@ uv venv && uv pip install -e '.[all]' --group dev
 ruff check . && ruff format --check . && mypy && python -m pytest -q
 ```
 
-Integration (real PostgreSQL, an S3 server with Object Lock, `age`, `zstd`) — see
-`CONTRIBUTING.md`:
+Integration (real PostgreSQL, an S3 server with Object Lock, `age`, `zstd`; MySQL/MariaDB
+apart, marked `mysql`) — see `CONTRIBUTING.md`:
 
 ```shell
 OFFSITE_BACKUP_TEST_S3_ENDPOINT=http://127.0.0.1:9000 OFFSITE_BACKUP_TEST_PG_PORT=5432 \
-  python -m pytest -m integration --ds=tests.integration_settings tests/integration
+  python -m pytest -m 'integration and not mysql' --ds=tests.integration_settings tests/integration
 ```
 
 ## Rules

@@ -4,6 +4,49 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
+## Unreleased (0.4.0)
+
+No setting is renamed or removed, and no default flips. Two things a reader of the store
+sees change on their own: every media volume now has a manifest beside it, and the pass's
+object count includes them. Nothing to edit on upgrade.
+
+### Sources and stores
+
+Added
+
+- `media.docker_volume.VolumeSource`: a named Docker volume the worker does not mount, read
+  through a container that is created read-only with no network and never started, streamed
+  once with `docker cp`; `VOLUME`, `IMAGE`. A missing volume is never created. `E011` under
+  `check --deploy` when the daemon cannot be asked; `W005`/`E009` for a missing volume.
+- `media.django_storage.StorageSource`: media through any Django storage (`STORAGE`, `PREFIX`),
+  read a block at a time; a django-storages S3 file is streamed from its object's body rather
+  than spooled whole. `E001` for an unknown alias, `E011` for a `PREFIX` that cannot be listed.
+- Media manifests: `<stamp>.<NNN>.manifest.json.age` beside every volume — each file's path,
+  size and SHA-256, taken as it streams into the tar. Volumes are packed while files stream,
+  so a source is listed once.
+- Selective restore: `backup_restore --path` (repeatable; a file or a folder) downloads only
+  the volumes whose manifest lists a match and checks every file against its hash;
+  `restore_media()`; `backup_restore --database ALIAS` without `--apply` fetches one database.
+- `databases.mysql.MySQLSource` (`CLIENT: 'mysql' | 'mariadb'`, `EXTRA_ARGS`):
+  `--single-transaction`, the password in a 0600 option file, restore through the client.
+- `databases.sqlite.SQLiteSource`: the online backup API, verified by `PRAGMA integrity_check`,
+  restored with the same API.
+- Several stores: `STORE` takes a list of blocks, each with a `NAME` (`E001` when missing or
+  taken) and its own `KEEP_NIGHTS`. Every object goes to each store, locks read back on each,
+  each rotated on its own; a store that refuses is left out of the pass, not rotated, and the
+  pass fails by its name. The morning check and the database guard ask every store.
+  `--store NAME` on `backup_list` and `backup_restore`; `store=` on `fetch`, `restore_media`,
+  `restore_database`.
+- `encryption.pyrage.Pyrage` (`[pyrage]` extra): age without the binary, the same format both
+  ways; `PYTHON` for a server whose `sys.executable` is not Python.
+- `E011`; `Backend.binaries()` for a backend whose programs an option chooses.
+
+Changed
+
+- The pass's object count (message, `backup_offsite`, `ob_objects`) includes manifests, and
+  counts each object once however many stores hold it.
+- `fetch()` / `backup_restore --stamp` also brings back each volume's manifest.
+
 ## 0.3.0 — 2026-11-04
 
 No setting is added, renamed or removed. Two check results move; nothing to edit on upgrade

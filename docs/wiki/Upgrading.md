@@ -1,5 +1,32 @@
 # Upgrading
 
+## From 0.3 to 0.4
+
+**Nothing breaks.** No setting is renamed or removed, and every new one is opt-in. Bump the
+pin.
+
+What a reader of the store sees change on its own:
+
+* **Every media volume has a manifest** beside it, `<stamp>.<NNN>.manifest.json.age`, sealed
+  like the volume ([Media](Media.md#manifests)). It rotates with its volume. The pass's object
+  count — the message's `📦 Objects`, `backup_offsite`'s line, the log's `ob_objects`, and
+  `backup_list` — includes them; a dashboard alerting on an exact count moves by one per
+  volume. `backup_restore --stamp` brings the manifests back beside the volumes.
+* **Volumes are packed while files stream**: a source is listed once, interleaved with the
+  uploads, instead of being listed whole before the first volume. Same cuts, same names.
+* Volumes written by 0.3 have no manifest; `backup_restore --path` reads those whole.
+
+### What to consider turning on
+
+* **A local copy beside S3** — `STORE` as a list, each with a `NAME` and its own
+  `KEEP_NIGHTS` ([Several stores](Stores-several.md)).
+* **One file back** — `backup_restore --path` ([Restore](Restore.md#some-media-files)).
+* **A worker without the media mount** — `VolumeSource`, or `StorageSource` for media in a
+  Django storage ([Media](Media.md)).
+* **An image without `age`** — `Pyrage`; nothing already stored needs re-sealing
+  ([Encryption](Encryption.md#without-the-binary-pyrage)).
+* **MySQL, MariaDB or SQLite** — [Databases](Databases.md).
+
 ## From 0.2 to 0.3
 
 **Nothing breaks.** No setting is added, renamed or removed. Bump the pin.

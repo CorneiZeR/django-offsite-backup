@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased (0.4.0)
+
+Nothing to edit on upgrade; [Upgrading](Upgrading.md#from-03-to-04) has what a reader of the
+store sees change.
+
+### Sources and stores
+
+**More sources.** MySQL and MariaDB (`mysqldump --single-transaction`, the password in a
+private option file) and SQLite (the online backup API) beside PostgreSQL
+([Databases](Databases.md)); a Docker volume the worker does not mount, read through a
+container that never starts, and any Django storage, streamed a block at a time
+([Media](Media.md)).
+
+**Manifests and selective restore.** Every media volume has a sealed manifest beside it —
+path, size and SHA-256 of each file. `backup_restore --path` brings back one file or one
+folder, downloading only the volumes that hold it and checking every file against its hash;
+`--database ALIAS` brings back one database ([Restore](Restore.md#some-media-files)).
+
+**Several stores.** `STORE` takes a list: every pass goes to each store, each read back,
+locked and rotated on its own; a store that refuses fails the pass by its name, never a
+silent partial ([Several stores](Stores-several.md)).
+
+**pyrage.** `encryption.pyrage.Pyrage` seals in age's format without the binary; either
+opens what the other sealed ([Encryption](Encryption.md#without-the-binary-pyrage)).
+
 ## 0.3.0 — 2026-11-04
 
 Nothing to edit on upgrade; [Upgrading](Upgrading.md#from-02-to-03) has the two checks that

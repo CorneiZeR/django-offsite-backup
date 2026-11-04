@@ -14,7 +14,9 @@ Uploaded files, whatever holds them, packed into **volumes** of whole files.
 | --- | --- | --- |
 | a directory on disk | `offsite_backup.media.filesystem.DirectorySource` | `ROOT`, default `settings.MEDIA_ROOT` |
 | a Docker volume mounted into the container that runs the backup | `offsite_backup.media.filesystem.DirectorySource` | inside the container a volume is a directory |
+| a Docker volume **not** mounted there | `offsite_backup.media.docker_volume.VolumeSource` | `VOLUME`; the `docker` CLI and the daemon's socket |
 | an S3 bucket (any S3-compatible server) | `offsite_backup.media.s3.S3Source` | `[s3]` extra; `BUCKET`, `PREFIX` |
+| any Django storage (django-storages' S3, GCS, Azure, …) | `offsite_backup.media.django_storage.StorageSource` | `STORAGE` (an alias of `STORAGES`), `PREFIX` |
 | nowhere | leave `MEDIA` out | |
 
 === "Directory"
@@ -61,6 +63,63 @@ Uploaded files, whatever holds them, packed into **volumes** of whole files.
     `VERIFY` work as on the store — a MinIO or SeaweedFS media bucket needs
     `'ADDRESSING_STYLE': 'path'` ([S3 providers](S3-providers.md#addressing-style)).
 
+=== "Docker volume, not mounted"
+
+    ```python
+    'MEDIA': [
+        {
+            'BACKEND': 'offsite_backup.media.docker_volume.VolumeSource',
+            'VOLUME': 'acme_media',          # as `docker volume ls` shows it
+        },
+    ],
+    ```
+
+    For a worker that does not mount the volume. A throwaway container is **created, never
+    started** — read-only mount, no network, label `offsite_backup=media` — and
+    `docker cp <container>:/volume/. -` streams the volume through the daemon as one tar.
+    The source cuts that one stream into volumes as it goes, so the Docker volume is read
+    once and nothing but the sealed volume being written touches the disk; the container is
+    removed afterwards, whatever happened. Nothing in the image runs, so any small image
+    will do (`IMAGE`, default `busybox:stable`, pulled by `docker create` if absent).
+
+    Regular files only: symbolic links are not followed, and a hard link — which one stream
+    read once cannot carry — is logged (`Media file is a hard link; left out`) and left out,
+    or fails the pass under `STRICT`. The volume is asked about first: `docker create` would
+    make a missing named volume, empty, and a typo would then back up nothing every night.
+    A missing volume is logged (`Media volume not found`), fails a `REQUIRED` source, and is
+    `W005` (`E009` when required) under `check --deploy`; a daemon that cannot be asked is
+    `E011`.
+
+    The worker needs the `docker` CLI and the daemon's socket (`DOCKER_HOST` is honoured).
+    **Access to that socket is root on the host** ([Security model](Security-model.md)):
+    mount the volume read-only into the worker and use `DirectorySource` wherever you can.
+
+=== "Django storage"
+
+    ```python
+    'MEDIA': [
+        {
+            'BACKEND': 'offsite_backup.media.django_storage.StorageSource',
+            'STORAGE': 'default',            # an alias of settings.STORAGES
+            'PREFIX': 'uploads/',
+        },
+    ],
+    ```
+
+    Whatever backend the project stores files with, through Django's own API: `listdir`
+    from `PREFIX` down (files before folders at each level, sorted), `size`, and `open`,
+    read a block at a time — **no file is read whole**. Names in the archive are the
+    storage's names. A file deleted between listing and reading is logged and left out.
+
+    django-storages' S3 file is read from its object's body directly
+    (`file.obj.get()['Body']`, streamed): its own `read()` first downloads the whole object
+    into a `SpooledTemporaryFile`, which stays in memory unless `AWS_S3_MAX_MEMORY_SIZE` is
+    set. Other cloud backends spool a file the same way before handing it over — set their
+    own max-memory setting (`GS_MAX_MEMORY_SIZE` for GCS) so large files spool to disk.
+    For an S3 bucket, `S3Source` is the faster choice anyway: it lists in one pass where a
+    storage asks for each file's size. A `STORAGE` that `STORAGES` does not define is `E001`;
+    a `PREFIX` that cannot be listed under `check --deploy` is `E011`.
+
 ## Volumes
 
 Media goes up in volumes of at most `VOLUME_BYTES` (4 GiB by default):
@@ -78,7 +137,8 @@ acme/prod/media/2026-03-10T03-00Z.003.tar.age
   the padding to a record) and 2 KiB per file (a 512-byte header, padding to 512, and a PAX
   header for a long or non-ASCII name), so a volume of many small files stays under the limit.
 * **Streamed, one at a time**: source → tar → `age` → disk → upload → delete, then the next
-  volume. The workspace needs room for one sealed volume, not for the media; media larger
+  volume — packed while the files stream, so a source is listed (or, for a Docker volume,
+  read) once. The workspace needs room for one sealed volume, not for the media; media larger
   than the free disk works.
 * **Why 4 GiB**: one S3 PUT stops at 5 GB. Volumes above 64 MiB go up multipart anyway, but
   a volume small enough for one PUT is the one that never surprises anyone. `VOLUME_BYTES`
@@ -93,6 +153,28 @@ archived as it is now.
 **Not compressed by default.** Images, video and PDFs are already compressed; zstd would
 spend the night gaining nothing. `COMPRESS: True` on a source runs the global `COMPRESS`
 stage on its volumes as well, and the suffix becomes `.tar.zst.age`.
+
+## Manifests
+
+Every volume has a manifest beside it, sealed like the volume (not compressed):
+
+```text
+acme/prod/media/2026-03-10T03-00Z.001.tar.age
+acme/prod/media/2026-03-10T03-00Z.001.manifest.json.age
+```
+
+```json
+{"format": 1, "volume": "2026-03-10T03-00Z.001.tar.age",
+ "files": [{"path": "invoices/2026/03/0001.pdf", "size": 48213, "sha256": "9f2c…"}]}
+```
+
+Each file's path, size and SHA-256 are taken **while it streams into the tar** — the bytes
+written, not the size listed. A restore of one file or one folder
+(`backup_restore --path`, [Restore](Restore.md#some-media-files)) downloads the manifests,
+then only the volumes that hold a match, and checks every file against its hash. A manifest
+goes up right after its volume, rotates with it (its night is in its name), and is counted
+among the pass's objects. File names can be as telling as the files, so a manifest is
+encrypted to the same recipients.
 
 ## Filters
 
@@ -144,8 +226,3 @@ the configuration only, and — in a project that has `MEDIA` configured — mar
 object `.without-media.`: the pass a deploy runs. Those objects never count as a night; see [Retention](Retention.md) and
 [Deploy integration](Deploy-integration.md).
 
-## Not yet
-
-A Docker volume *not* mounted where the backup runs (through the Docker API), any Django
-storage backend, and a manifest per volume for restoring one folder without downloading
-everything are on the roadmap.
