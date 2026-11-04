@@ -3,8 +3,9 @@
 import functools
 import logging
 
-import httpx2
 import pytest
+
+httpx2 = pytest.importorskip('httpx2')  # the [telegram]/[webhook] extra
 
 from offsite_backup.notifiers.telegram import TelegramNotifier
 from offsite_backup.notifiers.webhook import WebhookNotifier
