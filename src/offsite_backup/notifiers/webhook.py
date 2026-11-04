@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from offsite_backup import findings as checks
+from offsite_backup.notifiers import redact
 from offsite_backup.notifiers.base import Notifier
 from offsite_backup.outcome import Outcome
 
@@ -69,6 +70,7 @@ class WebhookNotifier(Notifier):
     def _post(self, body: bytes, headers: Mapping[str, str]) -> Any:
         import httpx2  # noqa: PLC0415 - the [webhook] extra
 
+        redact.hide(self.option('URL'))
         with httpx2.Client(timeout=float(self.option('TIMEOUT', 10))) as client:
             return client.post(str(self.option('URL')), content=body, headers=dict(headers))
 
