@@ -274,7 +274,19 @@ def test_the_command_line_database_narrows_kind(plain_server, tmp_path, capsys):
     assert '/db-reports/' in line
     assert (
         main(
-            ['--config', str(plain_server), 'restore', '--stamp', 'latest', '--kind', 'media', '--database', 'reports']
+            [
+                '--config',
+                str(plain_server),
+                'restore',
+                '--stamp',
+                'latest',
+                '--kind',
+                'media',
+                '--database',
+                'reports',
+                '--into',
+                str(tmp_path / 'refused'),
+            ]
         )
         == 1
     )
