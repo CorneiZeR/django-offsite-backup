@@ -18,7 +18,7 @@
         <link rel="prev" href="../S3-providers/">
       
       
-        <link rel="next" href="../Databases/">
+        <link rel="next" href="../Stores-several/">
       
       
         
@@ -626,6 +626,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1483,8 +1511,9 @@ and not "somebody got in". <code>manage.py check</code> says so on every start:<
 <p>That is a warning, not an error, on purpose: a directory store is a legitimate choice for
 a staging machine, or for a disk that is in fact mounted from elsewhere. Silence it with
 <code>SILENCED_SYSTEM_CHECKS = ['offsite_backup.W001']</code> once you have decided.</p>
-<p>A project has one store. Several at once — a local volume for a fast restore and
-S3 for disaster, each with its own retention — is on the roadmap.</p>
+<p>Kept beside an S3 store rather than instead of one, it is the fast copy: <code>STORE</code> takes a
+list — a local volume for last night's restore, S3 with Object Lock for disaster, each with
+its own <code>KEEP_NIGHTS</code> (<a href="../Stores-several/">Several stores</a>).</p>
 <h2 id="how-files-are-written">How files are written<a class="headerlink" href="#how-files-are-written" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Each object is copied to <code>&lt;name&gt;.part</code>, flushed to disk, set to mode <code>0600</code>, and renamed
@@ -1528,7 +1557,7 @@ and the service the deploy pass runs in — or each writes its own, unseen half.
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2026 19:45:53 UTC">November 3, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     
@@ -1581,13 +1610,13 @@ and the service the deploy pass runs in — or each writes its own, unseen half.
         
         
           
-          <a href="../Databases/" class="md-footer__link md-footer__link--next" aria-label="Next: Databases">
+          <a href="../Stores-several/" class="md-footer__link md-footer__link--next" aria-label="Next: Several stores">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Databases
+                Several stores
               </div>
             </div>
             <div class="md-footer__button md-icon">

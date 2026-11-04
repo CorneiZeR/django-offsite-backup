@@ -549,6 +549,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -857,6 +885,17 @@
     <span class="md-ellipsis">
       
         A second key for one dump: the wake identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#without-the-binary-pyrage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Without the binary: pyrage
       
     </span>
   </a>
@@ -1471,6 +1510,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#without-the-binary-pyrage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Without the binary: pyrage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#not-yet" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1577,9 +1627,30 @@ holds, and keep every other backup readable off the machine only:</p>
 for this dedicated, narrowly used identity only — never the backups' main key.</p>
 <p>The server's wake key opens those dumps and nothing else. Treat it as a secret of the
 server, with the same care as its database password.</p>
+<h2 id="without-the-binary-pyrage">Without the binary: pyrage<a class="headerlink" href="#without-the-binary-pyrage" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="s1">'ENCRYPTION'</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.encryption.pyrage.Pyrage'</span><span class="p">,</span>
+    <span class="s1">'RECIPIENTS'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_AGE_RECIPIENTS'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+<span class="p">},</span>
+</code></pre></div>
+<p><code>pip install 'django-offsite-backup[pyrage]'</code> — <a href="https://pypi.org/project/pyrage/">pyrage</a>
+is age's Rust implementation in a wheel, for an image where installing the <code>age</code> binary is
+the hard part. It is <strong>the same format</strong>: a backup sealed by <code>Pyrage</code> opens with <code>age -d</code>,
+and one sealed by <code>age</code> opens with <code>Pyrage</code> — CI seals with each and opens with the other.
+So switching between the two needs no re-encryption, and a restore on your own machine can
+use whichever is installed there.</p>
+<p><code>RECIPIENTS</code>, <code>E008</code> and the extra recipients work exactly as for <code>AgeCli</code>; a recipient
+pyrage itself cannot read is <code>E008</code> as well. Identity files are age's: <code>AGE-SECRET-KEY-1…</code>
+lines (comments allowed), or one SSH private key.</p>
+<p>A pipeline stage is a process, so each sealing stage is this interpreter running
+<code>python -m offsite_backup.encryption.pyrage seal age1…</code> (or <code>open &lt;identity file&gt;</code> on
+restore), streaming stdin to stdout through <code>pyrage.encrypt_io</code> / <code>decrypt_io</code> — memory
+stays flat whatever the size, and the stage fails the pass like any other under <code>pipefail</code>.
+Recipients are public keys and the identity is a file path, so argv holds no secret. Where
+<code>sys.executable</code> is not Python — inside uWSGI — set <code>'PYTHON': '/usr/local/bin/python'</code>.</p>
 <h2 id="not-yet">Not yet<a class="headerlink" href="#not-yet" title="Permanent link">&para;</a></h2>
-<p>A pure-Python backend (<code>pyrage</code>, no <code>age</code> binary), an explicit "no encryption" backend, and
-helpers to re-seal recent backups to a new recipient are on the roadmap. For tests,
+<p>An explicit "no encryption" backend and helpers to re-seal recent backups to a new
+recipient are on the roadmap. For tests,
 <code>offsite_backup.testing.Passthrough</code> stands in for <code>age</code> — and raises <code>W002</code> so it is never
 mistaken for encryption (<a href="../Testing/">Testing</a>).</p>
 
@@ -1602,7 +1673,7 @@ mistaken for encryption (<a href="../Testing/">Testing</a>).</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2026 19:45:53 UTC">November 3, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     

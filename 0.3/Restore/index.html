@@ -549,6 +549,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1071,6 +1099,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4. Media and configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#some-media-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Some media files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Everything
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1540,6 +1596,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4. Media and configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#some-media-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Some media files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Everything
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1635,8 +1719,10 @@ every month so the procedure is known to work before the day it is needed.</p>
 <ul>
 <li>The <strong>private key</strong> — from your password manager. Never copy it to the production
   server for a routine restore; restore from your own machine, or from a throwaway one.</li>
-<li>A machine with the project's image (or a checkout with the package installed), <code>age</code>,
-  <code>zstd</code>, and <code>psql</code>/<code>pg_restore</code> of the server's major version or newer.</li>
+<li>A machine with the project's image (or a checkout with the package installed), <code>age</code>
+  (or the <code>[pyrage]</code> extra — either opens what the other sealed), <code>zstd</code>, and the database's
+  client: <code>psql</code>/<code>pg_restore</code> of the server's major version or newer, <code>mysql</code> / <code>mariadb</code>
+  for MySQL and MariaDB; nothing for SQLite.</li>
 <li>Settings that point at the same store and <code>PREFIX</code>. A <strong>read-only</strong> S3 key is enough and
   better than the server's.</li>
 </ul>
@@ -1651,7 +1737,8 @@ written to a <code>0600</code> file in a private temporary directory for <code>a
   db/: 14 nights since 2026-02-25, 19 objects, 410.2 MB, newest 2026-03-10T14-12Z, locked until 2026-03-23T14:12:31+00:00, 5 without media
   media/: 14 nights since 2026-02-25, 28 objects, 74322.0 MB, newest 2026-03-10T03-00Z, locked until 2026-03-23T03:02:10+00:00
 </code></pre></div>
-<p><code>--kind db</code> narrows it (repeat for several); <code>--json</code> is for scripts.</p>
+<p><code>--kind db</code> narrows it (repeat for several); <code>--json</code> is for scripts. With
+<a href="../Stores-several/">several stores</a> it lists the first; <code>--store NAME</code> lists another.</p>
 <h2 id="2-download-and-decrypt">2. Download and decrypt<a class="headerlink" href="#2-download-and-decrypt" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">AGE_IDENTITY</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span>cat<span class="w"> </span>~/secure/backup-acme-prod.key<span class="k">)</span><span class="s2">"</span><span class="w">      </span><span class="c1"># or --identity FILE</span>
 python<span class="w"> </span>manage.py<span class="w"> </span>backup_restore<span class="w"> </span>--stamp<span class="w"> </span>latest<span class="w"> </span>--into<span class="w"> </span>./restore
@@ -1668,7 +1755,12 @@ restore/media/2026-03-10T03-00Z.002.tar
 <li>Every object of that stamp is downloaded, decrypted and — if it starts with zstd's magic
   bytes — decompressed, into <code>&lt;into&gt;/&lt;kind&gt;/</code>. <code>--into</code> defaults to <code>./restore-&lt;stamp&gt;</code>.</li>
 <li><code>--kind db</code> (repeatable) takes only some kinds — skip a night's media when you need the
-  database.</li>
+  database. <code>--database ALIAS</code> takes that one database's dump (its kind, <code>db</code> or
+  <code>db-&lt;alias&gt;</code>) and nothing else; beside <code>--kind</code> it narrows — a <code>--kind</code> list without
+  that database is refused rather than widened.</li>
+<li><code>--store NAME</code> reads from another of <a href="../Stores-several/">several stores</a> — the local copy
+  while the off-site one is out of reach, or the other way round. The first store is the
+  default, for every command and function on this page (<code>store=</code> in Python).</li>
 <li>Every database dump is <strong>verified</strong>: a plain dump must end with
   <code>PostgreSQL database dump complete</code>; a custom-format one must pass
   <code>pg_restore --list</code>. A dump that fails says so and stops.</li>
@@ -1692,8 +1784,8 @@ restore/media/2026-03-10T03-00Z.002.tar
 </tr>
 <tr>
 <td><code>media</code>, <code>media-&lt;name&gt;</code></td>
-<td><code>&lt;stamp&gt;.&lt;NNN&gt;.tar</code>, one per volume</td>
-<td><code>tar -xf</code> — each volume on its own</td>
+<td><code>&lt;stamp&gt;.&lt;NNN&gt;.tar</code>, one per volume, and <code>&lt;stamp&gt;.&lt;NNN&gt;.manifest.json</code> beside each</td>
+<td><code>tar -xf</code> — each volume on its own; the manifest lists its files</td>
 </tr>
 <tr>
 <td><code>config</code></td>
@@ -1724,9 +1816,11 @@ so open it with <code>pg_restore</code>, not <code>psql</code>; <code>head -c 5<
 </code></pre></div>
 </li>
 <li>
-<p>The target must be <strong>empty</strong>. <code>--clean</code> replaces a non-empty one: it runs
-  <code>DROP SCHEMA public CASCADE; CREATE SCHEMA public;</code> first. Objects in other schemas are
-  not dropped.</p>
+<p>The target must be <strong>empty</strong>. <code>--clean</code> replaces a non-empty one: for PostgreSQL it runs
+  <code>DROP SCHEMA public CASCADE; CREATE SCHEMA public;</code> first (objects in other schemas are
+  not dropped); for MySQL and MariaDB it drops every table and view; for SQLite the file is
+  overwritten. MySQL dumps load through <code>mysql</code> / <code>mariadb</code>, SQLite through the online
+  backup API (<a href="../Databases/#mysql-and-mariadb">Databases</a>).</p>
 </li>
 </ul>
 <p>From Python:</p>
@@ -1736,7 +1830,7 @@ so open it with <code>pg_restore</code>, not <code>psql</code>; <code>head -c 5<
 <span class="n">restore_database</span><span class="p">(</span><span class="s1">'2026-03-10T03-00Z'</span><span class="p">,</span> <span class="s1">'default'</span><span class="p">,</span> <span class="n">clean</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># identity from AGE_IDENTITY</span>
 </code></pre></div>
 <p><code>restore_database(source, alias, *, identity=None, clean=False, source_alias=None,
-identity_text=None)</code> answers with the key it loaded.</p>
+identity_text=None, store=None)</code> answers with the key it loaded.</p>
 <p><code>identity_text</code> is the private key's <strong>text</strong>, for code that holds it rather than a file:
 it is written to a private <code>0600</code> temporary file for <code>age</code> and removed afterwards. It is
 meant for a dedicated, narrowly used identity the server holds on purpose — the wake key
@@ -1746,6 +1840,27 @@ refused (<code>MisconfiguredError</code>).</p>
 <div class="highlight"><pre><span></span><code><span class="n">restore_database</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">'tenant_42'</span><span class="p">,</span> <span class="n">identity_text</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">WAKE_IDENTITY</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="4-media-and-configuration">4. Media and configuration<a class="headerlink" href="#4-media-and-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="some-media-files">Some media files<a class="headerlink" href="#some-media-files" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>manage.py<span class="w"> </span>backup_restore<span class="w"> </span>--stamp<span class="w"> </span>latest<span class="w"> </span>--path<span class="w"> </span>invoices/2026/03<span class="w"> </span>--path<span class="w"> </span>logo.png<span class="w"> </span>--into<span class="w"> </span>./restore
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>restore/media/invoices/2026/03/0001.pdf  (verified)
+restore/media/invoices/2026/03/0002.pdf  (verified)
+restore/media/logo.png  (verified)
+</code></pre></div>
+<p><code>--path</code> (repeatable) is a file's name in the archive, or a folder: everything under it
+(<code>invoices/2026</code> takes <code>invoices/2026/...</code>, never <code>invoices/2026-old/...</code>). Every volume has
+a <a href="../Media/#manifests">manifest</a>; the restore downloads the manifests, then <strong>only the
+volumes that hold a match</strong>, extracts the matches under <code>&lt;into&gt;/&lt;kind&gt;/</code>, and checks each
+file against the SHA-256 its manifest recorded — <code>(verified)</code>. A file that differs, or a
+manifest promising a file its volume lacks, stops the restore with an error. A volume
+written before manifests existed (0.3 and earlier) is downloaded and searched whole, and
+its files are not verified. <code>--kind media-private</code> narrows it to one source; <code>--path</code> does
+not combine with <code>--database</code> or <code>--apply</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">offsite_backup.restore</span><span class="w"> </span><span class="kn">import</span> <span class="n">restore_media</span>
+
+<span class="n">restored</span> <span class="o">=</span> <span class="n">restore_media</span><span class="p">(</span><span class="s1">'latest'</span><span class="p">,</span> <span class="p">[</span><span class="s1">'invoices/2026/03'</span><span class="p">],</span> <span class="n">into</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s1">'restore'</span><span class="p">),</span> <span class="n">identity</span><span class="o">=</span><span class="s1">'key.txt'</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="everything">Everything<a class="headerlink" href="#everything" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>media<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>v<span class="w"> </span><span class="k">in</span><span class="w"> </span>restore/media/*.tar<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>tar<span class="w"> </span>-xf<span class="w"> </span><span class="s2">"</span><span class="nv">$v</span><span class="s2">"</span><span class="w"> </span>-C<span class="w"> </span>media<span class="p">;</span><span class="w"> </span><span class="k">done</span>
 mkdir<span class="w"> </span>-p<span class="w"> </span>deploy<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tar<span class="w"> </span>-xf<span class="w"> </span>restore/config/*.tar<span class="w"> </span>-C<span class="w"> </span>deploy
 </code></pre></div>
@@ -1778,8 +1893,10 @@ python<span class="w"> </span>manage.py<span class="w"> </span>backup_drill<span
    downloaded and decrypted — the identity from <code>--identity FILE</code>, <code>DRILL['IDENTITY_FILE']</code>
    or <code>AGE_IDENTITY</code>.</li>
 <li>Every database dump is verified, then restored into <strong><code>DRILL['DATABASE']</code></strong>, a throwaway
-   database the project names — emptied first (every schema but the system ones dropped),
-   loaded, and every table counted there with <code>count(*)</code>.</li>
+   database the project names — emptied first (PostgreSQL: every schema but the system ones
+   dropped; MySQL and MariaDB: every table and view; SQLite: every table, view and trigger of
+   the file), loaded, and every table counted there with <code>count(*)</code>. For SQLite the target
+   is a file, and a target naming the live file by another path is refused like a live alias.</li>
 <li>With <code>DRILL['COMPARE_LIVE']</code> (on by default), the live database is counted too, and the
    message shows both. Rows are compared, not required to match: production kept writing
    after the backup. A table the live database has and the restore lacks is named
@@ -1787,7 +1904,7 @@ python<span class="w"> </span>manage.py<span class="w"> </span>backup_drill<span
    failing the drill. A live database that cannot be counted is logged and left uncompared.</li>
 <li>Every media volume and the configuration archive is decrypted and read to its end as a
    tar (unless <code>DRILL['MEDIA']</code> is false or <code>--without-media</code> is given) — files and bytes
-   counted.</li>
+   counted. A volume's manifest is not opened: it describes the volume, which is.</li>
 <li>The throwaway database is emptied again and the workspace removed, whatever happened.</li>
 <li>The outcome goes through the notifiers: <strong>Restore drill passed</strong> with a line per database
    and per kind of archive, or <strong>Restore drill FAILED</strong> naming every object that did not
@@ -1833,7 +1950,9 @@ preference:</p>
 </ul>
 <h3 id="a-database-source-of-your-own">A database source of your own<a class="headerlink" href="#a-database-source-of-your-own" title="Permanent link">&para;</a></h3>
 <p>The drill asks the database source two more things than a pass does: <code>tables(alias)</code>, every
-table with its row count, and <code>clear(alias)</code>, empty the throwaway database. A source that
+table with its row count, and <code>clear(alias)</code>, empty the throwaway database — PostgreSQL,
+MySQL/MariaDB and SQLite answer both; <code>same_database()</code> decides what counts as the live one
+(host, port and name; for SQLite, the file). A source that
 does not implement them fails the drill by its name, and the rest still runs.</p>
 <h3 id="by-hand">By hand<a class="headerlink" href="#by-hand" title="Permanent link">&para;</a></h3>
 <p>The steps the command automates, for a machine that cannot run it:</p>
@@ -1879,7 +1998,7 @@ does not implement them fails the drill by its name, and the rest still runs.</p
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     

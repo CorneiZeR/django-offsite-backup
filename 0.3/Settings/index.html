@@ -553,6 +553,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#store-options-every-store-takes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: options every store takes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#store-offsite_backupstoress3s3store" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -586,10 +597,43 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#encryption-offsite_backupencryptionpyragepyrage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION: offsite_backup.encryption.pyrage.Pyrage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#databases-offsite_backupdatabasespostgrespostgressource" class="md-nav__link">
     <span class="md-ellipsis">
       
         DATABASES: offsite_backup.databases.postgres.PostgresSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasesmysqlmysqlsource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.mysql.MySQLSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasessqlitesqlitesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.sqlite.SQLiteSource
       
     </span>
   </a>
@@ -612,6 +656,28 @@
     <span class="md-ellipsis">
       
         MEDIA: offsite_backup.media.filesystem.DirectorySource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadocker_volumevolumesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.docker_volume.VolumeSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadjango_storagestoragesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.django_storage.StorageSource
       
     </span>
   </a>
@@ -839,6 +905,34 @@
     
   
     Stores: directory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
   
 
     
@@ -1732,6 +1826,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#store-options-every-store-takes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: options every store takes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#store-offsite_backupstoress3s3store" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1765,10 +1870,43 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#encryption-offsite_backupencryptionpyragepyrage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION: offsite_backup.encryption.pyrage.Pyrage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#databases-offsite_backupdatabasespostgrespostgressource" class="md-nav__link">
     <span class="md-ellipsis">
       
         DATABASES: offsite_backup.databases.postgres.PostgresSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasesmysqlmysqlsource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.mysql.MySQLSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasessqlitesqlitesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.sqlite.SQLiteSource
       
     </span>
   </a>
@@ -1791,6 +1929,28 @@
     <span class="md-ellipsis">
       
         MEDIA: offsite_backup.media.filesystem.DirectorySource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadocker_volumevolumesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.docker_volume.VolumeSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadjango_storagestoragesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.django_storage.StorageSource
       
     </span>
   </a>
@@ -2072,31 +2232,31 @@ other key replaces its default whole.</p>
 </tr>
 <tr>
 <td><code>STORE</code></td>
-<td>block</td>
+<td>block, or a list of blocks</td>
 <td><code>None</code></td>
-<td>where backups are kept — <a href="../Stores-S3/">S3</a> or <a href="../Stores-directory/">a directory</a>. Required</td>
+<td>where backups are kept — <a href="../Stores-S3/">S3</a> or <a href="../Stores-directory/">a directory</a>; a list writes every pass to <a href="../Stores-several/">several stores</a>, each with a <code>NAME</code>. Required</td>
 <td><code>E001</code>, <code>E002</code></td>
 </tr>
 <tr>
 <td><code>ENCRYPTION</code></td>
 <td>block</td>
 <td><code>None</code></td>
-<td>how they are sealed — <a href="../Encryption/">Encryption</a>. Required</td>
+<td>how they are sealed — <a href="../Encryption/">Encryption</a>: the <code>age</code> binary or pyrage. Required</td>
 <td><code>E001</code>, <code>E002</code>, <code>E008</code></td>
 </tr>
 <tr>
 <td><code>DATABASES</code></td>
 <td>block</td>
 <td><code>None</code></td>
-<td><a href="../Databases/">Databases</a></td>
-<td><code>E001</code>, <code>E002</code></td>
+<td><a href="../Databases/">Databases</a>: PostgreSQL, MySQL/MariaDB or SQLite</td>
+<td><code>E001</code>, <code>E002</code>, <code>E009</code>/<code>W005</code> (deploy, SQLite)</td>
 </tr>
 <tr>
 <td><code>MEDIA</code></td>
 <td>list of blocks (or one block)</td>
 <td><code>[]</code></td>
 <td><a href="../Media/">Media</a></td>
-<td><code>E001</code>, <code>E002</code>, <code>W005</code> (deploy)</td>
+<td><code>E001</code>, <code>E002</code>, <code>E009</code>, <code>E012</code>, <code>W005</code> (deploy)</td>
 </tr>
 <tr>
 <td><code>CONFIG</code></td>
@@ -2208,7 +2368,7 @@ other key replaces its default whole.</p>
 <td><code>KEEP_NIGHTS</code></td>
 <td>positive <code>int</code></td>
 <td><code>14</code></td>
-<td>whole UTC nights kept per kind. Must be greater than the store's <code>LOCK_DAYS</code> (<code>E007</code>); not a positive integer is <code>E001</code></td>
+<td>whole UTC nights kept per kind. Must be greater than the store's <code>LOCK_DAYS</code> (<code>E007</code>); not a positive integer is <code>E001</code>. A store's own <code>KEEP_NIGHTS</code> overrides it for that store</td>
 </tr>
 </tbody>
 </table>
@@ -2343,6 +2503,31 @@ and an optional one as <code>W005</code>; a plain <code>manage.py check</code> s
 <h2 id="backend-options">Backend options<a class="headerlink" href="#backend-options" title="Permanent link">&para;</a></h2>
 <p>Every backend reads its own block: <code>BACKEND</code> plus the options below. An option listed as
 <strong>required</strong> is named by <code>E001</code> when empty on a machine where backups are on.</p>
+<h3 id="store-options-every-store-takes"><code>STORE</code>: options every store takes<a class="headerlink" href="#store-options-every-store-takes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NAME</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>how messages, the morning check and <code>--store</code> call this store. <strong>Required, and distinct, when <code>STORE</code> is a list</strong> (<code>E001</code>); a single store needs none (<a href="../Stores-several/">Several stores</a>)</td>
+</tr>
+<tr>
+<td><code>KEEP_NIGHTS</code></td>
+<td>positive <code>int</code></td>
+<td><code>RETENTION['KEEP_NIGHTS']</code></td>
+<td>this store's own window: a short one for a local copy, a long one off-site. Not a positive integer is <code>E001</code>; checked against this store's <code>LOCK_DAYS</code> (<code>E007</code>)</td>
+</tr>
+</tbody>
+</table>
 <h3 id="store-offsite_backupstoress3s3store"><code>STORE</code>: <code>offsite_backup.stores.s3.S3Store</code><a class="headerlink" href="#store-offsite_backupstoress3s3store" title="Permanent link">&para;</a></h3>
 <p>Needs the <code>[s3]</code> extra. <a href="../Stores-S3/">Stores: S3</a>.</p>
 <table>
@@ -2452,6 +2637,33 @@ and an optional one as <code>W005</code>; a plain <code>manage.py check</code> s
 </tr>
 </tbody>
 </table>
+<h3 id="encryption-offsite_backupencryptionpyragepyrage"><code>ENCRYPTION</code>: <code>offsite_backup.encryption.pyrage.Pyrage</code><a class="headerlink" href="#encryption-offsite_backupencryptionpyragepyrage" title="Permanent link">&para;</a></h3>
+<p>Needs the <code>[pyrage]</code> extra; runs no binary. The same format as <code>age</code>, either way round
+(<a href="../Encryption/#without-the-binary-pyrage">Encryption</a>).</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RECIPIENTS</code></td>
+<td><code>str</code> or list of <code>str</code></td>
+<td>—</td>
+<td><strong>required</strong>; as for <code>AgeCli</code>. A private key, or a recipient pyrage cannot read, is <code>E008</code></td>
+</tr>
+<tr>
+<td><code>PYTHON</code></td>
+<td>path</td>
+<td><code>sys.executable</code></td>
+<td>the interpreter each sealing stage runs; set it where <code>sys.executable</code> is not Python (a uWSGI worker)</td>
+</tr>
+</tbody>
+</table>
 <h3 id="databases-offsite_backupdatabasespostgrespostgressource"><code>DATABASES</code>: <code>offsite_backup.databases.postgres.PostgresSource</code><a class="headerlink" href="#databases-offsite_backupdatabasespostgrespostgressource" title="Permanent link">&para;</a></h3>
 <p><a href="../Databases/">Databases</a>. Runs <code>pg_dump</code> (<code>E003</code>, <code>E004</code>).</p>
 <table>
@@ -2500,6 +2712,67 @@ and an optional one as <code>W005</code>; a plain <code>manage.py check</code> s
 <code>DATABASES[alias]</code> otherwise: <code>HOST</code>, <code>PORT</code>, <code>USER</code>, <code>NAME</code>,
 <code>PASSWORD</code> (passed in <code>PGPASSWORD</code>, never on the command line) and
 <code>OPTIONS['sslmode']</code> / <code>OPTIONS['sslrootcert']</code>.</p>
+<h3 id="databases-offsite_backupdatabasesmysqlmysqlsource"><code>DATABASES</code>: <code>offsite_backup.databases.mysql.MySQLSource</code><a class="headerlink" href="#databases-offsite_backupdatabasesmysqlmysqlsource" title="Permanent link">&para;</a></h3>
+<p><a href="../Databases/#mysql-and-mariadb">Databases</a>. Runs the dump program and the client of <code>CLIENT</code> (<code>E003</code>).</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALIASES</code></td>
+<td>list of aliases, or a dotted path to a callable returning one</td>
+<td><code>['default']</code></td>
+<td>as for PostgreSQL</td>
+</tr>
+<tr>
+<td><code>CLIENT</code></td>
+<td><code>'mysql'</code> or <code>'mariadb'</code></td>
+<td><code>'mysql'</code></td>
+<td><code>mysqldump</code> and <code>mysql</code>, or <code>mariadb-dump</code> and <code>mariadb</code>; anything else is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>EXTRA_ARGS</code></td>
+<td>list of <code>str</code></td>
+<td><code>[]</code></td>
+<td>appended to the dump command (e.g. <code>['--routines', '--events']</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The connection comes from <code>DATABASES[alias]</code>: <code>HOST</code> (a path starting with <code>/</code> is a socket),
+<code>PORT</code>, <code>USER</code>, <code>PASSWORD</code>, <code>NAME</code>, <code>OPTIONS['unix_socket']</code> and <code>OPTIONS['ssl']</code>
+(<code>ca</code>, <code>cert</code>, <code>key</code>) — written to a 0600 option file, never the command line.</p>
+<h3 id="databases-offsite_backupdatabasessqlitesqlitesource"><code>DATABASES</code>: <code>offsite_backup.databases.sqlite.SQLiteSource</code><a class="headerlink" href="#databases-offsite_backupdatabasessqlitesqlitesource" title="Permanent link">&para;</a></h3>
+<p><a href="../Databases/#sqlite">Databases</a>. Runs no binary.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALIASES</code></td>
+<td>list of aliases, or a dotted path to a callable returning one</td>
+<td><code>['default']</code></td>
+<td>SQLite aliases of <code>DATABASES</code>; one that is not SQLite, or is in memory, is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>REQUIRED</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>a database file missing where <code>check --deploy</code> runs is <code>E009</code> instead of <code>W005</code></td>
+</tr>
+</tbody>
+</table>
 <h3 id="media-options-every-media-source-takes"><code>MEDIA</code>: options every media source takes<a class="headerlink" href="#media-options-every-media-source-takes" title="Permanent link">&para;</a></h3>
 <p><a href="../Media/">Media</a>.</p>
 <table>
@@ -2566,6 +2839,58 @@ and an optional one as <code>W005</code>; a plain <code>manage.py check</code> s
 <td>path</td>
 <td><code>settings.MEDIA_ROOT</code></td>
 <td>the directory archived; missing is <code>W005</code> under <code>check --deploy</code>, and logged by the pass. Under <code>STRICT</code> a file in it that cannot be read fails the pass</td>
+</tr>
+</tbody>
+</table>
+<h3 id="media-offsite_backupmediadocker_volumevolumesource"><code>MEDIA</code>: <code>offsite_backup.media.docker_volume.VolumeSource</code><a class="headerlink" href="#media-offsite_backupmediadocker_volumevolumesource" title="Permanent link">&para;</a></h3>
+<p>Runs <code>docker</code> (<code>E003</code>) and needs the daemon's socket. <a href="../Media/">Media</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VOLUME</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td><strong>required</strong>; the named volume, as <code>docker volume ls</code> shows it. Missing is <code>W005</code> (<code>E009</code> when <code>REQUIRED</code>) under <code>check --deploy</code>; a daemon that cannot be asked is <code>E012</code></td>
+</tr>
+<tr>
+<td><code>IMAGE</code></td>
+<td><code>str</code></td>
+<td><code>'busybox:stable'</code></td>
+<td>the image the throwaway container is created from — never started, so any image present will do</td>
+</tr>
+</tbody>
+</table>
+<h3 id="media-offsite_backupmediadjango_storagestoragesource"><code>MEDIA</code>: <code>offsite_backup.media.django_storage.StorageSource</code><a class="headerlink" href="#media-offsite_backupmediadjango_storagestoragesource" title="Permanent link">&para;</a></h3>
+<p><a href="../Media/">Media</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STORAGE</code></td>
+<td>alias</td>
+<td><code>'default'</code></td>
+<td>a storage of <code>STORAGES</code>; one it does not define is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>PREFIX</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>a folder of the storage; only files under it. One that cannot be listed under <code>check --deploy</code> is <code>E012</code></td>
 </tr>
 </tbody>
 </table>
@@ -2817,7 +3142,8 @@ and an optional one as <code>W005</code>; a plain <code>manage.py check</code> s
 <code>offsite_backup.media.base.MediaSource</code>, <code>offsite_backup.config.base.ConfigSource</code>,
 <code>offsite_backup.notifiers.base.Notifier</code>. Name your subclass by its dotted path in
 <code>BACKEND</code>; the package needs no change. Declare <code>REQUIRED</code>, <code>SIGNALS</code> and <code>BINARIES</code> on the
-class to take part in <code>E001</code>, the on/off decision and <code>E003</code>, and override <code>check()</code> (offline)
+class (or override <code>binaries()</code> when an option chooses the programs) to take part in <code>E001</code>,
+the on/off decision and <code>E003</code>, and override <code>check()</code> (offline)
 and <code>deploy_check()</code> (network, run by <code>check --deploy</code>) for anything else. A path that is
 not a subclass of the family's base is <code>E002</code>.</p>
 
@@ -2840,7 +3166,7 @@ not a subclass of the family's base is <code>E002</code>.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     

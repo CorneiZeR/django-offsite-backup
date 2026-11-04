@@ -638,6 +638,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1510,15 +1538,19 @@ python<span class="w"> </span>manage.py<span class="w"> </span>backup_drill<span
 </code></pre></div>
 <h2 id="what-a-pass-does">What a pass does<a class="headerlink" href="#what-a-pass-does" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Dumps every database with <code>pg_dump</code>, compresses it with <code>zstd</code>, encrypts it with
-   <a href="https://age-encryption.org">age</a> to a <strong>public</strong> key, and uploads it. A database that
-   fails does not cost the others their night.</li>
-<li>Packs the media into <strong>volumes</strong> of whole files (4 GiB by default), each a complete tar
-   on its own, streamed through encryption one at a time — media larger than the free disk
-   works.</li>
+<li>Dumps every database — PostgreSQL with <code>pg_dump</code>, MySQL and MariaDB with
+   <code>mysqldump --single-transaction</code>, SQLite with its online backup API — compresses it with
+   <code>zstd</code>, encrypts it with <a href="https://age-encryption.org">age</a> (or pyrage, the same format
+   without the binary) to a <strong>public</strong> key, and uploads it. A database that fails does not
+   cost the others their night.</li>
+<li>Packs the media — a directory, a Docker volume, an S3 bucket or any Django storage —
+   into <strong>volumes</strong> of whole files (4 GiB by default), each a complete tar on its own with a
+   manifest beside it, streamed through encryption one at a time — media larger than the
+   free disk works, and one file comes back without the rest.</li>
 <li>Archives the deployment directory and the environment <strong>rebuilt from a list of names</strong>,
    last: a configuration object for a stamp means every part before it went up.</li>
-<li>Only then rotates — counted in <strong>whole UTC nights</strong>, never in objects or age.</li>
+<li>Only then rotates — counted in <strong>whole UTC nights</strong>, never in objects or age — in
+   every store, when there are <a href="Stores-several/">several</a>, each by its own window.</li>
 <li>Says what happened in a chat (Telegram, or through your
    <a href="https://github.com/CorneiZeR/django-aiogram">django-aiogram</a> bot) or to a webhook, in one
    format a phone shows at a glance.</li>
@@ -1593,7 +1625,7 @@ and each driver are extras (<code>[django]</code>, <code>[cli]</code>, <code>[s3
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     

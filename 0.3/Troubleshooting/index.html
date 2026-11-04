@@ -549,6 +549,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1351,6 +1379,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#e012-a-media-source-cannot-be-reached-from-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E012 — a media source cannot be reached from here
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#w001-a-directory-store" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1482,6 +1521,28 @@
     <span class="md-ellipsis">
       
         PipelineError from age
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-stores-not-written-the-others-hold-the-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 store(s) not written, the others hold the pass
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restore_media-does-not-match-the-manifest-lacks-what-its-manifest-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restore_media: does not match the manifest / lacks what its manifest lists
       
     </span>
   </a>
@@ -1891,6 +1952,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#e012-a-media-source-cannot-be-reached-from-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E012 — a media source cannot be reached from here
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#w001-a-directory-store" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2022,6 +2094,28 @@
     <span class="md-ellipsis">
       
         PipelineError from age
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-stores-not-written-the-others-hold-the-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 store(s) not written, the others hold the pass
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restore_media-does-not-match-the-manifest-lacks-what-its-manifest-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restore_media: does not match the manifest / lacks what its manifest lists
       
     </span>
   </a>
@@ -2379,6 +2473,33 @@ name on the same one.</p>
 <div class="highlight"><pre><span></span><code><span class="n">DATABASES</span><span class="p">[</span><span class="s1">'drill'</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">DATABASES</span><span class="p">[</span><span class="s1">'default'</span><span class="p">],</span> <span class="s1">'NAME'</span><span class="p">:</span> <span class="s1">'acme_drill'</span><span class="p">}</span>
 <span class="n">OFFSITE_BACKUP</span><span class="p">[</span><span class="s1">'DRILL'</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'DATABASE'</span><span class="p">:</span> <span class="s1">'drill'</span><span class="p">}</span>
 </code></pre></div>
+<h3 id="e012-a-media-source-cannot-be-reached-from-here"><code>E012</code> — a media source cannot be reached from here<a class="headerlink" href="#e012-a-media-source-cannot-be-reached-from-here" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>?: (offsite_backup.E012) OFFSITE_BACKUP['MEDIA'][0]: the Docker daemon could not be asked about 'acme_media' (...Cannot connect to the Docker daemon...).
+    HINT: Mount the Docker socket into the container that runs the backup, or set DOCKER_HOST.
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>source</th>
+<th>cause</th>
+<th>fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VolumeSource</code></td>
+<td>no <code>docker</code> CLI, no socket, or the socket's permissions</td>
+<td>mount <code>/var/run/docker.sock</code> into the container that runs the pass (or set <code>DOCKER_HOST</code>) and install the CLI — or, better, mount the volume read-only and use <code>DirectorySource</code> (<a href="../Media/#where-the-media-lives">Media</a>)</td>
+</tr>
+<tr>
+<td><code>StorageSource</code></td>
+<td>the storage's credentials, location or network, as <code>listdir(PREFIX)</code> met them</td>
+<td>the storage's own settings in that container; a <code>PREFIX</code> that does not exist</td>
+</tr>
+</tbody>
+</table>
+<p>A deploy check: it runs only under <code>check --deploy</code>, where the pass runs. A <em>missing</em>
+volume is not <code>E012</code> but <code>W005</code> (<code>E009</code> when required).</p>
 <h3 id="w001-a-directory-store"><code>W001</code> — a directory store<a class="headerlink" href="#w001-a-directory-store" title="Permanent link">&para;</a></h3>
 <p>No immutability, on the machine it protects. Fine for a fast local copy or a staging
 machine; silence it there (<code>SILENCED_SYSTEM_CHECKS</code>). For production, the disaster copy
@@ -2402,8 +2523,9 @@ of the CI test job.</p>
 <div class="highlight"><pre><span></span><code>?: (offsite_backup.W005) OFFSITE_BACKUP['CONFIG']: /app/deploy not found here.
     HINT: Mount the deployment directory (read-only) into every container that runs the backup.
 </code></pre></div>
-<p>A media <code>ROOT</code>, a <code>CONFIG</code> path or the <code>RENDER_ENV</code> file is not there in the container
-<code>check --deploy</code> ran in. Usually a volume mounted into the web service and not the worker,
+<p>A media <code>ROOT</code>, a <code>VolumeSource</code> volume (as <code>docker volume ls</code> names it — compose prefixes
+the project), an SQLite database file, a <code>CONFIG</code> path or the <code>RENDER_ENV</code> file is not there
+in the container <code>check --deploy</code> ran in. Usually a volume mounted into the web service and not the worker,
 or the other way round. A plain <code>manage.py check</code> or <code>migrate</code> never says it — those
 containers need no mount (<a href="../System-checks/#why-the-path-checks-are-deploy-checks">why</a>) —
 and in the worker the pass logs <code>Configuration path not found; left out</code> or
@@ -2461,6 +2583,16 @@ or when <code>DEFAULT_REASON</code> is <code>deploy</code>.</p>
 <h3 id="pipelineerror-from-age"><code>PipelineError</code> from <code>age</code><a class="headerlink" href="#pipelineerror-from-age" title="Permanent link">&para;</a></h3>
 <p>Usually a malformed recipient that slipped past <code>E008</code> (several keys in one string), or —
 in a restore — the wrong identity: <code>no identity matched any of the recipients</code>.</p>
+<h3 id="1-stores-not-written-the-others-hold-the-pass"><code>1 store(s) not written, the others hold the pass</code><a class="headerlink" href="#1-stores-not-written-the-others-hold-the-pass" title="Permanent link">&para;</a></h3>
+<p>One of <a href="../Stores-several/">several stores</a> refused an object; the error after its name is
+the store's own (<code>OSError: [Errno 28] No space left on device</code>, an S3 code). The other
+stores hold tonight's pass; the one named holds nothing of it and was not rotated. Fix the
+store and run <code>backup_offsite</code> (or let the nightly retry run) — the whole pass goes to
+every store again.</p>
+<h3 id="restore_media-does-not-match-the-manifest-lacks-what-its-manifest-lists"><code>restore_media</code>: <code>does not match the manifest</code> / <code>lacks what its manifest lists</code><a class="headerlink" href="#restore_media-does-not-match-the-manifest-lacks-what-its-manifest-lists" title="Permanent link">&para;</a></h3>
+<p>A media file's bytes are not what the pass recorded, or a volume lacks a file its manifest
+lists: the volume is not what was written. Try the same path from another stamp, or from
+another store (<code>--store</code>), and treat the store as suspect.</p>
 <h3 id="drillfailederror-n-parts-of-stamp-did-not-come-back"><code>DrillFailedError: N part(s) of &lt;stamp&gt; did not come back — ...</code><a class="headerlink" href="#drillfailederror-n-parts-of-stamp-did-not-come-back" title="Permanent link">&para;</a></h3>
 <p>The drill names every object that did not come back and the step it failed at:
 <code>download and decrypt</code> (the identity does not open it, or the store refused), <code>verify</code> (a
@@ -2601,7 +2733,7 @@ code and pinned by a test.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     

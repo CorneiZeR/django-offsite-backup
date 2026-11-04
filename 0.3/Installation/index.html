@@ -642,6 +642,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1516,7 +1544,8 @@ settings.</p>
 <p>Requires Python 3.10–3.14, and Django 5.2+ for the Django layer (a Django project has it
 already). Every pair in that range runs in CI, and an
 integration job runs a whole cycle — backup, restore into a clean database, row counts of
-every table compared — against PostgreSQL 16 and 18 and an S3 server with Object Lock.</p>
+every table compared — against PostgreSQL 16 and 18 and an S3 server with Object Lock, and
+another against MySQL 8.4 and MariaDB 11.4.</p>
 <h2 id="extras">Extras<a class="headerlink" href="#extras" title="Permanent link">&para;</a></h2>
 <p>The base install pulls nothing — not even Django, which a Django project brings itself and a
 plain server does not need. Every backend is named by a dotted path in the settings,
@@ -1561,12 +1590,20 @@ imported only when a pass first needs it, and its driver is an extra:</p>
 <td><code>offsite_backup.notifiers.django_aiogram.TopicNotifier</code></td>
 </tr>
 <tr>
+<td><code>pyrage</code></td>
+<td><code>pyrage&gt;=1.2.3</code></td>
+<td><code>offsite_backup.encryption.pyrage.Pyrage</code> — age without the <code>age</code> binary</td>
+</tr>
+<tr>
 <td><code>all</code></td>
 <td>all of the above</td>
 <td></td>
 </tr>
 </tbody>
 </table>
+<p>The MySQL/MariaDB, SQLite, Docker-volume and Django-storage backends need no extra: the
+first two run the database's own client or the standard library, the Docker one the
+<code>docker</code> CLI, and a Django storage brings its own package (django-storages and its driver).</p>
 <p>Nothing is inferred from what happens to be installed. When a configured backend's driver
 is missing, <code>manage.py check</code> says so with the install line (<code>E002</code>):</p>
 <div class="highlight"><pre><span></span><code>?: (offsite_backup.E002) OFFSITE_BACKUP['STORE']['BACKEND'] is S3Store, but its driver is not installed.
@@ -1596,13 +1633,23 @@ Python dependencies; install them in the image that runs the backup:</p>
 </tr>
 <tr>
 <td><code>age</code></td>
-<td><code>AgeCli</code>, both for sealing and for restoring</td>
+<td><code>AgeCli</code>, both for sealing and for restoring — not needed with <code>Pyrage</code></td>
 <td><code>E003</code></td>
 </tr>
 <tr>
 <td><code>psql</code>, <code>pg_restore</code></td>
 <td>restoring a database (<code>backup_restore --apply</code>, the drill), verifying a custom-format dump, and every question asked of the server (is the target empty, row counts, its version); shipped with <code>pg_dump</code> in every PostgreSQL client package</td>
 <td><code>E003</code></td>
+</tr>
+<tr>
+<td><code>mysqldump</code>, <code>mysql</code> — or <code>mariadb-dump</code>, <code>mariadb</code></td>
+<td><code>MySQLSource</code>, by its <code>CLIENT</code>: dumping, restoring, and the drill's questions (is the target empty, row counts)</td>
+<td><code>E003</code></td>
+</tr>
+<tr>
+<td><code>docker</code></td>
+<td><code>VolumeSource</code>, with the daemon's socket</td>
+<td><code>E003</code>, and <code>E012</code> under <code>check --deploy</code></td>
 </tr>
 </tbody>
 </table>
@@ -1709,7 +1756,7 @@ the deploy pass in front of your migrations (<a href="../Deploy-integration/">De
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     

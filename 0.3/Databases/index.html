@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://corneizer.github.io/django-offsite-backup/latest/0.3/Databases/">
       
       
-        <link rel="prev" href="../Stores-directory/">
+        <link rel="prev" href="../Stores-several/">
       
       
         <link rel="next" href="../Media/">
@@ -549,6 +549,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -747,6 +775,28 @@
     <span class="md-ellipsis">
       
         Restoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mysql-and-mariadb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MySQL and MariaDB
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SQLite
       
     </span>
   </a>
@@ -1537,6 +1587,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mysql-and-mariadb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MySQL and MariaDB
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SQLite
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#other-databases" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1579,8 +1651,40 @@
     <span class="s1">'FORMAT'</span><span class="p">:</span> <span class="s1">'plain'</span><span class="p">,</span>
 <span class="p">},</span>
 </code></pre></div>
-<p>PostgreSQL through <code>pg_dump</code>. For each alias: <code>pg_dump | zstd | age</code> into one file in the
-workspace, upload, delete, next. Nothing goes through Python memory.</p>
+<p>Three sources, one per engine — each a <code>BACKEND</code> of its own:</p>
+<table>
+<thead>
+<tr>
+<th>engine</th>
+<th>backend</th>
+<th>dumps with</th>
+<th>object suffix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL</td>
+<td><code>offsite_backup.databases.postgres.PostgresSource</code></td>
+<td><code>pg_dump</code></td>
+<td><code>.sql.zst.age</code> / <code>.dump.zst.age</code></td>
+</tr>
+<tr>
+<td>MySQL, MariaDB</td>
+<td><code>offsite_backup.databases.mysql.MySQLSource</code></td>
+<td><code>mysqldump</code> / <code>mariadb-dump --single-transaction</code></td>
+<td><code>.sql.zst.age</code></td>
+</tr>
+<tr>
+<td>SQLite</td>
+<td><code>offsite_backup.databases.sqlite.SQLiteSource</code></td>
+<td>Python's online backup API</td>
+<td><code>.sqlite3.zst.age</code></td>
+</tr>
+</tbody>
+</table>
+<p>For each alias: dump <code>| zstd | age</code> into one file in the workspace, upload, delete, next.
+Nothing goes through Python memory. Most of this page is PostgreSQL's; what differs for
+the others is under <a href="#mysql-and-mariadb">MySQL and MariaDB</a> and <a href="#sqlite">SQLite</a>.</p>
 <h2 id="which-databases">Which databases<a class="headerlink" href="#which-databases" title="Permanent link">&para;</a></h2>
 <p><code>ALIASES</code> names entries of Django's <code>DATABASES</code>:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">One</label><label for="__tabbed_1_2">Several</label><label for="__tabbed_1_3">Computed at run time</label></div>
@@ -1718,11 +1822,66 @@ that folder once the alias is no longer among the pass's targets.</p>
 own rotation will take it.</p>
 <h2 id="restoring">Restoring<a class="headerlink" href="#restoring" title="Permanent link">&para;</a></h2>
 <p><code>backup_restore --apply</code> and <code>restore_database()</code> — see <a href="../Restore/">Restore</a>.</p>
+<h2 id="mysql-and-mariadb">MySQL and MariaDB<a class="headerlink" href="#mysql-and-mariadb" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="s1">'DATABASES'</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.databases.mysql.MySQLSource'</span><span class="p">,</span>
+    <span class="s1">'ALIASES'</span><span class="p">:</span> <span class="p">[</span><span class="s1">'default'</span><span class="p">],</span>
+    <span class="s1">'CLIENT'</span><span class="p">:</span> <span class="s1">'mariadb'</span><span class="p">,</span>   <span class="c1"># 'mysql' (default): mysqldump and mysql</span>
+<span class="p">},</span>
+</code></pre></div>
+<p><code>ALIASES</code> works as for PostgreSQL. Each dump is</p>
+<div class="highlight"><pre><span></span><code>mysqldump --defaults-extra-file=&lt;0600 file&gt; --single-transaction --quick --hex-blob --triggers
+          --no-tablespaces --default-character-set=utf8mb4 [--set-gtid-purged=OFF] &lt;EXTRA_ARGS&gt; &lt;NAME&gt;
+</code></pre></div>
+<ul>
+<li><strong>One moment of the database.</strong> <code>--single-transaction</code> reads every InnoDB table as of
+  the dump's start, without locking a table against the application. A MyISAM table is not
+  covered by it — it is read as it is while the dump runs; convert it, or accept that.</li>
+<li><strong>The password never reaches argv</strong>, nor <code>MYSQL_PWD</code> (deprecated by MySQL): <code>HOST</code>
+  (a path starting with <code>/</code> is a socket), <code>PORT</code>, <code>USER</code>, <code>PASSWORD</code>,
+  <code>OPTIONS['unix_socket']</code> and <code>OPTIONS['ssl']</code> go into an option file readable by this
+  process only, passed as <code>--defaults-extra-file</code> and removed when the dump ends.</li>
+<li><code>--set-gtid-purged=OFF</code> (MySQL only, which <code>mariadb-dump</code> does not know): a dump carrying
+  the server's GTID set refuses to load into any other server.</li>
+<li><code>--no-tablespaces</code> spares the dump user the <code>PROCESS</code> privilege. Routines and events are
+  not dumped by default — Django does not create them; <code>'EXTRA_ARGS': ['--routines',
+  '--events']</code> adds them for a project that does.</li>
+<li><strong>Whole</strong>: a restore checks the dump ends with <code>-- Dump completed</code>, the line both programs
+  write last (so do not pass <code>--skip-comments</code>).</li>
+<li><strong>No Python driver needed</strong>: the source runs only the client programs. A restore asks the
+  server through <code>mysql</code> / <code>mariadb</code> whether the target holds any table, refuses one that
+  does unless <code>--clean</code> — which drops every table and view first, foreign key checks off —
+  then feeds the dump to the client, which stops at the first error.</li>
+</ul>
+<p>The client should be at least as new as the server: <code>mysql-client</code> for MySQL,
+<code>mariadb-client</code> for MariaDB (<code>mysqldump</code> 8 against a MariaDB server trips on statistics
+tables MariaDB does not have).</p>
+<h2 id="sqlite">SQLite<a class="headerlink" href="#sqlite" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="s1">'DATABASES'</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.databases.sqlite.SQLiteSource'</span><span class="p">,</span>
+    <span class="s1">'ALIASES'</span><span class="p">:</span> <span class="p">[</span><span class="s1">'default'</span><span class="p">],</span>
+<span class="p">},</span>
+</code></pre></div>
+<p>Each alias's <code>NAME</code> is a file. It is copied with <code>sqlite3.Connection.backup</code> — the online
+backup API — into the pass's private workspace, then compressed and sealed from there and
+the copy removed. The backup API copies page by page and starts over when a writer touches
+a page it has copied, so the copy is <strong>one moment</strong> of the database while the application
+keeps writing; copying the file itself could catch a transaction half way, or miss what
+only the write-ahead log (<code>-wal</code>) holds. No binary is needed.</p>
+<ul>
+<li>The workspace holds one plain copy of the database for the length of its sealing — mind
+  <code>WORKDIR</code> on a machine whose temporary directory is small or shared.</li>
+<li>A database file that does not exist fails that database (<code>SourceMissingError</code>) instead
+  of creating an empty one; <code>check --deploy</code> reports it as <code>W005</code>, or <code>E009</code> with
+  <code>'REQUIRED': True</code>. An alias that is not SQLite, or an in-memory database, is <code>E001</code>.</li>
+<li><strong>Verified</strong> on restore: an SQLite header and <code>PRAGMA integrity_check</code> answering <code>ok</code>.</li>
+<li><strong>Restored</strong> with the same backup API over the target alias's file, which must hold no
+  table unless <code>--clean</code>. Close the application's connections to it first.</li>
+</ul>
 <h2 id="other-databases">Other databases<a class="headerlink" href="#other-databases" title="Permanent link">&para;</a></h2>
-<p>PostgreSQL is the one source shipped. MySQL (<code>mysqldump --single-transaction</code>) and SQLite (the online
-backup API) are on the roadmap; meanwhile a subclass of
-<code>offsite_backup.databases.base.DatabaseSource</code> named in <code>BACKEND</code> works without any change
-to the package.</p>
+<p>A subclass of <code>offsite_backup.databases.base.DatabaseSource</code> named in <code>BACKEND</code> works
+without any change to the package: <code>targets()</code> (the <code>ALIASES</code> logic is the base class's),
+<code>suffix()</code>, <code>dump()</code>, <code>verify()</code> and <code>restore()</code>.</p>
 
 
 
@@ -1743,7 +1902,7 @@ to the package.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     
@@ -1779,7 +1938,7 @@ to the package.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../Stores-directory/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Stores: directory">
+          <a href="../Stores-several/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Several stores">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1789,7 +1948,7 @@ to the package.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Stores: directory
+                Several stores
               </div>
             </div>
           </a>

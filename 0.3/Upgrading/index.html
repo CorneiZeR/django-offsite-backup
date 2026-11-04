@@ -549,6 +549,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1609,6 +1637,14 @@ is off until set. Bump the pin and run <code>python manage.py check --deploy</co
   required for a restore (<code>E003</code>).</li>
 <li><strong><code>--reason upgrade</code></strong> now says on failure that the upgrade stops and the running service
   (<code>NAME</code>) keeps serving, as <code>--reason deploy</code> says for a deploy.</li>
+<li><strong>Every media volume has a manifest</strong> beside it, <code>&lt;stamp&gt;.&lt;NNN&gt;.manifest.json.age</code>, sealed
+  like the volume (<a href="../Media/#manifests">Media</a>). It rotates with its volume. The pass's object
+  count — the message's <code>📦 Objects</code>, <code>backup_offsite</code>'s line, the log's <code>ob_objects</code>, and
+  <code>backup_list</code> — includes them; a dashboard alerting on an exact count moves by one per
+  volume. <code>backup_restore --stamp</code> brings the manifests back beside the volumes.</li>
+<li><strong>Volumes are packed while files stream</strong>: a source is listed once, interleaved with the
+  uploads, instead of being listed whole before the first volume. Same cuts, same names.</li>
+<li>Volumes written by 0.3 have no manifest; <code>backup_restore --path</code> reads those whole.</li>
 </ul>
 <h3 id="what-to-consider-turning-on">What to consider turning on<a class="headerlink" href="#what-to-consider-turning-on" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1620,6 +1656,14 @@ is off until set. Bump the pin and run <code>python manage.py check --deploy</co
 <li><strong>A webhook</strong> beside the chat (<a href="../Notifications/#a-webhook">Notifications</a>).</li>
 <li><strong>The command line</strong> for a server with no Django project, in place of its own backup
   script (<a href="../Plain-servers/#coming-from-a-hand-written-script">Without Django</a>).</li>
+<li><strong>A local copy beside S3</strong> — <code>STORE</code> as a list, each with a <code>NAME</code> and its own
+  <code>KEEP_NIGHTS</code> (<a href="../Stores-several/">Several stores</a>).</li>
+<li><strong>One file back</strong> — <code>backup_restore --path</code> (<a href="../Restore/#some-media-files">Restore</a>).</li>
+<li><strong>A worker without the media mount</strong> — <code>VolumeSource</code>, or <code>StorageSource</code> for media in a
+  Django storage (<a href="../Media/">Media</a>).</li>
+<li><strong>An image without <code>age</code></strong> — <code>Pyrage</code>; nothing already stored needs re-sealing
+  (<a href="../Encryption/#without-the-binary-pyrage">Encryption</a>).</li>
+<li><strong>MySQL, MariaDB or SQLite</strong> — <a href="../Databases/">Databases</a>.</li>
 </ul>
 <h2 id="from-02-to-03">From 0.2 to 0.3<a class="headerlink" href="#from-02-to-03" title="Permanent link">&para;</a></h2>
 <p><strong>Nothing breaks.</strong> No setting is added, renamed or removed. Bump the pin.</p>
@@ -1721,7 +1765,7 @@ does this page says exactly what to change.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 20:39:09 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     

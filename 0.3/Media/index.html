@@ -549,6 +549,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -727,6 +755,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#manifests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manifests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#filters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -764,17 +803,6 @@
     <span class="md-ellipsis">
       
         Leaving media out of one pass
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#not-yet" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Not yet
       
     </span>
   </a>
@@ -1471,6 +1499,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#manifests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manifests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#filters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1508,17 +1547,6 @@
     <span class="md-ellipsis">
       
         Leaving media out of one pass
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#not-yet" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Not yet
       
     </span>
   </a>
@@ -1577,9 +1605,19 @@
 <td>inside the container a volume is a directory</td>
 </tr>
 <tr>
+<td>a Docker volume <strong>not</strong> mounted there</td>
+<td><code>offsite_backup.media.docker_volume.VolumeSource</code></td>
+<td><code>VOLUME</code>; the <code>docker</code> CLI and the daemon's socket</td>
+</tr>
+<tr>
 <td>an S3 bucket (any S3-compatible server)</td>
 <td><code>offsite_backup.media.s3.S3Source</code></td>
 <td><code>[s3]</code> extra; <code>BUCKET</code>, <code>PREFIX</code></td>
+</tr>
+<tr>
+<td>any Django storage (django-storages' S3, GCS, Azure, …)</td>
+<td><code>offsite_backup.media.django_storage.StorageSource</code></td>
+<td><code>STORAGE</code> (an alias of <code>STORAGES</code>), <code>PREFIX</code></td>
 </tr>
 <tr>
 <td>nowhere</td>
@@ -1588,7 +1626,7 @@
 </tr>
 </tbody>
 </table>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Directory</label><label for="__tabbed_1_2">S3 bucket</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Directory</label><label for="__tabbed_1_2">S3 bucket</label><label for="__tabbed_1_3">Docker volume, not mounted</label><label for="__tabbed_1_4">Django storage</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="s1">'MEDIA'</span><span class="p">:</span> <span class="p">[</span>
@@ -1628,6 +1666,54 @@ media bucket, not the backup store's. <code>ADDRESSING_STYLE</code>, <code>SIGNA
 <code>VERIFY</code> work as on the store — a MinIO or SeaweedFS media bucket needs
 <code>'ADDRESSING_STYLE': 'path'</code> (<a href="../S3-providers/#addressing-style">S3 providers</a>).</p>
 </div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="s1">'MEDIA'</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.media.docker_volume.VolumeSource'</span><span class="p">,</span>
+        <span class="s1">'VOLUME'</span><span class="p">:</span> <span class="s1">'acme_media'</span><span class="p">,</span>          <span class="c1"># as `docker volume ls` shows it</span>
+    <span class="p">},</span>
+<span class="p">],</span>
+</code></pre></div>
+<p>For a worker that does not mount the volume. A throwaway container is <strong>created, never
+started</strong> — read-only mount, no network, label <code>offsite_backup=media</code> — and
+<code>docker cp &lt;container&gt;:/volume/. -</code> streams the volume through the daemon as one tar.
+The source cuts that one stream into volumes as it goes, so the Docker volume is read
+once and nothing but the sealed volume being written touches the disk; the container is
+removed afterwards, whatever happened. Nothing in the image runs, so any small image
+will do (<code>IMAGE</code>, default <code>busybox:stable</code>, pulled by <code>docker create</code> if absent).</p>
+<p>Regular files only: symbolic links are not followed, and a hard link — which one stream
+read once cannot carry — is logged (<code>Media file is a hard link; left out</code>) and left out,
+or fails the pass under <code>STRICT</code>. The volume is asked about first: <code>docker create</code> would
+make a missing named volume, empty, and a typo would then back up nothing every night.
+A missing volume is logged (<code>Media volume not found</code>), fails a <code>REQUIRED</code> source, and is
+<code>W005</code> (<code>E009</code> when required) under <code>check --deploy</code>; a daemon that cannot be asked is
+<code>E012</code>.</p>
+<p>The worker needs the <code>docker</code> CLI and the daemon's socket (<code>DOCKER_HOST</code> is honoured).
+<strong>Access to that socket is root on the host</strong> (<a href="../Security-model/">Security model</a>):
+mount the volume read-only into the worker and use <code>DirectorySource</code> wherever you can.</p>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="s1">'MEDIA'</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.media.django_storage.StorageSource'</span><span class="p">,</span>
+        <span class="s1">'STORAGE'</span><span class="p">:</span> <span class="s1">'default'</span><span class="p">,</span>            <span class="c1"># an alias of settings.STORAGES</span>
+        <span class="s1">'PREFIX'</span><span class="p">:</span> <span class="s1">'uploads/'</span><span class="p">,</span>
+    <span class="p">},</span>
+<span class="p">],</span>
+</code></pre></div>
+<p>Whatever backend the project stores files with, through Django's own API: <code>listdir</code>
+from <code>PREFIX</code> down (files before folders at each level, sorted), <code>size</code>, and <code>open</code>,
+read a block at a time — <strong>no file is read whole</strong>. Names in the archive are the
+storage's names. A file deleted between listing and reading is logged and left out.</p>
+<p>django-storages' S3 file is read from its object's body directly
+(<code>file.obj.get()['Body']</code>, streamed): its own <code>read()</code> first downloads the whole object
+into a <code>SpooledTemporaryFile</code>, which stays in memory unless <code>AWS_S3_MAX_MEMORY_SIZE</code> is
+set. Other cloud backends spool a file the same way before handing it over — set their
+own max-memory setting (<code>GS_MAX_MEMORY_SIZE</code> for GCS) so large files spool to disk.
+For an S3 bucket, <code>S3Source</code> is the faster choice anyway: it lists in one pass where a
+storage asks for each file's size. A <code>STORAGE</code> that <code>STORAGES</code> does not define is <code>E001</code>;
+a <code>PREFIX</code> that cannot be listed under <code>check --deploy</code> is <code>E012</code>.</p>
+</div>
 </div>
 </div>
 <h2 id="volumes">Volumes<a class="headerlink" href="#volumes" title="Permanent link">&para;</a></h2>
@@ -1644,7 +1730,8 @@ acme/prod/media/2026-03-10T03-00Z.003.tar.age
   the padding to a record) and 2 KiB per file (a 512-byte header, padding to 512, and a PAX
   header for a long or non-ASCII name), so a volume of many small files stays under the limit.</li>
 <li><strong>Streamed, one at a time</strong>: source → tar → <code>age</code> → disk → upload → delete, then the next
-  volume. The workspace needs room for one sealed volume, not for the media; media larger
+  volume — packed while the files stream, so a source is listed (or, for a Docker volume,
+  read) once. The workspace needs room for one sealed volume, not for the media; media larger
   than the free disk works.</li>
 <li><strong>Why 4 GiB</strong>: one S3 PUT stops at 5 GB. Volumes above 64 MiB go up multipart anyway, but
   a volume small enough for one PUT is the one that never surprises anyone. <code>VOLUME_BYTES</code>
@@ -1658,6 +1745,21 @@ archived as it is now.</p>
 <p><strong>Not compressed by default.</strong> Images, video and PDFs are already compressed; zstd would
 spend the night gaining nothing. <code>COMPRESS: True</code> on a source runs the global <code>COMPRESS</code>
 stage on its volumes as well, and the suffix becomes <code>.tar.zst.age</code>.</p>
+<h2 id="manifests">Manifests<a class="headerlink" href="#manifests" title="Permanent link">&para;</a></h2>
+<p>Every volume has a manifest beside it, sealed like the volume (not compressed):</p>
+<div class="highlight"><pre><span></span><code>acme/prod/media/2026-03-10T03-00Z.001.tar.age
+acme/prod/media/2026-03-10T03-00Z.001.manifest.json.age
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"format"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"volume"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-03-10T03-00Z.001.tar.age"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"files"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"path"</span><span class="p">:</span><span class="w"> </span><span class="s2">"invoices/2026/03/0001.pdf"</span><span class="p">,</span><span class="w"> </span><span class="nt">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">48213</span><span class="p">,</span><span class="w"> </span><span class="nt">"sha256"</span><span class="p">:</span><span class="w"> </span><span class="s2">"9f2c…"</span><span class="p">}]}</span>
+</code></pre></div>
+<p>Each file's path, size and SHA-256 are taken <strong>while it streams into the tar</strong> — the bytes
+written, not the size listed. A restore of one file or one folder
+(<code>backup_restore --path</code>, <a href="../Restore/#some-media-files">Restore</a>) downloads the manifests,
+then only the volumes that hold a match, and checks every file against its hash. A manifest
+goes up right after its volume, rotates with it (its night is in its name), and is counted
+among the pass's objects. File names can be as telling as the files, so a manifest is
+encrypted to the same recipients.</p>
 <h2 id="filters">Filters<a class="headerlink" href="#filters" title="Permanent link">&para;</a></h2>
 <p><code>INCLUDE</code> and <code>EXCLUDE</code> are lists of shell globs matched against each file's name inside
 the archive (<code>fnmatch</code>: <code>*</code> matches across <code>/</code> too); blank items are dropped. With
@@ -1691,10 +1793,6 @@ message (<a href="../Settings/#strict-and-required">Settings</a>).</p>
 the configuration only, and — in a project that has <code>MEDIA</code> configured — marks every
 object <code>.without-media.</code>: the pass a deploy runs. Those objects never count as a night; see <a href="../Retention/">Retention</a> and
 <a href="../Deploy-integration/">Deploy integration</a>.</p>
-<h2 id="not-yet">Not yet<a class="headerlink" href="#not-yet" title="Permanent link">&para;</a></h2>
-<p>A Docker volume <em>not</em> mounted where the backup runs (through the Docker API), any Django
-storage backend, and a manifest per volume for restoring one folder without downloading
-everything are on the roadmap.</p>
 
 
 
@@ -1715,7 +1813,7 @@ everything are on the roadmap.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 19:32:49 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
   </span>
 
     
