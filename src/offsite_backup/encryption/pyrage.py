@@ -11,8 +11,7 @@ import sys
 from collections.abc import Sequence
 from typing import Any
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.encryption.age_cli import AgeCli
 
 __all__ = ('Pyrage', 'main')

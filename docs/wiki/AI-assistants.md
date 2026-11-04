@@ -10,7 +10,7 @@ brief to hand them.
 Short enough for a system prompt or a `CLAUDE.md` / `AGENTS.md` / `.cursor/rules` file:
 
 ```text
-Project uses django-offsite-backup 0.3. Rules:
+Project uses django-offsite-backup 0.4. Rules:
 
 - Install with the extras the configuration names, nothing inferred:
   `django-offsite-backup[s3,telegram]` for an S3 store and Telegram messages,
@@ -39,6 +39,7 @@ Project uses django-offsite-backup 0.3. Rules:
   offsite_backup.notifiers.telegram.TelegramNotifier
   offsite_backup.notifiers.django_aiogram.TopicNotifier
   offsite_backup.notifiers.log.LogNotifier
+  offsite_backup.notifiers.webhook.WebhookNotifier   ([webhook] extra)
 - NEVER put an age private key (AGE-SECRET-KEY-...) on the server, in settings,
   in .env, in CI variables, or in the repository. RECIPIENTS takes public keys
   (age1...). The private key is generated on a person's machine with age-keygen
@@ -90,6 +91,19 @@ Project uses django-offsite-backup 0.3. Rules:
 - Restore: `manage.py backup_restore --stamp latest --into DIR` with the
   private key in AGE_IDENTITY or --identity FILE, run by a person on their own
   machine. Never write code that stores the identity on the server.
+- The restore drill (`manage.py backup_drill`) restores into
+  DRILL['DATABASE'], which must be a throwaway database — never an alias, host+
+  port+name of a live one (refused; E011). It needs the private key: do not
+  schedule it on the production worker unless the user explicitly accepts the
+  key there; prefer a separate machine running `offsite-backup drill`. Its
+  schedule is off by default — beat_schedule(drill=(1, 5, 0)) /
+  register(broker, drill='0 5 1 * *') only when asked.
+- Monitoring: `manage.py backup_status` exits 1 when a kind is stale, 2 when
+  the store is unreadable; `--prometheus FILE` for a textfile collector.
+- A server with no Django project uses the `offsite-backup` command with a TOML
+  setting (same keys as OFFSITE_BACKUP, secrets as ${VAR} from the environment
+  or --env-file, never literal), PostgresSource CONNECTIONS for its databases,
+  and cron with flock. Install `django-offsite-backup[cli,s3,...]` with pipx.
 ```
 
 ## Prompts that work

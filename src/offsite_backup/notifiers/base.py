@@ -2,8 +2,7 @@
 
 from typing import Any, ClassVar
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.backend import Backend
 from offsite_backup.outcome import Outcome
 

@@ -1,9 +1,34 @@
 # Changelog
 
-## Unreleased (0.4.0)
+## 0.4.0 — unreleased
 
-Nothing to edit on upgrade; [Upgrading](Upgrading.md#from-03-to-04) has what a reader of the
-store sees change.
+Nothing to edit in a Django project; [Upgrading](Upgrading.md#from-03-to-04) has the
+behaviours that move and what to consider turning on.
+
+### Operations
+
+**The restore drill.** `manage.py backup_drill` (and `offsite-backup drill`, `run_drill()`)
+downloads the newest whole backup, decrypts it, restores every database into the throwaway
+`DRILL['DATABASE']` — never a live one: a target reaching a database the pass dumps is
+refused, and is `E011` under `check --deploy` — counts every table there and live, opens
+every media volume and the configuration archive, says the outcome through the notifiers
+and empties the target. A schedule entry for it in both adapters, off unless asked
+(`beat_schedule(drill=...)`, `register(broker, drill=...)`). [Restore](Restore.md#the-monthly-drill).
+
+**A webhook notifier.** `WebhookNotifier` (`[webhook]`) POSTs the outcome as JSON beside its
+text, signed with HMAC-SHA256 when given a `SECRET`, retried on a network error, a 429 or a
+5xx; `E010` checks its options. [Notifications](Notifications.md#a-webhook).
+
+**The age of every kind, for a monitor.** `manage.py backup_status` (`offsite-backup status`,
+`freshness()`) answers each kind's newest whole backup and its age, exits 1 when one is
+stale and 2 when the store cannot be read, and writes a Prometheus textfile with
+`--prometheus`. [Monitoring](Monitoring.md#the-age-of-every-kind).
+
+**Without Django.** The `offsite-backup` command runs the same passes, checks, restore and
+drill on a server with no Django project, from a TOML file whose top level is
+`OFFSITE_BACKUP`, with `${NAME}` read from the environment and `--env-file` files.
+`PostgresSource` takes its connections from `CONNECTIONS`. Django is the `[django]` extra;
+the core imports without it. [Without Django](Plain-servers.md).
 
 ### Sources and stores
 
@@ -24,6 +49,10 @@ silent partial ([Several stores](Stores-several.md)).
 
 **pyrage.** `encryption.pyrage.Pyrage` seals in age's format without the binary; either
 opens what the other sealed ([Encryption](Encryption.md#without-the-binary-pyrage)).
+
+Every new source runs under the drill and the command line too — MySQL, MariaDB and SQLite
+are counted and emptied by the drill like PostgreSQL; a Django storage needs a Django project
+and is refused by name without one ([Without Django](Plain-servers.md)).
 
 ## 0.3.0 — 2026-11-04
 

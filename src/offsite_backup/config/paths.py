@@ -15,8 +15,8 @@ import time
 from pathlib import Path
 from string import ascii_letters, digits
 
-from django.core import checks
-
+from offsite_backup import conf
+from offsite_backup import findings as checks
 from offsite_backup.config.base import ConfigSource
 from offsite_backup.exceptions import SourceMissingError
 from offsite_backup.pipeline import feed
@@ -71,15 +71,13 @@ class PathsSource(ConfigSource):
 
     @property
     def names_file(self) -> Path | None:
-        """``RENDER_ENV``, relative to ``settings.BASE_DIR`` unless absolute."""
+        """``RENDER_ENV``, relative to ``BASE_DIR`` (off Django, the configuration file's directory) unless absolute."""
         value = self.option('RENDER_ENV')
         if not value:
             return None
         path = Path(str(value)).expanduser()
         if not path.is_absolute():
-            from django.conf import settings  # noqa: PLC0415 - read when the source is used
-
-            path = Path(str(getattr(settings, 'BASE_DIR', '.'))) / path
+            path = conf.base_dir() / path
         return path
 
     def _excluded(self, path: Path) -> bool:

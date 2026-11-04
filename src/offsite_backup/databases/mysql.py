@@ -2,7 +2,7 @@
 
 ``--single-transaction`` reads every InnoDB table as of one moment without locking it (a
 MyISAM table is not covered by it: it is read as it is while the dump runs). The connection
-comes from Django's ``DATABASES[alias]``; the password travels in a 0600 option file passed
+comes from ``CONNECTIONS[alias]`` or Django's ``DATABASES[alias]``; the password travels in a 0600 option file passed
 as ``--defaults-extra-file`` — never argv, which ``ps`` shows, and not ``MYSQL_PWD``, which
 MySQL deprecates. The client needs no Python driver: a restore asks the server through the
 same ``mysql`` / ``mariadb`` client whether the target is empty.
@@ -14,9 +14,8 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
-from django.core import checks
-
-from offsite_backup.databases.base import DatabaseSource, database_settings
+from offsite_backup import findings as checks
+from offsite_backup.databases.base import DatabaseSource
 from offsite_backup.exceptions import BackupError
 from offsite_backup.pipeline import run_into
 from offsite_backup.sealing import Sealing
@@ -27,6 +26,9 @@ __all__ = ('CLIENTS', 'MySQLSource', 'option_file')
 CLIENTS = {'mysql': ('mysqldump', 'mysql'), 'mariadb': ('mariadb-dump', 'mariadb')}
 #: the comment both dump programs end a complete dump with (unless told to skip comments)
 _COMPLETE = b'-- Dump completed'
+_LISTING = (
+    'SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_name'
+)
 
 
 def _quoted(value: str) -> str:
@@ -56,9 +58,8 @@ def _client_lines(database: Mapping[str, Any]) -> list[str]:
 
 
 @contextlib.contextmanager
-def option_file(alias: str) -> Iterator[tuple[str, str]]:
-    """``--defaults-extra-file=<a private file>`` for ``alias``, and its database name."""
-    database = database_settings(alias)
+def option_file(database: Mapping[str, Any]) -> Iterator[tuple[str, str]]:
+    """``--defaults-extra-file=<a private file>`` for one connection block, and its database name."""
     with tempfile.TemporaryDirectory(prefix='offsite-mysql-') as directory:
         path = Path(directory) / 'client.cnf'
         path.touch(mode=0o600)
@@ -71,7 +72,9 @@ def _identifier(name: str) -> str:
 
 
 class MySQLSource(DatabaseSource):
-    """``ALIASES`` as for PostgreSQL, ``CLIENT`` mysql|mariadb, ``EXTRA_ARGS`` for the dump program."""
+    """``ALIASES`` and ``CONNECTIONS`` as for PostgreSQL, ``CLIENT`` mysql|mariadb, ``EXTRA_ARGS`` for the dump."""
+
+    DEFAULT_PORT = '3306'
 
     @property
     def client(self) -> str:
@@ -105,7 +108,7 @@ class MySQLSource(DatabaseSource):
 
     def dump(self, alias: str, into: Path, sealing: Sealing) -> Path:
         """``mysqldump | zstd | age`` into ``into``."""
-        with option_file(alias) as (defaults, name):
+        with option_file(self.connection_settings(alias)) as (defaults, name):
             return run_into([self.dump_argv(defaults, name), *sealing.stages()], into=into)
 
     def verify(self, plain: Path) -> None:
@@ -124,23 +127,41 @@ class MySQLSource(DatabaseSource):
             run_into([command], into=out)
             return [line.split('\t') for line in out.read_text().splitlines() if line]
 
+    def _drop_all(self, defaults: str, name: str, tables: list[list[str]]) -> None:
+        drops = [
+            f'DROP {"VIEW" if kind == "VIEW" else "TABLE"} IF EXISTS {_identifier(table)}' for table, kind, *_ in tables
+        ]
+        self._query(defaults, name, '; '.join(['SET FOREIGN_KEY_CHECKS=0', *drops]))
+
+    def tables(self, alias: str) -> dict[str, int]:
+        """Every base table of ``alias`` with its exact ``count(*)``, in one statement — what the drill compares."""
+        with option_file(self.connection_settings(alias)) as (defaults, name):
+            names = [row[0] for row in self._query(defaults, name, _LISTING) if row[1:2] != ['VIEW']]
+            if not names:
+                return {}
+            counts = ' UNION ALL '.join(
+                f'SELECT {index}, count(*) FROM {_identifier(table)}'  # noqa: S608 - quoted names from the catalog
+                for index, table in enumerate(names)
+            )
+            found = {int(row[0]): int(row[1]) for row in self._query(defaults, name, counts)}
+        return {table: found[index] for index, table in enumerate(names)}
+
+    def clear(self, alias: str) -> None:
+        """Drop every table and view of ``alias`` — for the drill's throwaway database only."""
+        with option_file(self.connection_settings(alias)) as (defaults, name):
+            tables = self._query(defaults, name, _LISTING)
+            if tables:
+                self._drop_all(defaults, name, tables)
+
     def restore(self, plain: Path, alias: str, *, clean: bool = False) -> None:
         """Load into ``alias``, which must be empty unless ``clean`` (then every table and view is dropped)."""
-        listing = (
-            'SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = DATABASE() '
-            'ORDER BY table_name'
-        )
-        with option_file(alias) as (defaults, name):
-            tables = self._query(defaults, name, listing)
+        with option_file(self.connection_settings(alias)) as (defaults, name):
+            tables = self._query(defaults, name, _LISTING)
             if tables and not clean:
                 msg = f'database {alias!r} is not empty ({len(tables)} tables); pass clean=True / --clean to replace it'
                 raise BackupError(msg)
             if tables:
-                drops = [
-                    f'DROP {"VIEW" if kind == "VIEW" else "TABLE"} IF EXISTS {_identifier(table)}'
-                    for table, kind, *_ in tables
-                ]
-                self._query(defaults, name, '; '.join(['SET FOREIGN_KEY_CHECKS=0', *drops]))
+                self._drop_all(defaults, name, tables)
             run_into([[self.binaries()[1], defaults, name]], into=Path('/dev/null'), source=plain)
 
     def check(self) -> list[checks.CheckMessage]:

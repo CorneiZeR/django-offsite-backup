@@ -8,7 +8,7 @@ whose HTML does not parse, and an error text with ``<`` in it would silently be 
 
 from html import escape
 
-from offsite_backup.outcome import FAILED, MISSING, UNCHECKED, WRITTEN, Outcome
+from offsite_backup.outcome import DRILL_FAILED, DRILLED, FAILED, MISSING, UNCHECKED, WRITTEN, Drill, Outcome
 
 __all__ = ('ERROR_CHARS', 'REASONS', 'format_outcome', 'reason_line', 'reason_tag')
 
@@ -79,6 +79,8 @@ def _failed(outcome: Outcome) -> str:
     lines = [f'🚨 <b>Backup FAILED</b>: {_where(outcome)}', reason_line(outcome.reason)]
     if outcome.reason == 'deploy':
         lines.append('The deploy stops here; the live release keeps serving.')
+    elif outcome.reason == 'upgrade':
+        lines.append(f'The upgrade stops here; the running {escape(outcome.name or "service")} keeps serving.')
     lines += ['', f'<pre>{escape(outcome.error[:ERROR_CHARS])}</pre>', '']
     lines.append(_tags(outcome, reason_tag(outcome.reason), '#failed'))
     return '\n'.join(lines)
@@ -116,7 +118,73 @@ def _unchecked(outcome: Outcome) -> str:
     )
 
 
-_FORMATS = {WRITTEN: _written, FAILED: _failed, MISSING: _missing, UNCHECKED: _unchecked}
+def _count(number: int) -> str:
+    """``69 535``: thousands apart, readable on a phone."""
+    return f'{number:,}'.replace(',', ' ')
+
+
+def _drill_lines(drill: Drill) -> list[str]:
+    lines = []
+    for database in drill.databases:
+        line = f'🗃 {escape(database.alias)}: {_count(database.tables)} tables, {_count(database.rows)} rows'
+        if database.live_tables is not None and database.live_rows is not None:
+            line += f' (live: {_count(database.live_tables)} tables, {_count(database.live_rows)} rows)'
+        lines.append(line)
+        if database.missing:
+            shown = ', '.join(escape(name) for name in database.missing[:5])
+            more = f' and {len(database.missing) - 5} more' if len(database.missing) > 5 else ''  # noqa: PLR2004
+            lines.append(f'⚠️ Not in the backup, live now: {shown}{more}')
+    kinds: dict[str, list[int]] = {}
+    for archive in drill.archives:
+        found = kinds.setdefault(archive.kind, [0, 0, 0])
+        found[0] += 1
+        found[1] += archive.files
+        found[2] += archive.bytes
+    for kind, (volumes, files, size) in kinds.items():
+        icon = '⚙️' if kind == 'config' else '🖼'
+        parts = [f'{volumes} volumes'] if kind != 'config' else []
+        parts += [f'{_count(files)} files', f'{size / 1024**2:.1f} MB']
+        lines.append(f'{icon} {escape(kind)}: {", ".join(parts)}')
+    return lines
+
+
+def _drilled(outcome: Outcome) -> str:
+    drill = outcome.drill
+    if drill is None:
+        msg = 'a drill outcome carries its drill'
+        raise ValueError(msg)
+    lines = [
+        f'🧪 <b>Restore drill passed</b>: {_where(outcome)}',
+        f'📅 Backup of {escape(drill.stamp)}, restored into <code>{escape(drill.target or "-")}</code>',
+        '',
+        *_drill_lines(drill),
+        f'⏱ Took: {drill.seconds:.0f}s',
+        '',
+        _tags(outcome, '#drill', '#ok'),
+    ]
+    return '\n'.join(lines)
+
+
+def _drill_failed(outcome: Outcome) -> str:
+    drill = outcome.drill
+    lines = [f'🚨 <b>Restore drill FAILED</b>: {_where(outcome)}']
+    if drill is not None and drill.stamp:
+        lines.append(f'📅 Backup of {escape(drill.stamp)}')
+    lines += ['', f'<pre>{escape(outcome.error[:ERROR_CHARS])}</pre>']
+    if drill is not None and (drill.databases or drill.archives):
+        lines += ['', *_drill_lines(drill)]
+    lines += ['', _tags(outcome, '#drill', '#failed')]
+    return '\n'.join(lines)
+
+
+_FORMATS = {
+    WRITTEN: _written,
+    FAILED: _failed,
+    MISSING: _missing,
+    UNCHECKED: _unchecked,
+    DRILLED: _drilled,
+    DRILL_FAILED: _drill_failed,
+}
 
 
 def format_outcome(outcome: Outcome) -> str:

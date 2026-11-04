@@ -186,20 +186,97 @@ from on a new machine.
 
 ## The monthly drill
 
-Restoring is a skill that decays. Once a month, on a calendar reminder:
+Restoring is a skill that decays, and a backup that was never restored is a hope. The drill
+does what a person would, end to end, and says the outcome where the backups are said:
 
-1. Take the newest whole backup: `backup_restore --stamp latest --into ./drill`. Note the
-   stamp and that every dump says `(verified)`.
-2. Start a clean PostgreSQL of the **same major** as production:
+```shell
+python manage.py backup_drill                     # or: offsite-backup drill
+python manage.py backup_drill --without-media     # the volumes are the slow part
+```
 
-    ```shell
-    docker run -d --name drill -e POSTGRES_PASSWORD=drill -p 55432:5432 postgres:18
-    ```
+1. The newest **whole** pass is found (as `--stamp latest`) and every object of it
+   downloaded and decrypted — the identity from `--identity FILE`, `DRILL['IDENTITY_FILE']`
+   or `AGE_IDENTITY`.
+2. Every database dump is verified, then restored into **`DRILL['DATABASE']`**, a throwaway
+   database the project names — emptied first (PostgreSQL: every schema but the system ones
+   dropped; MySQL and MariaDB: every table and view; SQLite: every table, view and trigger of
+   the file), loaded, and every table counted there with `count(*)`. For SQLite the target
+   is a file, and a target naming the live file by another path is refused like a live alias.
+3. With `DRILL['COMPARE_LIVE']` (on by default), the live database is counted too, and the
+   message shows both. Rows are compared, not required to match: production kept writing
+   after the backup. A table the live database has and the restore lacks is named
+   (`⚠️ Not in the backup, live now: ...`) — a migration since the pass, or a hole — without
+   failing the drill. A live database that cannot be counted is logged and left uncompared.
+4. Every media volume and the configuration archive is decrypted and read to its end as a
+   tar (unless `DRILL['MEDIA']` is false or `--without-media` is given) — files and bytes
+   counted. A volume's manifest is not opened: it describes the volume, which is.
+5. The throwaway database is emptied again and the workspace removed, whatever happened.
+6. The outcome goes through the notifiers: **Restore drill passed** with a line per database
+   and per kind of archive, or **Restore drill FAILED** naming every object that did not
+   come back and the step it failed at ([Notifications](Notifications.md#what-the-messages-look-like)).
+   One database that does not restore does not stop the others; the command exits
+   non-zero at the end, naming each.
 
-3. Load the dump into it, either with `psql`/`pg_restore` directly or with an extra alias
-   (`DATABASES['drill']`) and
+```python
+OFFSITE_BACKUP = {
+    ...,
+    'DRILL': {
+        'DATABASE': 'drill',                          # an alias in DATABASES (or CONNECTIONS off Django)
+        'IDENTITY_FILE': '/run/secrets/drill.key',    # or AGE_IDENTITY, or --identity
+        # 'MEDIA': False,                             # leave the volumes unopened
+        # 'COMPARE_LIVE': False,                      # never count the live database
+    },
+}
+DATABASES['drill'] = {**DATABASES['default'], 'HOST': 'scratch-db', 'NAME': 'drill'}
+```
+
+**Never the live database.** The drill refuses a target that is a database it backs up —
+the same alias, or another alias with the same host (`localhost`, `127.0.0.1` and `::1` are
+one), port (an empty one is `5432`) and name — before it reads the store, and again for every
+database the pass wrote. `check --deploy` reports that, or a target that names no database
+at all, as `E011`, before the month it would run. What the drill does to its target is
+destructive by design: point it at a database that holds nothing you want.
+
+From Python, `offsite_backup.run_drill(identity=None, identity_text=None, database=None,
+media=None)` returns the report (`stamp`, `target`, `databases`, `archives`, `seconds`) and
+raises `DrillFailedError` naming what failed.
+
+### Where it runs: the identity
+
+The drill needs the **private key**, which by design is not on the production server
+([Security model](Security-model.md#the-private-key)). Two ways to run it, in order of
+preference:
+
+* **On a machine of its own** — a small drill host or a CI job with the identity, a
+  **read-only** store key and a scratch PostgreSQL. It needs no copy of the project: the
+  [command line](Plain-servers.md) runs the drill from a TOML setting with the same
+  `PREFIX`, `STORE` and `ENCRYPTION`, a `DATABASES` block whose `CONNECTIONS` hold the
+  drill's alias, and `COMPARE_LIVE` off (the live database is out of reach there).
+* **In the project's scheduler** — `beat_schedule(drill=...)` or `register(broker, drill=...)`
+  ([Scheduling](Scheduling.md#the-monthly-drill)). Simple, and it compares with the live
+  database — but the worker then holds a key that opens every backup sealed to it. Accept
+  that only knowingly; seal the backups to a second recipient whose key exists only for
+  the drill, so it can be rotated on its own.
+
+### A database source of your own
+
+The drill asks the database source two more things than a pass does: `tables(alias)`, every
+table with its row count, and `clear(alias)`, empty the throwaway database — PostgreSQL,
+MySQL/MariaDB and SQLite answer both; `same_database()` decides what counts as the live one
+(host, port and name; for SQLite, the file). A source that
+does not implement them fails the drill by its name, and the rest still runs.
+
+### By hand
+
+The steps the command automates, for a machine that cannot run it:
+
+1. `backup_restore --stamp latest --into ./drill`; note the stamp and that every dump says
+   `(verified)`.
+2. Start a clean PostgreSQL of the **same major** as production
+   (`docker run -d --name drill -e POSTGRES_PASSWORD=drill -p 55432:5432 postgres:18`).
+3. Load the dump into it — `psql`/`pg_restore`, or
    `backup_restore --stamp <stamp> --apply --database drill --from-database default`.
-4. **Count every table** in both databases and compare:
+4. Count every table in both databases and compare:
 
     ```sql
     SELECT format('SELECT %L AS t, count(*) FROM %I.%I', table_name, table_schema, table_name)
@@ -208,14 +285,7 @@ Restoring is a skill that decays. Once a month, on a calendar reminder:
     ORDER BY table_name \gexec
     ```
 
-    Production keeps changing, so expect the newest rows to differ; every table present,
-    and counts close, is the pass mark. For a custom-format dump, also compare the entry
-    count of `pg_restore --list`.
-5. Unpack one media volume and open a few files.
-6. Unpack the configuration archive and read `rendered.env` — is every variable the
-   application needs there?
-7. Write down the date, the stamp, the table count and how long it took. Delete the drill
+5. Unpack one media volume and open a few files; unpack the configuration archive and read
+   `rendered.env` — is every variable the application needs there?
+6. Write down the date, the stamp, the table count and how long it took. Delete the drill
    database and `./drill`.
-
-An automated drill command — restore the newest backup into a throwaway database, count
-rows per table against the live one, report to the same chat — is on the roadmap.

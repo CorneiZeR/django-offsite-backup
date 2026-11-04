@@ -88,7 +88,7 @@ Uploaded files, whatever holds them, packed into **volumes** of whole files.
     make a missing named volume, empty, and a typo would then back up nothing every night.
     A missing volume is logged (`Media volume not found`), fails a `REQUIRED` source, and is
     `W005` (`E009` when required) under `check --deploy`; a daemon that cannot be asked is
-    `E011`.
+    `E012`.
 
     The worker needs the `docker` CLI and the daemon's socket (`DOCKER_HOST` is honoured).
     **Access to that socket is root on the host** ([Security model](Security-model.md)):
@@ -118,7 +118,7 @@ Uploaded files, whatever holds them, packed into **volumes** of whole files.
     own max-memory setting (`GS_MAX_MEMORY_SIZE` for GCS) so large files spool to disk.
     For an S3 bucket, `S3Source` is the faster choice anyway: it lists in one pass where a
     storage asks for each file's size. A `STORAGE` that `STORAGES` does not define is `E001`;
-    a `PREFIX` that cannot be listed under `check --deploy` is `E011`.
+    a `PREFIX` that cannot be listed under `check --deploy` is `E012`.
 
 ## Volumes
 

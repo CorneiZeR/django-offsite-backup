@@ -29,6 +29,7 @@ from offsite_backup.stores.base import Store
 __all__ = (
     'IDENTITY_ENV',
     'Restored',
+    'database_kinds',
     'fetch',
     'identity_file',
     'keys_of',
@@ -173,6 +174,15 @@ def fetch(
                 verified = True
             restored.append(Restored(key=key, kind=kind, path=plain, verified=verified))
     return restored
+
+
+def database_kinds(alias: str, kinds: Sequence[str] = ()) -> list[str]:
+    """``--database`` narrows: alone, that database's kind; with ``kinds``, only if it is among them."""
+    kind = naming.db_kind(alias)
+    if kinds and kind not in kinds:
+        msg = f'--database {alias} is {kind}/, which --kind {", ".join(kinds)} leaves out'
+        raise BackupError(msg)
+    return [kind]
 
 
 def _matches(name: str, paths: Sequence[str]) -> bool:

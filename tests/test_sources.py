@@ -142,7 +142,7 @@ def test_docker_volume_deploy_check_without_a_daemon_is_e011(tmp_path, monkeypat
     bin_dir.mkdir()
     executable(bin_dir / 'docker', '#!/bin/sh\necho "Cannot connect to the Docker daemon" >&2\nexit 1\n')
     monkeypatch.setenv('PATH', f'{bin_dir}{os.pathsep}{os.environ["PATH"]}')
-    assert ids(VolumeSource({'VOLUME': 'v'}, label='MEDIA').deploy_check()) == ['offsite_backup.E011']
+    assert ids(VolumeSource({'VOLUME': 'v'}, label='MEDIA').deploy_check()) == ['offsite_backup.E012']
 
 
 def test_docker_volume_needs_the_docker_cli(monkeypatch):
@@ -269,7 +269,7 @@ def test_a_django_storage_that_cannot_be_listed_is_e011(storage, settings):
     """The deploy check lists PREFIX once."""
     assert ids(StorageSource({'STORAGE': 'media'}, label='MEDIA').deploy_check()) == []
     missing = StorageSource({'STORAGE': 'media', 'PREFIX': 'not-there'}, label='MEDIA')
-    assert ids(missing.deploy_check()) == ['offsite_backup.E011']
+    assert ids(missing.deploy_check()) == ['offsite_backup.E012']
 
 
 # -- SQLite --------------------------------------------------------------------------------

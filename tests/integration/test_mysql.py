@@ -121,3 +121,19 @@ def test_a_restore_refuses_a_database_with_tables_and_clean_replaces_it(configur
     restore_database('latest', 'my_target', identity=configured, source_alias='my_source', clean=True)
     assert 'leftover' not in sql('ob_target', 'SHOW TABLES').split()
     assert snapshot('ob_target') == snapshot('ob_source')
+
+
+def test_the_drill_counts_and_empties_a_real_server(configured):
+    """tables() counts what the server holds, and clear() leaves the throwaway database with nothing."""
+    from django.conf import settings
+
+    from offsite_backup.drill import run_drill
+    from offsite_backup.pass_ import run
+
+    settings.OFFSITE_BACKUP['DRILL'] = {'DATABASE': 'my_target'}
+    run()
+    report = run_drill(identity=configured)
+    [found] = report.databases
+    assert found.tables == 2
+    assert found.rows == found.live_rows == 2 * ROWS
+    assert sql('ob_target', 'SHOW FULL TABLES').strip() == ''

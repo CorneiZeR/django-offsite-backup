@@ -67,11 +67,32 @@ backup_offsite: 1 database(s) not backed up, the rest went up — analytics: Pip
 
 ## The connection
 
-From `DATABASES[alias]`: `HOST`, `PORT`, `USER` and `NAME` become `pg_dump` flags;
+From `DATABASES[alias]` — or, when the source has a `CONNECTIONS` block, from that block's
+`CONNECTIONS[alias]`, with the same keys. `CONNECTIONS` is how a server with no Django
+project names its databases ([Without Django](Plain-servers.md)), and how a Django project
+names one it does not want in `DATABASES`:
+
+```python
+'DATABASES': {
+    'BACKEND': 'offsite_backup.databases.postgres.PostgresSource',
+    'ALIASES': ['default'],
+    'CONNECTIONS': {
+        'default': {'HOST': 'db', 'PORT': '5432', 'USER': 'app', 'PASSWORD': os.environ.get('DB_PASSWORD', ''), 'NAME': 'app'},
+    },
+},
+```
+
+With `CONNECTIONS` set, Django's `DATABASES` is not read at all for this source, and an
+alias missing from it is refused by name. `ALIASES` still says which are dumped.
+
+`HOST`, `PORT`, `USER` and `NAME` become `pg_dump` flags;
 `PASSWORD` travels in `PGPASSWORD`, **never on the command line** — a command line is
 visible in `ps`, and an error text is posted to a chat. `OPTIONS['sslmode']` and
 `OPTIONS['sslrootcert']` become `PGSSLMODE` and `PGSSLROOTCERT`. The connection shows up
-in `pg_stat_activity` as `application_name = offsite_backup`.
+in `pg_stat_activity` as `application_name = offsite_backup`. Every question the package asks
+the server — whether a restore target is empty, how many rows a table holds, the server's
+version for `E004` — goes through `psql` with the same connection, so it needs no Django
+connection either.
 
 ## Formats
 

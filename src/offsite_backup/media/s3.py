@@ -4,8 +4,7 @@ import contextlib
 from collections.abc import Iterator
 from typing import IO, Any
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.media.base import MediaEntry, MediaSource
 from offsite_backup.stores.s3 import check_client_options, make_client
 

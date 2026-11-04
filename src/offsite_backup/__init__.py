@@ -1,7 +1,9 @@
-"""Encrypted, immutable off-site backups for Django projects.
+"""Encrypted, immutable off-site backups — for Django projects, and for plain servers.
 
-Importing the package loads nothing but Django's settings machinery: every backend,
-driver and the pass itself are imported when first used (PEP 562 ``__getattr__``).
+Importing the package loads nothing, Django included: every backend, driver and the pass
+itself are imported when first used (PEP 562 ``__getattr__``). Django is the optional
+layer (``offsite_backup.apps``, the management commands, the system checks); the command
+line ``offsite-backup`` runs the same passes on a server with no Django project.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -14,9 +16,11 @@ __all__ = (
     '__version__',
     'back_up_database',
     'check_last_night',
+    'freshness',
     'keep_apart',
     'restore_database',
     'run',
+    'run_drill',
     'run_nightly',
 )
 
@@ -26,6 +30,8 @@ _EXPORTS = {
     'keep_apart': 'offsite_backup.pass_',
     'run_nightly': 'offsite_backup.guard',
     'check_last_night': 'offsite_backup.check',
+    'run_drill': 'offsite_backup.drill',
+    'freshness': 'offsite_backup.metrics',
     'restore_database': 'offsite_backup.restore',
     'BackupError': 'offsite_backup.exceptions',
     'NotConfiguredError': 'offsite_backup.exceptions',
@@ -33,8 +39,10 @@ _EXPORTS = {
 
 if TYPE_CHECKING:
     from offsite_backup.check import check_last_night
+    from offsite_backup.drill import run_drill
     from offsite_backup.exceptions import BackupError, NotConfiguredError
     from offsite_backup.guard import run_nightly
+    from offsite_backup.metrics import freshness
     from offsite_backup.pass_ import back_up_database, keep_apart, run
     from offsite_backup.restore import restore_database
 

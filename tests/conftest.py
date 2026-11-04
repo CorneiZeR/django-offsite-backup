@@ -12,6 +12,8 @@ BUCKET = 'backups'
 def _reset_doubles():
     backends.DUMPED.clear()
     backends.RESTORED.clear()
+    backends.HELD.clear()
+    backends.CLEARED.clear()
     backends.Recorder.sent.clear()
     backends.Network.called.clear()
 

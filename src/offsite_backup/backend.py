@@ -4,7 +4,7 @@ import shutil
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
-from django.core import checks
+from offsite_backup import findings as checks
 
 __all__ = ('Backend',)
 

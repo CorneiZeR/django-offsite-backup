@@ -19,8 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.exceptions import BackupUnlockedError
 from offsite_backup.stores.base import Store, Version, Wrote
 

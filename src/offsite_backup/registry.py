@@ -4,16 +4,15 @@ Nothing is inferred from what happens to be installed: two drivers present would
 ambiguous, and one present would make a typo look like a working configuration.
 """
 
+import importlib
 import importlib.util
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
-from django.utils.module_loading import import_string
-
 from offsite_backup.backend import Backend
 from offsite_backup.exceptions import BackendError
 
-__all__ = ('SHIPPED', 'backend_class', 'build', 'missing_extra')
+__all__ = ('SHIPPED', 'backend_class', 'build', 'import_string', 'missing_extra')
 
 #: dotted path -> (module that must import, extra that provides it); readable without
 #: importing the backend, so a check names the missing extra where the import would fail
@@ -22,10 +21,28 @@ SHIPPED: dict[str, tuple[str, str]] = {
     'offsite_backup.media.s3.S3Source': ('boto3', 's3'),
     'offsite_backup.notifiers.telegram.TelegramNotifier': ('httpx2', 'telegram'),
     'offsite_backup.notifiers.django_aiogram.TopicNotifier': ('django_aiogram', 'aiogram'),
+    'offsite_backup.notifiers.webhook.WebhookNotifier': ('httpx2', 'webhook'),
     'offsite_backup.encryption.pyrage.Pyrage': ('pyrage', 'pyrage'),
+    # a Django storage needs Django, and a Django project to name it in (checked by the source)
+    'offsite_backup.media.django_storage.StorageSource': ('django', 'django'),
 }
 
 B = TypeVar('B', bound=Backend)
+
+
+def import_string(path: str) -> Any:
+    """The attribute a dotted path names — Django's ``import_string``, without Django."""
+    try:
+        module, name = path.rsplit('.', 1)
+    except ValueError as error:
+        msg = f"{path!r} doesn't look like a module path"
+        raise ImportError(msg) from error
+    found = importlib.import_module(module)
+    try:
+        return getattr(found, name)
+    except AttributeError as error:
+        msg = f'module {module!r} does not define {name!r}'
+        raise ImportError(msg) from error
 
 
 def missing_extra(path: str) -> str | None:
@@ -33,7 +50,11 @@ def missing_extra(path: str) -> str | None:
     if path not in SHIPPED:
         return None
     module, extra = SHIPPED[path]
-    if importlib.util.find_spec(module) is not None:
+    try:
+        found = importlib.util.find_spec(module)
+    except (ImportError, ValueError):  # a package that is there and refuses to be found is not installed
+        found = None
+    if found is not None:
         return None
     if module == 'boto3':
         from offsite_backup.stores import s3  # noqa: PLC0415 - imports no driver

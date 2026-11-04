@@ -14,8 +14,9 @@ import posixpath
 from collections.abc import Iterator
 from typing import IO, Any
 
-from django.core import checks
-
+from offsite_backup import conf
+from offsite_backup import findings as checks
+from offsite_backup.exceptions import MisconfiguredError
 from offsite_backup.media.base import MediaEntry, MediaSource
 
 __all__ = ('StorageSource',)
@@ -35,10 +36,16 @@ class StorageSource(MediaSource):
 
     @property
     def storage(self) -> Any:
-        """The storage, as the project configured it."""
+        """The storage, as the project configured it; refused on a server with no Django project."""
+        if conf.standalone():
+            raise MisconfiguredError(self._needs_django)
         from django.core.files.storage import storages  # noqa: PLC0415 - read when the source is used
 
         return storages[self.alias]
+
+    @property
+    def _needs_django(self) -> str:
+        return f'{self.label} is a StorageSource, which reads a Django storage: it needs a Django project'
 
     @property
     def prefix(self) -> str:
@@ -84,10 +91,13 @@ class StorageSource(MediaSource):
             yield handle, int(getattr(handle, 'size', None) or entry.size)
 
     def check(self) -> list[checks.CheckMessage]:
-        """``STORAGE`` names a storage in ``STORAGES``."""
+        """``STORAGE`` names a storage in ``STORAGES``; E002 on a server with no Django project."""
+        found = super().check()
+        if conf.standalone():
+            hint = 'Read the files where they are: DirectorySource, S3Source or VolumeSource.'
+            return [*found, checks.Error(self._needs_django + '.', hint=hint, id='offsite_backup.E002')]
         from django.conf import settings  # noqa: PLC0415
 
-        found = super().check()
         if self.alias not in (getattr(settings, 'STORAGES', None) or {}):
             found.append(
                 checks.Error(
@@ -98,8 +108,10 @@ class StorageSource(MediaSource):
         return found
 
     def deploy_check(self) -> list[checks.CheckMessage]:
-        """E011: ``PREFIX`` cannot be listed from here (credentials, network, a missing bucket)."""
+        """E012: ``PREFIX`` cannot be listed from here (credentials, network, a missing bucket)."""
         found = super().deploy_check()
+        if conf.standalone():
+            return found  # the settings check says why
         try:
             self.storage.listdir(self.prefix)
         except Exception as error:  # noqa: BLE001 - any failure here is the finding
@@ -108,7 +120,7 @@ class StorageSource(MediaSource):
                     f'{self.label}: storage {self.alias!r} cannot be listed at {self.prefix or "its root"!r} '
                     f'({type(error).__name__}).',
                     hint="Check the storage's credentials and location in the container that runs the backup.",
-                    id='offsite_backup.E011',
+                    id='offsite_backup.E012',
                 )
             )
         return found

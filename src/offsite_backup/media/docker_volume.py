@@ -19,8 +19,7 @@ import tarfile
 from collections.abc import Generator, Iterator
 from typing import IO
 
-from django.core import checks
-
+from offsite_backup import findings as checks
 from offsite_backup.exceptions import PipelineError, SourceMissingError
 from offsite_backup.media.base import Item, MediaEntry, MediaSource
 from offsite_backup.pipeline import Pipeline
@@ -147,7 +146,7 @@ class VolumeSource(MediaSource):
         logger.warning('Media file is a hard link; left out', extra={'ob_path': name})
 
     def deploy_check(self) -> list[checks.CheckMessage]:
-        """E011 when the daemon cannot be asked; W005 (E009 when required) when the volume does not exist."""
+        """E012 when the daemon cannot be asked; W005 (E009 when required) when the volume does not exist."""
         found = super().deploy_check()
         if not self.volume:
             return found
@@ -159,7 +158,7 @@ class VolumeSource(MediaSource):
                 checks.Error(
                     f'{self.label}: the Docker daemon could not be asked about {self.volume!r} ({str(error)[-300:]}).',
                     hint='Mount the Docker socket into the container that runs the backup, or set DOCKER_HOST.',
-                    id='offsite_backup.E011',
+                    id='offsite_backup.E012',
                 )
             )
         else:

@@ -11,9 +11,9 @@ import contextlib
 import sqlite3
 from pathlib import Path
 
-from django.core import checks
-
-from offsite_backup.databases.base import DatabaseSource, database_settings
+from offsite_backup import conf
+from offsite_backup import findings as checks
+from offsite_backup.databases.base import DatabaseSource
 from offsite_backup.exceptions import BackupError, MisconfiguredError, SourceMissingError
 from offsite_backup.pipeline import run_into
 from offsite_backup.sealing import Sealing
@@ -30,17 +30,17 @@ def _tables(connection: sqlite3.Connection) -> list[str]:
 
 
 class SQLiteSource(DatabaseSource):
-    """``ALIASES`` of SQLite databases in ``DATABASES``; each ``NAME`` is a file."""
+    """``ALIASES`` of SQLite databases in ``DATABASES`` (or ``CONNECTIONS``); each ``NAME`` is a file."""
 
     def suffix(self) -> str:
         """``sqlite3.zst.age``: the database file itself, compressed and sealed."""
         return 'sqlite3.zst.age'
 
-    @staticmethod
-    def path(alias: str) -> Path:
+    def path(self, alias: str) -> Path:
         """The database file of ``alias``; an in-memory database is refused."""
-        database = database_settings(alias)
-        if 'sqlite3' not in str(database.get('ENGINE', '')):
+        database = self.connection_settings(alias)
+        # a CONNECTIONS block names no engine; a Django one must be SQLite's
+        if database.get('ENGINE') and 'sqlite3' not in str(database['ENGINE']):
             msg = f'DATABASES[{alias!r}] is not an SQLite database'
             raise MisconfiguredError(msg)
         name = str(database.get('NAME') or '')
@@ -84,8 +84,6 @@ class SQLiteSource(DatabaseSource):
 
     def restore(self, plain: Path, alias: str, *, clean: bool = False) -> None:
         """Copy the backup over ``alias``'s file, which must hold no table unless ``clean``."""
-        from django.db import connections  # noqa: PLC0415 - only when restoring
-
         target = self.path(alias)
         if target.is_file():
             with contextlib.closing(sqlite3.connect(target)) as existing:
@@ -93,12 +91,45 @@ class SQLiteSource(DatabaseSource):
             if tables and not clean:
                 msg = f'database {alias!r} is not empty ({len(tables)} tables); pass clean=True / --clean to replace it'
                 raise BackupError(msg)
-        connections[alias].close()
+        if not conf.standalone() and not self.option('CONNECTIONS'):
+            from django.db import connections  # noqa: PLC0415 - only when Django holds the connection
+
+            connections[alias].close()
         with (
             contextlib.closing(sqlite3.connect(plain.resolve().as_uri() + '?mode=ro', uri=True)) as backup,
             contextlib.closing(sqlite3.connect(target)) as live,
         ):
             backup.backup(live)
+
+    def tables(self, alias: str) -> dict[str, int]:
+        """Every table of ``alias`` with its exact ``count(*)`` — what the drill compares."""
+        with contextlib.closing(sqlite3.connect(self.path(alias).resolve().as_uri() + '?mode=ro', uri=True)) as db:
+            return {
+                name: int(db.execute(f'SELECT count(*) FROM "{name.replace(chr(34), chr(34) * 2)}"').fetchone()[0])  # noqa: S608 - names from the catalog
+                for name in _tables(db)
+            }
+
+    def clear(self, alias: str) -> None:
+        """Drop every view, trigger and table of ``alias`` — for the drill's throwaway database only."""
+        path = self.path(alias)
+        if not path.is_file():
+            return
+        with contextlib.closing(sqlite3.connect(path)) as db:
+            db.execute('PRAGMA foreign_keys = OFF')
+            rows = db.execute(
+                "SELECT type, name FROM sqlite_master WHERE type IN ('view', 'trigger', 'table') "
+                "AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 1 ELSE 0 END"
+            ).fetchall()
+            for kind, name in rows:
+                db.execute(f'DROP {kind.upper()} IF EXISTS "{name.replace(chr(34), chr(34) * 2)}"')
+            db.commit()
+
+    def same_database(self, one: str, other: str) -> bool:
+        """One file, whatever the path that names it."""
+        try:
+            return one == other or self.path(one).resolve() == self.path(other).resolve()
+        except MisconfiguredError:
+            return one == other
 
     def check(self) -> list[checks.CheckMessage]:
         """Each listed alias is an SQLite database with a file (a computed list is checked when it runs)."""

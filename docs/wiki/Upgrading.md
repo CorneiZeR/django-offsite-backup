@@ -2,11 +2,17 @@
 
 ## From 0.3 to 0.4
 
-**Nothing breaks.** No setting is renamed or removed, and every new one is opt-in. Bump the
-pin.
+**Nothing to edit in a Django project.** No setting is renamed or removed, and every new one
+is off until set. Bump the pin and run `python manage.py check --deploy`.
 
-What a reader of the store sees change on its own:
-
+* **Django is an extra now.** The base install no longer pulls Django — a Django project
+  has it pinned already, so nothing changes there. An environment that installed the
+  package *alone* and relied on it to bring Django installs `django-offsite-backup[django]`.
+* **A restore's emptiness check and `E004` ask the server through `psql`** instead of a
+  Django connection — the same answers, on the same connection settings. `psql` was already
+  required for a restore (`E003`).
+* **`--reason upgrade`** now says on failure that the upgrade stops and the running service
+  (`NAME`) keeps serving, as `--reason deploy` says for a deploy.
 * **Every media volume has a manifest** beside it, `<stamp>.<NNN>.manifest.json.age`, sealed
   like the volume ([Media](Media.md#manifests)). It rotates with its volume. The pass's object
   count — the message's `📦 Objects`, `backup_offsite`'s line, the log's `ob_objects`, and
@@ -18,6 +24,14 @@ What a reader of the store sees change on its own:
 
 ### What to consider turning on
 
+* **The monthly drill** — `DRILL['DATABASE']` and a schedule, after reading
+  [where it runs](Restore.md#where-it-runs-the-identity).
+* **`backup_status`** in your monitoring, or its Prometheus textfile
+  ([Monitoring](Monitoring.md#the-age-of-every-kind)); `offsite_backup.drill` in a
+  heartbeat table if you schedule the drill.
+* **A webhook** beside the chat ([Notifications](Notifications.md#a-webhook)).
+* **The command line** for a server with no Django project, in place of its own backup
+  script ([Without Django](Plain-servers.md#coming-from-a-hand-written-script)).
 * **A local copy beside S3** — `STORE` as a list, each with a `NAME` and its own
   `KEEP_NIGHTS` ([Several stores](Stores-several.md)).
 * **One file back** — `backup_restore --path` ([Restore](Restore.md#some-media-files)).
@@ -113,5 +127,5 @@ does this page says exactly what to change.
 1. Read the [Changelog](Changelog.md) between your version and the new one, and this page.
 2. Bump the pin; run `python manage.py check --deploy` in the new image.
 3. Run `backup_offsite --reason manual` once after deploying and read the message.
-4. Run the [restore drill](Restore.md#the-monthly-drill) if the release touched naming,
-   encryption or restore.
+4. Run the [restore drill](Restore.md#the-monthly-drill) — `backup_drill` — if the release
+   touched naming, encryption or restore.

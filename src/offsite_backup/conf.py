@@ -9,14 +9,17 @@ Three states, never confused:
   Refused by name (E001), never read as "off": a production machine that lost one
   variable must not stop backing up in silence.
 * **on** — every backend built, every required option present.
+
+Where the setting comes from: Django's ``settings.OFFSITE_BACKUP``, or — on a server with no
+Django project — the mapping the command line read from its TOML file and handed to
+``configure()``. Everything after reading is the same for both.
 """
 
 import copy
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
-
-from django.conf import settings
 
 from offsite_backup.backend import Backend
 from offsite_backup.exceptions import BackendError, MisconfiguredError, NotConfiguredError
@@ -25,11 +28,15 @@ __all__ = (
     'DEFAULTS',
     'SETTINGS_NAME',
     'Settings',
+    'base_dir',
+    'configure',
+    'django_setting',
     'enabled',
     'label',
     'load',
     'problems',
     'read',
+    'standalone',
 )
 
 SETTINGS_NAME = 'OFFSITE_BACKUP'
@@ -58,10 +65,48 @@ DEFAULTS: dict[str, Any] = {
     # a missing config path, an unreadable file or an empty required source fails the pass
     'STRICT': False,
     'WORKDIR': '',
+    # the restore drill: the throwaway database it restores into, and what it opens
+    'DRILL': {'DATABASE': '', 'IDENTITY_FILE': '', 'MEDIA': True, 'COMPARE_LIVE': True},
 }
 
 #: nested blocks whose own defaults merge key by key rather than being replaced whole
-_MERGED = ('RETENTION', 'CHECK', 'GUARD')
+_MERGED = ('RETENTION', 'CHECK', 'GUARD', 'DRILL')
+
+#: the setting handed over by ``configure()``; ``None`` reads Django's settings
+_standalone: dict[str, Any] = {'values': None, 'base_dir': None}
+
+
+def configure(values: Mapping[str, Any] | None, *, base_dir: Path | str | None = None) -> None:
+    """Use ``values`` as the setting from now on instead of Django's; ``None`` goes back to Django.
+
+    ``base_dir`` stands in for ``settings.BASE_DIR`` (what a relative ``RENDER_ENV`` is read
+    against): the command line passes its configuration file's directory.
+    """
+    _standalone['values'] = None if values is None else dict(values)
+    _standalone['base_dir'] = None if base_dir is None else Path(base_dir)
+
+
+def standalone() -> bool:
+    """Whether the setting came from ``configure()`` rather than from Django."""
+    return _standalone['values'] is not None
+
+
+def django_setting(name: str, default: Any = None) -> Any:
+    """One of Django's settings, or ``default`` where there is no Django project to ask."""
+    if standalone():
+        return default
+    try:
+        from django.conf import settings  # noqa: PLC0415 - Django is an optional extra
+    except ImportError:
+        return default
+    return getattr(settings, name, default)
+
+
+def base_dir() -> Path:
+    """What relative paths in the setting are read against: ``configure(base_dir=)``, ``BASE_DIR``, or here."""
+    if standalone():
+        return _standalone['base_dir'] or Path()
+    return Path(str(django_setting('BASE_DIR', '.')))
 
 
 def label(*path: str | int) -> str:
@@ -114,7 +159,7 @@ class Settings:
 
 def read() -> Settings:
     """The setting merged over the defaults, without validating anything."""
-    raw = getattr(settings, SETTINGS_NAME, None)
+    raw = _standalone['values'] if standalone() else django_setting(SETTINGS_NAME)
     values = copy.deepcopy(DEFAULTS)
     if not raw:
         return Settings(values=values, present=False)
