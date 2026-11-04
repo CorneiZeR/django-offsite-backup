@@ -2,6 +2,8 @@
 
 Network-touching checks (the bucket's lock configuration, the database server's version)
 are registered as deploy checks, so a plain ``manage.py`` never reaches S3 or the database.
+So are the paths a pass reads (E009, W005): a web or migration container has no reason to
+mount them, and a warning every deploy prints there is one people learn to ignore.
 Nothing is checked on a machine where backups are off.
 """
 
@@ -56,7 +58,7 @@ def backends(settings: conf.Settings) -> tuple[list[Backend], list[checks.CheckM
 
 
 def check_settings(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[checks.CheckMessage]:
-    """E001-E003, E007, E008, W001-W005: everything that needs neither the network nor a mount."""
+    """E001-E003, E007, E008, E010, W001-W004: everything that needs neither the network nor a mount."""
     settings = conf.read()
     if not conf.enabled(settings):
         return []
@@ -154,7 +156,7 @@ def _guard_cache(alias: str) -> list[checks.CheckMessage]:
 
 
 def check_deploy(app_configs: Sequence[Any] | None = None, **kwargs: Any) -> list[checks.CheckMessage]:
-    """E004-E006, E009: the bucket's lock, ``pg_dump`` against the server, required paths where the pass runs."""
+    """E004-E006, E009, W005: the bucket's lock, ``pg_dump`` against the server, paths where the pass runs."""
     settings = conf.read()
     if not conf.enabled(settings) or conf.problems(settings):
         return []

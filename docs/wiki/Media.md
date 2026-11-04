@@ -33,8 +33,11 @@ Uploaded files, whatever holds them, packed into **volumes** of whole files.
     `ROOT`. Symbolic links are not followed. A file that cannot be read is logged
     (`Media file not readable; left out`) and left out rather than failing the night —
     unless `STRICT` is on, and then it fails the pass, naming the file.
-    A `ROOT` that does not exist is `W005` — a missing mount is worth knowing at start,
-    not at 03:00.
+    A `ROOT` that does not exist is `W005` under `manage.py check --deploy` — a missing
+    mount is worth knowing at start, not at 03:00 — and the pass logs
+    `Media directory not found`. A plain `manage.py check` does not warn: the web service
+    and a `migrate` container need no media mount
+    ([why](System-checks.md#why-the-path-checks-are-deploy-checks)).
 
 === "S3 bucket"
 

@@ -134,8 +134,8 @@ other key replaces its default whole.
 | `STORE` | block | `None` | where backups are kept — [S3](Stores-S3.md) or [a directory](Stores-directory.md). Required | `E001`, `E002` |
 | `ENCRYPTION` | block | `None` | how they are sealed — [Encryption](Encryption.md). Required | `E001`, `E002`, `E008` |
 | `DATABASES` | block | `None` | [Databases](Databases.md) | `E001`, `E002` |
-| `MEDIA` | list of blocks (or one block) | `[]` | [Media](Media.md) | `E001`, `E002`, `W005` |
-| `CONFIG` | block | `None` | [Configuration archive](Configuration-archive.md) | `E002`, `W005` |
+| `MEDIA` | list of blocks (or one block) | `[]` | [Media](Media.md) | `E001`, `E002`, `W005` (deploy) |
+| `CONFIG` | block | `None` | [Configuration archive](Configuration-archive.md) | `E002`, `E009`, `W005` (deploy) |
 | `COMPRESS` | list of `str` (argv) | `['zstd', '-19', '--long=27', '-T0', '-q']` | the compression stage for databases and the configuration archive; empty turns compression off | `E003` (`zstd` on `PATH` when non-empty) |
 | `DECOMPRESS` | list of `str` (argv) | `['zstd', '-d', '-q', '--long=31']` | the stage a restore runs on anything that starts with zstd's magic bytes | — |
 | `RETENTION` | dict | `{'KEEP_NIGHTS': 14}` | [Retention](Retention.md) | `E001`, `E007` |
@@ -176,7 +176,7 @@ At least one of `DATABASES`, `MEDIA` and `CONFIG` must be set, or `E001` says
 
 ### `STRICT` and `REQUIRED`
 
-By default a pass backs up what is there: a missing `CONFIG` path is `W005` and is left out,
+By default a pass backs up what is there: a missing `CONFIG` path is logged and left out,
 an unreadable file is logged and left out, and a media source with no files writes no volume.
 A deployment whose certificates or signing keys are part of what restores the machine may
 want a pass without them to fail instead. Two settings, one mechanism:
@@ -196,9 +196,9 @@ The pass fails with `SourceMissingError`, and the FAILED message names what was 
 SourceMissingError: OFFSITE_BACKUP['CONFIG']: required path(s) missing: /app/deploy/certs
 ```
 
-`manage.py check --deploy` reports a required `CONFIG` path missing where it runs as `E009`;
-a plain `manage.py check` warns `W005` for optional paths only
-([System checks](System-checks.md#why-e009-is-a-deploy-check)).
+`manage.py check --deploy` reports a required `CONFIG` path missing where it runs as `E009`,
+and an optional one as `W005`; a plain `manage.py check` says nothing about paths
+([System checks](System-checks.md#why-the-path-checks-are-deploy-checks)).
 
 ## Backend options
 
@@ -271,7 +271,7 @@ The connection comes from Django's `DATABASES[alias]`: `HOST`, `PORT`, `USER`, `
 
 | option | type | default | |
 | --- | --- | --- | --- |
-| `ROOT` | path | `settings.MEDIA_ROOT` | the directory archived; missing is `W005`. Under `STRICT` a file in it that cannot be read fails the pass |
+| `ROOT` | path | `settings.MEDIA_ROOT` | the directory archived; missing is `W005` under `check --deploy`, and logged by the pass. Under `STRICT` a file in it that cannot be read fails the pass |
 
 ### `MEDIA`: `offsite_backup.media.s3.S3Source`
 
@@ -295,8 +295,8 @@ Needs the `[s3]` extra. Its credentials are its own; it does not borrow the stor
 
 | option | type | default | |
 | --- | --- | --- | --- |
-| `PATHS` | list of paths | `[]` | files and directories archived; blank items are dropped; missing is `W005` |
-| `RENDER_ENV` | path | `None` | a file of variable names to rebuild the environment from; relative to `settings.BASE_DIR`; missing is `W005` |
+| `PATHS` | list of paths | `[]` | files and directories archived; blank items are dropped; missing is `W005` under `check --deploy`, and logged by the pass |
+| `RENDER_ENV` | path | `None` | a file of variable names to rebuild the environment from; relative to `settings.BASE_DIR`; missing is `W005` under `check --deploy`, and logged by the pass |
 | `EXCLUDE` | list of globs | `[]` | matched against each file's **name**; always in addition to `.env`, which never travels |
 | `REQUIRED` | `bool` or list of paths | `False` | `True`: every path is required; a list: those paths are. A required path missing at pass time fails the pass, and is `E009` under `check --deploy` ([above](#strict-and-required)) |
 
@@ -308,7 +308,7 @@ Needs the `[telegram]` extra. [Notifications](Notifications.md).
 | --- | --- | --- | --- |
 | `TOKEN` | `str` | — | **required** (see the note below) |
 | `CHAT_ID` | `int` or `str` | — | **required**; `0` counts as unset |
-| `TOPIC_ID` | `int` | `None` | a forum topic (`message_thread_id`); `None`, blank or `0` is the main thread; not an integer is `E001` |
+| `TOPIC_ID` | `int` | `None` | a forum topic (`message_thread_id`); `None`, blank or `0` is the main thread; not an integer is `E010` |
 | `TIMEOUT` | seconds | `10` | |
 | `API_URL` | URL | `'https://api.telegram.org'` | for a local Bot API server |
 
@@ -319,8 +319,8 @@ Needs the `[aiogram]` extra.
 | option | type | default | |
 | --- | --- | --- | --- |
 | `CHAT_ID` | `int` or `str` | — | **required**; `0` counts as unset |
-| `TOPIC_ID` | `int` | `None` | a forum topic; `None`, blank or `0` is the main thread; not an integer is `E001` |
-| `DELIVERY` | `'direct'` or `'queue'` | `'direct'` | `direct` calls `bot.send_raw` from the process running the pass, which then needs the bot token; `queue` calls `bot.send`, handing the message to the queue a bot container consumes ([Notifications](Notifications.md#direct-or-queued)); anything else is `E001` |
+| `TOPIC_ID` | `int` | `None` | a forum topic; `None`, blank or `0` is the main thread; not an integer is `E010` |
+| `DELIVERY` | `'direct'` or `'queue'` | `'direct'` | `direct` calls `bot.send_raw` from the process running the pass, which then needs the bot token; `queue` calls `bot.send`, handing the message to the queue a bot container consumes ([Notifications](Notifications.md#direct-or-queued)); anything else is `E010` |
 | `BOT` | alias | `None` | one of django-aiogram's bots; the default bot when absent |
 | `BOT_FACTORY` | dotted path | `None` | a callable returning an object with `send_raw` / `send`, used instead of `BOT` — another bot wrapper, or an older django-aiogram; one that does not import or is not callable is `E002` |
 

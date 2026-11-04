@@ -66,7 +66,7 @@ With every credential empty (a development machine) backups are **off** and the 
 say "nothing to do". With some set and some missing, `manage.py check` names each one.
 
 ```shell
-python manage.py check --deploy                                  # bucket lock, pg_dump version
+python manage.py check --deploy                                  # bucket lock, pg_dump version, mounts
 python manage.py backup_offsite                                  # a pass now
 python manage.py backup_offsite --without-media --reason deploy  # before a migration
 python manage.py backup_check                                    # the morning check

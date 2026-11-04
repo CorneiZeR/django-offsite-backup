@@ -40,13 +40,15 @@ skipped wherever they are. Files whose **name**
 matches `.env` or a glob in `EXCLUDE` are left out. `EXCLUDE` adds to `.env`, never
 replaces it: the live environment file does not travel whatever the list says.
 
-A path that does not exist on this machine is `W005` — almost always a mount missing
-from one of the containers that run a pass. Blank items are dropped, so
+A path that does not exist is left out, and the pass logs it
+(`Configuration path not found; left out`); `manage.py check --deploy` in that container
+says `W005` — almost always a mount missing from one of the containers that run a pass. A
+plain `manage.py check` or `migrate` says nothing: the web service has no reason to mount it. Blank items are dropped, so
 `os.environ.get('X', '')` in the list is harmless where `X` is unset.
 
 ## Required paths
 
-By default a missing path is left out with a warning and the pass goes on. When the
+By default a missing path is left out, logged, and the pass goes on. When the
 certificates or signing keys are part of what restores the machine, a pass without them
 is not a whole backup — make them required:
 
@@ -64,7 +66,7 @@ is not a whole backup — make them required:
   not.
 * `manage.py check --deploy` reports it as `E009` in the container it runs in. A plain
   `manage.py check` does not: it runs in every container, most of which never run a pass,
-  and an error there would stop `migrate` ([why](System-checks.md#why-e009-is-a-deploy-check)).
+  and an error there would stop `migrate` ([why](System-checks.md#why-the-path-checks-are-deploy-checks)).
 * `STRICT: True` at the top level makes every path required, and a file that cannot be
   read fails the pass instead of being skipped ([Settings](Settings.md#strict-and-required)).
 
@@ -126,8 +128,9 @@ services:
 
 The worker runs the nightly pass; the deploy pass runs in the service your deploy starts
 it in (often the web image as a one-off). Both need the mount, or one of them archives an
-empty folder and `W005` tells you which — or, for a required path, the pass fails and
-`check --deploy` says `E009`.
+empty folder — the pass logs `Configuration path not found; left out`, and `check --deploy`
+in that service says `W005` — or, for a required path, the pass fails and `check --deploy`
+says `E009`.
 
 ## Without `CONFIG`
 

@@ -99,7 +99,7 @@ parse, and an error text with a `<` in it would otherwise be lost silently.
 | option | |
 | --- | --- |
 | `TOKEN`, `CHAT_ID` | required |
-| `TOPIC_ID` | a forum topic (`message_thread_id`); `None`, empty or `0` for the main thread; not an integer is `E001` |
+| `TOPIC_ID` | a forum topic (`message_thread_id`); `None`, empty or `0` for the main thread; not an integer is `E010` |
 | `TIMEOUT` | seconds, default 10 |
 | `API_URL` | default `https://api.telegram.org`; for a local Bot API server |
 
@@ -127,7 +127,8 @@ parse, and an error text with a `<` in it would otherwise be lost silently.
 ],
 ```
 
-`CHAT_ID` is required (`0` counts as unset); `TOPIC_ID` is validated as for Telegram above.
+`CHAT_ID` is required (`0` counts as unset); `TOPIC_ID` is validated by the same check as for
+Telegram above (`E010`).
 
 ### Direct or queued
 

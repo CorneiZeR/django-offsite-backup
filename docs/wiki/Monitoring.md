@@ -95,6 +95,7 @@ Everything is logged to the `offsite_backup` logger, with fields in the record's
 | WARNING | `Backup depth not read` | `ob_folder` |
 | WARNING | `Last-success marker not written` | `ob_path`, `ob_error` |
 | WARNING | `Media file not listed`, `Media file not readable; left out` | `ob_path`, `ob_error` |
+| WARNING | `Configuration path not found; left out`, `Media directory not found` — a mount missing where the pass ran (`W005` under `check --deploy`) | `ob_path` |
 | ERROR | `Notifier not built`, `Notifier raised` | `ob_notifier`, `ob_error` |
 | ERROR | `Backup message not formatted` | `ob_error` |
 | ERROR | `Telegram refused the backup message` | `ob_status`, `ob_description` |

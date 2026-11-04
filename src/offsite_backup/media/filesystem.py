@@ -35,6 +35,8 @@ class DirectorySource(MediaSource):
     def entries(self) -> Iterator[MediaEntry]:
         """Regular files under ``ROOT``, sorted; an unreadable one is logged and left out."""
         root = self.root
+        if not root.is_dir():
+            logger.warning('Media directory not found', extra={'ob_path': str(root)})
         for directory, dirs, files in os.walk(root):
             dirs.sort()
             for name in sorted(files):
@@ -61,12 +63,21 @@ class DirectorySource(MediaSource):
             yield handle, os.fstat(handle.fileno()).st_size
 
     def check(self) -> list[checks.CheckMessage]:
-        """``ROOT`` exists (a missing mount is worth knowing at start, not at 03:00)."""
+        """``ROOT`` is set: whether it exists is the deploy check's question (see ``deploy_check``)."""
         found = super().check()
         try:
-            root = self.root
+            _ = self.root
         except MisconfiguredError as error:
-            return [*found, checks.Error(str(error), id='offsite_backup.E001')]
+            found.append(checks.Error(str(error), id='offsite_backup.E001'))
+        return found
+
+    def deploy_check(self) -> list[checks.CheckMessage]:
+        """W005: ``ROOT`` is missing where a pass runs; a web container without the mount is not warned."""
+        found = super().deploy_check()
+        try:
+            root = self.root
+        except MisconfiguredError:
+            return found  # the settings check reports it
         if not root.is_dir():
             found.append(
                 checks.Warning(

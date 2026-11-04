@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
+## 0.3.0 — 2026-11-04
+
+No setting is added, renamed or removed. Two check results move; nothing to edit on upgrade
+unless a pipeline relied on a plain `manage.py check` for W005 (use `check --deploy`).
+
+Changed
+
+- W005 (a media `ROOT`, an optional `CONFIG` path or the `RENDER_ENV` file not found) is a
+  deploy check: a plain `manage.py check` or `migrate`, in a web or migrations container
+  without the mount, no longer prints it; `check --deploy` does, beside E009. The pass
+  itself logs each path it left out (`Configuration path not found; left out`,
+  `Media directory not found`), so the worker, which runs no system check, still says it.
+- A notifier option of the wrong form has its own code, E010 (was E001): a `TOPIC_ID` that is
+  not an integer — one check shared by `TelegramNotifier` and `TopicNotifier` — and a
+  `TopicNotifier` `DELIVERY` other than `direct`/`queue`.
+
 ## 0.2.0 — 2026-11-03
 
 New settings default to 0.1 behaviour. Three behaviours change on their own: a blank

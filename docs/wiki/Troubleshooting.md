@@ -31,8 +31,6 @@ The same code is used for values that are present but wrong, each with its own m
 | `... (a positive integer, got ...)` for `KEEP_NIGHTS` | an `int` ≥ 1 |
 | `['FORMAT'] is ...; expected one of plain, custom` | `'plain'` or `'custom'` |
 | `['VOLUME_BYTES'] is ...; expected more than 20480 bytes and at most 5 GB` | the default 4 GiB is right for almost everyone |
-| `['TOPIC_ID'] is ..., not an integer` | the numeric topic id, or empty (`0` and empty mean the main thread) |
-| `['DELIVERY'] is ...; expected one of direct, queue` | `'direct'` or `'queue'` ([Notifications](Notifications.md#direct-or-queued)) |
 | `['ADDRESSING_STYLE'] is ...; expected one of auto, path, virtual` | `'path'` for MinIO and SeaweedFS, `'auto'` or `'virtual'` for AWS ([S3 providers](S3-providers.md#addressing-style)) |
 | `['VERIFY'] is ..., which is not a file` | the CA bundle's path inside *this* container, or `True` / `False` |
 | `GUARD['BACKEND'] is ...; expected 'cache' or 'database'` | one of the two |
@@ -150,7 +148,17 @@ deploy runs the pass in, or the other way round.
 **Fix.** Mount it in both ([Deploy integration](Deploy-integration.md#where-it-runs-and-what-it-needs-there)),
 or take the path out of `REQUIRED` if a pass without it is a whole backup after all. It is a
 deploy check, not a plain one, so that containers that never run a pass are not stopped
-([why](System-checks.md#why-e009-is-a-deploy-check)).
+([why](System-checks.md#why-the-path-checks-are-deploy-checks)).
+
+### `E010` — a notifier option has the wrong form
+
+| message | fix |
+| --- | --- |
+| `['TOPIC_ID'] is ..., not an integer` | the numeric topic id, or empty (`0` and empty mean the main thread) — the same check on `TelegramNotifier` and `TopicNotifier` |
+| `['DELIVERY'] is ...; expected one of direct, queue` | `'direct'` or `'queue'` ([Notifications](Notifications.md#direct-or-queued)) |
+
+A malformed option would make Telegram refuse every message, so it is an error at start
+rather than a silent night.
 
 ### `W001` — a directory store
 
@@ -186,9 +194,12 @@ of the CI test job.
 	HINT: Mount the deployment directory (read-only) into every container that runs the backup.
 ```
 
-A media `ROOT`, a `CONFIG` path or the `RENDER_ENV` file is not there in *this* container.
-Usually a volume mounted into the web service and not the worker, or the other way round.
-A *required* `CONFIG` path is not warned about here; `check --deploy` reports it as `E009`.
+A media `ROOT`, a `CONFIG` path or the `RENDER_ENV` file is not there in the container
+`check --deploy` ran in. Usually a volume mounted into the web service and not the worker,
+or the other way round. A plain `manage.py check` or `migrate` never says it — those
+containers need no mount ([why](System-checks.md#why-the-path-checks-are-deploy-checks)) —
+and in the worker the pass logs `Configuration path not found; left out` or
+`Media directory not found` instead. A *required* `CONFIG` path is `E009`, not `W005`.
 
 ## At run time
 

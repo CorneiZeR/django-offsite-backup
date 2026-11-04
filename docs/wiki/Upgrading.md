@@ -1,5 +1,20 @@
 # Upgrading
 
+## From 0.2 to 0.3
+
+**Nothing breaks.** No setting is added, renamed or removed. Bump the pin.
+
+Two check results move:
+
+* **`W005` is reported by `check --deploy` only.** A plain `manage.py check` or `migrate` in a
+  container without the deployment or media mount is quiet now; the pass logs what it left
+  out. `'offsite_backup.W005'` in `SILENCED_SYSTEM_CHECKS`, added to quiet the web service,
+  can go. A pipeline that ran a plain `check --fail-level WARNING` to catch a missing mount
+  runs `check --deploy` in the service that runs the pass instead
+  ([System checks](System-checks.md#why-the-path-checks-are-deploy-checks)).
+* **`E010`** replaces `E001` for a `TOPIC_ID` that is not an integer and an unknown
+  `DELIVERY`. Only a configuration that silenced or matched on `E001` for those notices.
+
 ## From 0.1 to 0.2
 
 **Nothing breaks.** No setting is renamed or removed, and every new one defaults to what 0.1
