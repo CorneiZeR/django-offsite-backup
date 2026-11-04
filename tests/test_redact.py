@@ -5,12 +5,12 @@ import logging
 
 import pytest
 
-httpx2 = pytest.importorskip('httpx2')  # the [telegram]/[webhook] extra
-
 from offsite_backup.notifiers.telegram import TelegramNotifier
 from offsite_backup.notifiers.webhook import WebhookNotifier
 from offsite_backup.outcome import Outcome, Summary
 from offsite_backup.stores.base import Wrote
+
+httpx2 = pytest.importorskip('httpx2')  # the [telegram]/[webhook] extra
 
 TOKEN = '123456:SECRET-token-value'
 HOOK = 'https://hooks.example/abc/SECRET-path'
