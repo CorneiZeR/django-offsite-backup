@@ -8,8 +8,9 @@
   the dump it took before migrating and deletes it once it is off the box. `run(paths=...)` is the
   same from Python. Refused with `--only` naming other kinds than `config`.
 - **A path handed over with `--path` must go up whole, on both commands** (`HANDED`, see
-  [Configuration archive](Configuration-archive.md)). Missing, holding a file the process cannot
-  read, or holding one `EXCLUDE` or the live `.env` rule would leave out, it fails the pass. Before, the command line's `--path` was left out with a
+  [Configuration archive](Configuration-archive.md)). Missing, a symbolic link or holding one,
+  holding a folder that cannot be listed, a file the process cannot read, or one `EXCLUDE` or the
+  live `.env` rule would leave out, it fails the pass. Before, the command line's `--path` was left out with a
   warning when missing, and an unreadable file under it was skipped unless `STRICT` — a script
   deleting what it handed over would have deleted what never went up. `run --path` with `--only`
   leaving `config` out is refused (exit 2) instead of passing without the path, and each path that

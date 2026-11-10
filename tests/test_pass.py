@@ -330,3 +330,47 @@ def test_a_path_handed_twice_or_already_listed_is_archived_once(configured, fake
     run(media=False, paths=[dump, dump], now=now)
     names = config_names(fake_s3)
     assert names.count('set/app.dump') == 1
+
+
+def test_a_handed_symlink_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """The archive would hold the link, not the file: deleted afterwards, its target is lost."""
+    target = tmp_path / 'app.dump'
+    target.write_bytes(b'PGDMP')
+    link = tmp_path / 'link.dump'
+    link.symlink_to(target)
+    with pytest.raises(Exception, match='symbolic link'):
+        run(media=False, paths=[link], now=now)
+
+
+def test_a_symlink_inside_a_handed_folder_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """Skipped quietly, it would read as gone up."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'other.dump').symlink_to(dump / 'app.dump')
+    with pytest.raises(Exception, match='symbolic link'):
+        run(media=False, paths=[dump], now=now)
+
+
+@pytest.mark.skipif(hasattr(os, 'geteuid') and os.geteuid() == 0, reason='root lists any folder')
+def test_a_folder_that_cannot_be_listed_inside_a_handed_one_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """rglob would pass over it in silence; its files would never go up."""
+    dump = tmp_path / 'set'
+    (dump / 'inner').mkdir(parents=True)
+    (dump / 'inner' / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'inner').chmod(0)
+    try:
+        with pytest.raises(Exception, match='cannot be listed'):
+            run(media=False, paths=[dump], now=now)
+    finally:
+        (dump / 'inner').chmod(0o700)
+
+
+def test_a_handed_folder_goes_up_with_its_subfolders(configured, fake_s3, now, tmp_path):
+    """Nested files keep their place under the folder's name."""
+    dump = tmp_path / 'set'
+    (dump / 'inner').mkdir(parents=True)
+    (dump / 'top.sql').write_text('x')
+    (dump / 'inner' / 'app.dump').write_bytes(b'PGDMP')
+    run(media=False, paths=[dump], now=now)
+    assert {'set/top.sql', 'set/inner/app.dump'} <= set(config_names(fake_s3))

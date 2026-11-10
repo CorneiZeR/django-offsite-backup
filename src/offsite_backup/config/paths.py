@@ -28,6 +28,8 @@ logger = logging.getLogger('offsite_backup')
 
 #: the rebuilt file's name in the archive: a restore sees at a glance it was reconstructed
 REBUILT_FILE = 'rendered.env'
+#: why a handed symlink fails the pass
+_LINK = 'it is a symbolic link: the archive would hold the link, not its target'
 #: the live environment file never travels; the rebuilt one stands in for it
 DEFAULT_EXCLUDE = ('.' + 'env',)
 #: a value needing no quotes for either reader of the file (compose and dotenv-style shells)
@@ -138,17 +140,61 @@ class PathsSource(ConfigSource):
                 member.mode = 0o600
                 tar.addfile(member, io.BytesIO(data))
             for root in self.paths:
-                if root.is_file():
-                    if not self._excluded(root, root) and not self._unreadable(root, root):
-                        tar.add(root, arcname=root.name, recursive=False)
-                    continue
-                for path in sorted(root.rglob('*')):
-                    if path.is_symlink() or not path.is_file() or self._excluded(path, root):
-                        continue
-                    if self._unreadable(path, root):
-                        continue
-                    tar.add(path, arcname=f'{root.name}/{path.relative_to(root).as_posix()}', recursive=False)
+                if root in self.handed:
+                    self._add_handed(tar, root)
+                else:
+                    self._add_listed(tar, root)
         return into
+
+    def _add_listed(self, tar: tarfile.TarFile, root: Path) -> None:
+        """One of ``PATHS``: what can be read and is not excluded; a missing one is left out."""
+        if root.is_file():
+            if not self._excluded(root, root) and not self._unreadable(root, root):
+                tar.add(root, arcname=root.name, recursive=False)
+            return
+        for path in sorted(root.rglob('*')):
+            if path.is_symlink() or not path.is_file() or self._excluded(path, root):
+                continue
+            if self._unreadable(path, root):
+                continue
+            tar.add(path, arcname=f'{root.name}/{path.relative_to(root).as_posix()}', recursive=False)
+
+    def _add_handed(self, tar: tarfile.TarFile, root: Path) -> None:
+        """A handed path, all of it or the pass fails: its caller deletes it once the pass returns.
+
+        Every regular file goes in; anything that would not — a symlink (the archive would hold the
+        link, not what it points at), a folder that cannot be listed, a file that cannot be read or
+        that ``EXCLUDE`` leaves out, a socket or a device — fails the pass by name.
+        """
+        if root.is_symlink() or not root.is_dir():
+            self._add_handed_file(tar, root, root, root.name)
+            return
+
+        def unlisted(error: OSError) -> None:
+            self._refuse(error.filename, f'it cannot be listed ({error.strerror})')
+
+        for folder, dirs, files in os.walk(root, onerror=unlisted):
+            here = Path(folder)
+            for name in dirs:
+                if (here / name).is_symlink():
+                    self._refuse(here / name, _LINK)
+            dirs.sort()
+            for name in sorted(files):
+                path = here / name
+                self._add_handed_file(tar, root, path, f'{root.name}/{path.relative_to(root).as_posix()}')
+
+    def _add_handed_file(self, tar: tarfile.TarFile, root: Path, path: Path, arcname: str) -> None:
+        if path.is_symlink():
+            self._refuse(path, _LINK)
+        if not path.is_file():
+            self._refuse(path, 'it is neither a regular file nor a folder')
+        self._excluded(path, root)
+        self._unreadable(path, root)
+        tar.add(path, arcname=arcname, recursive=False)
+
+    def _refuse(self, path: Path | str, why: str) -> None:
+        msg = f'{self.label}: {path} was handed over to go up, and {why}'
+        raise SourceMissingError(msg)
 
     def missing_optional(self) -> list[str]:
         """The listed paths and the names file not found here, the required ones aside."""
