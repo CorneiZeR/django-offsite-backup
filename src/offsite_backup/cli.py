@@ -166,16 +166,6 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _with_paths(values: dict[str, Any], paths: Sequence[Path]) -> dict[str, Any]:
-    """``run --path``: the paths added to ``CONFIG``'s, or a ``PathsSource`` of them alone."""
-    if not paths:
-        return values
-    block = dict(values.get('CONFIG') or {'BACKEND': 'offsite_backup.config.paths.PathsSource'})
-    listed = block.get('PATHS') or []
-    block['PATHS'] = [*([listed] if isinstance(listed, str) else listed), *(str(path) for path in paths)]
-    return {**values, 'CONFIG': block}
-
-
 def _say(text: str) -> None:
     print(text)
 
@@ -188,9 +178,16 @@ def _run(args: argparse.Namespace, settings: conf.Settings) -> int:
     from offsite_backup.pass_ import run  # noqa: PLC0415 - imported when a pass runs
 
     reason = (args.reason or '').strip() or str(settings['DEFAULT_REASON'])
+    if args.path and args.only and 'config' not in args.only:
+        # the paths would be left out of a pass that succeeds, and read as gone up
+        _err('offsite-backup: --path goes into the configuration archive, which --only leaves out')
+        return 2
     summary = run(media=not args.without_media, reason=reason, only=args.only)
     stores = f' to each of {len(summary.stores)} stores' if len(summary.stores) > 1 else ''
     _say(f'offsite-backup: {summary.objects} objects, {summary.bytes} bytes up{stores}')
+    # what a script that deletes what it handed over reads: only a pass that returned writes them
+    for handed in args.path:
+        _say(f'offsite-backup: up {handed}')
     return 0
 
 
@@ -347,7 +344,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         _err(f'offsite-backup: no setting — pass --config FILE or set {CONFIG_ENV}')
         return 2
     try:
-        values = _with_paths(load_config(path, args.env_file), getattr(args, 'path', ()))
+        # --path is part of the setting from the start: a setting of paths alone is complete
+        values = conf.with_paths(load_config(path, args.env_file), getattr(args, 'path', ()))
     except BackupError as error:
         _err(f'offsite-backup: {error}')
         return 2

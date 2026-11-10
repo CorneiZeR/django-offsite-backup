@@ -73,6 +73,13 @@ is not a whole backup — make them required:
 Use `REQUIRED` for what a restore cannot do without; leave paths that may legitimately be
 absent on some machines optional.
 
+**Paths handed over for one pass** (`backup_offsite --path`, `offsite-backup run --path`) are
+stricter still: they land in `HANDED` for that pass, and a handed path that is missing, is or
+holds a symbolic link (the archive would keep the link, not its target), holds a folder that
+cannot be listed, a file that cannot be read, or one `EXCLUDE` (or the live `.env` rule) would
+leave out fails the pass. Whoever handed them over deletes them once the pass names them as gone up, so a file
+left out quietly would be lost. `CONFIG`'s own `PATHS` are not affected.
+
 ## The live `.env` does not travel; a rebuilt one does
 
 The live environment file is often unreadable to the application (another owner, a

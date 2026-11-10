@@ -258,3 +258,27 @@ def test_the_secret_never_needs_argv(tmp_path, monkeypatch):
     setting.write_text('[STORE]\nSECRET_KEY = "${SECRET}"\n')
     monkeypatch.setenv('SECRET', 'hunter2')
     assert load_config(setting)['STORE']['SECRET_KEY'] == 'hunter2'
+
+
+def test_run_path_says_each_path_that_went_up(server, tmp_path, capsys):
+    """A script deletes what it handed over only on these lines."""
+    archive = tmp_path / 'app_backup.tar'
+    archive.write_bytes(b'x' * 10)
+    assert main(['--config', str(server), 'run', '--path', str(archive)]) == 0
+    assert capsys.readouterr().out.splitlines()[-1] == f'offsite-backup: up {archive}'
+
+
+def test_run_path_without_the_configuration_is_refused(server, tmp_path, capsys):
+    """--only db would carry no archive: the path is refused, not dropped while the pass succeeds."""
+    archive = tmp_path / 'app_backup.tar'
+    archive.write_bytes(b'x')
+    assert main(['--config', str(server), 'run', '--only', 'db', '--path', str(archive)]) == 2
+    captured = capsys.readouterr()
+    assert 'configuration archive' in captured.err
+    assert 'up ' not in captured.out
+
+
+def test_run_path_that_is_missing_fails(server, tmp_path, capsys):
+    """Missing, it is not left out with a warning any more."""
+    assert main(['--config', str(server), 'run', '--path', str(tmp_path / 'gone')]) == 1
+    assert 'up ' not in capsys.readouterr().out

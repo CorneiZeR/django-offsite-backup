@@ -1,4 +1,5 @@
 import io
+import os
 import tarfile
 from datetime import datetime, timedelta, timezone
 
@@ -240,3 +241,136 @@ def test_targets_that_cannot_be_listed_do_not_cost_media_and_config(configured, 
 
 def no_aliases():
     raise RuntimeError('tenant registry unreachable')
+
+
+def config_names(fake):
+    """The members of the one configuration archive the pass wrote."""
+    [key] = [key for key in stored(fake) if '/config/' in key]
+    with tarfile.open(fileobj=io.BytesIO(body(fake, key))) as tar:
+        return tar.getnames()
+
+
+def test_paths_go_into_this_pass_s_configuration_archive(configured, fake_s3, now, tmp_path, settings):
+    """A deploy hands over the dump it just took; the setting itself is left as it was."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'globals.sql').write_text('CREATE ROLE app;\n')
+    before = dict(settings.OFFSITE_BACKUP['CONFIG'])
+    run(media=False, reason='deploy', paths=[dump], now=now)
+    names = config_names(fake_s3)
+    assert {'set/app.dump', 'set/globals.sql'} <= set(names)
+    assert any(name.startswith('deploy') for name in names)
+    assert settings.OFFSITE_BACKUP['CONFIG'] == before
+
+
+def test_a_path_that_is_not_there_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """Nothing handed over may be taken as gone up when it was not."""
+    with pytest.raises(Exception, match='gone'):
+        run(media=False, paths=[tmp_path / 'gone'], now=now)
+
+
+def test_paths_with_the_configuration_left_out_are_refused(configured, fake_s3, now, tmp_path):
+    """`only` without config has no archive to carry them."""
+    with pytest.raises(ValueError, match='configuration archive'):
+        run(only=['db'], paths=[tmp_path], now=now)
+
+
+@pytest.mark.skipif(hasattr(os, 'geteuid') and os.geteuid() == 0, reason='root reads any file')
+def test_a_handed_file_that_cannot_be_read_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """A dump owned by somebody else is not left out quietly: the caller would delete it."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'app.dump').chmod(0)
+    try:
+        with pytest.raises(Exception, match='cannot be read'):
+            run(media=False, paths=[dump], now=now)
+    finally:
+        (dump / 'app.dump').chmod(0o600)
+
+
+def test_a_handed_file_that_exclude_leaves_out_fails_the_pass(configured, fake_s3, now, tmp_path, settings):
+    """Left out by EXCLUDE, it would read as gone up and be deleted by whoever handed it over."""
+    settings.OFFSITE_BACKUP['CONFIG']['EXCLUDE'] = ['*.log']
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'restore.log').write_text('x')
+    with pytest.raises(Exception, match='EXCLUDE leaves it out'):
+        run(media=False, paths=[dump], now=now)
+
+
+def test_a_handed_environment_file_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """The live environment file never travels — so handed over, it fails rather than vanishes."""
+    env = tmp_path / ('.' + 'env')
+    env.write_text('SECRET=x\n')
+    with pytest.raises(Exception, match='EXCLUDE leaves it out'):
+        run(media=False, paths=[env], now=now)
+
+
+def test_the_configuration_s_own_environment_file_is_still_left_out(configured, fake_s3, now, tmp_path, deploy_dir):
+    """Handing a path over changes nothing for CONFIG's own PATHS."""
+    (deploy_dir / ('.' + 'env')).write_text('SECRET=x\n')
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    run(media=False, paths=[dump], now=now)
+    names = config_names(fake_s3)
+    assert 'set/app.dump' in names
+    assert not any(name.endswith('/' + '.' + 'env') for name in names)
+
+
+def test_a_path_handed_twice_or_already_listed_is_archived_once(configured, fake_s3, now, tmp_path, settings):
+    """The archive holds each member once, whatever the caller repeated."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    settings.OFFSITE_BACKUP['CONFIG']['PATHS'] = [*settings.OFFSITE_BACKUP['CONFIG']['PATHS'], str(dump)]
+    run(media=False, paths=[dump, dump], now=now)
+    names = config_names(fake_s3)
+    assert names.count('set/app.dump') == 1
+
+
+def test_a_handed_symlink_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """The archive would hold the link, not the file: deleted afterwards, its target is lost."""
+    target = tmp_path / 'app.dump'
+    target.write_bytes(b'PGDMP')
+    link = tmp_path / 'link.dump'
+    link.symlink_to(target)
+    with pytest.raises(Exception, match='symbolic link'):
+        run(media=False, paths=[link], now=now)
+
+
+def test_a_symlink_inside_a_handed_folder_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """Skipped quietly, it would read as gone up."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'other.dump').symlink_to(dump / 'app.dump')
+    with pytest.raises(Exception, match='symbolic link'):
+        run(media=False, paths=[dump], now=now)
+
+
+@pytest.mark.skipif(hasattr(os, 'geteuid') and os.geteuid() == 0, reason='root lists any folder')
+def test_a_folder_that_cannot_be_listed_inside_a_handed_one_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """rglob would pass over it in silence; its files would never go up."""
+    dump = tmp_path / 'set'
+    (dump / 'inner').mkdir(parents=True)
+    (dump / 'inner' / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'inner').chmod(0)
+    try:
+        with pytest.raises(Exception, match='cannot be listed'):
+            run(media=False, paths=[dump], now=now)
+    finally:
+        (dump / 'inner').chmod(0o700)
+
+
+def test_a_handed_folder_goes_up_with_its_subfolders(configured, fake_s3, now, tmp_path):
+    """Nested files keep their place under the folder's name."""
+    dump = tmp_path / 'set'
+    (dump / 'inner').mkdir(parents=True)
+    (dump / 'top.sql').write_text('x')
+    (dump / 'inner' / 'app.dump').write_bytes(b'PGDMP')
+    run(media=False, paths=[dump], now=now)
+    assert {'set/top.sql', 'set/inner/app.dump'} <= set(config_names(fake_s3))
