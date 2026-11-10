@@ -116,9 +116,11 @@ def with_paths(values: Mapping[str, Any], paths: Sequence[Path | str]) -> dict[s
     if not paths:
         return dict(values)
     block = dict(values.get('CONFIG') or {'BACKEND': 'offsite_backup.config.paths.PathsSource'})
-    added = [str(path) for path in paths]
+    added = list(dict.fromkeys(str(path) for path in paths))
     listed = block.get('PATHS') or []
-    block['PATHS'] = [*([listed] if isinstance(listed, str) else listed), *added]
+    base = [listed] if isinstance(listed, str) else [str(path) for path in listed]
+    # one already listed is archived once, and still handed: its caller may delete it
+    block['PATHS'] = [*base, *(path for path in added if path not in base)]
     handed = block.get('HANDED') or []
     block['HANDED'] = [*([handed] if isinstance(handed, str) else handed), *added]
     return {**values, 'CONFIG': block}

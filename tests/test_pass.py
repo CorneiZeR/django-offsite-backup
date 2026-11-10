@@ -319,3 +319,14 @@ def test_the_configuration_s_own_environment_file_is_still_left_out(configured, 
     names = config_names(fake_s3)
     assert 'set/app.dump' in names
     assert not any(name.endswith('/' + '.' + 'env') for name in names)
+
+
+def test_a_path_handed_twice_or_already_listed_is_archived_once(configured, fake_s3, now, tmp_path, settings):
+    """The archive holds each member once, whatever the caller repeated."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    settings.OFFSITE_BACKUP['CONFIG']['PATHS'] = [*settings.OFFSITE_BACKUP['CONFIG']['PATHS'], str(dump)]
+    run(media=False, paths=[dump, dump], now=now)
+    names = config_names(fake_s3)
+    assert names.count('set/app.dump') == 1
