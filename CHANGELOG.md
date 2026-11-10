@@ -14,8 +14,10 @@ major version.
 - **A path handed over with `--path` is required, on both commands.** Missing, or holding a file the
   process cannot read, it fails the pass. Before, the command line's `--path` was left out with a
   warning when missing, and an unreadable file under it was skipped unless `STRICT` — a script
-  deleting what it handed over would have deleted what never went up. `CONFIG`'s own `PATHS` keep
-  their behaviour (`REQUIRED`, `STRICT`).
+  deleting what it handed over would have deleted what never went up. `run --path` with `--only`
+  leaving `config` out is refused (exit 2) instead of passing without the path, and each path that
+  went up is said after the summary (`offsite-backup: up PATH`). `CONFIG`'s own `PATHS` keep their
+  behaviour (`REQUIRED`, `STRICT`).
 
 ## 0.4.1 — 2026-11-04
 

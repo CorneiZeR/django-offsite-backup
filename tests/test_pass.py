@@ -1,4 +1,5 @@
 import io
+import os
 import tarfile
 from datetime import datetime, timedelta, timezone
 
@@ -275,6 +276,7 @@ def test_paths_with_the_configuration_left_out_are_refused(configured, fake_s3, 
         run(only=['db'], paths=[tmp_path], now=now)
 
 
+@pytest.mark.skipif(hasattr(os, 'geteuid') and os.geteuid() == 0, reason='root reads any file')
 def test_a_handed_file_that_cannot_be_read_fails_the_pass(configured, fake_s3, now, tmp_path):
     """A dump owned by somebody else is not left out quietly: the caller would delete it."""
     dump = tmp_path / 'set'
