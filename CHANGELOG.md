@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
+## 0.5.0 — 2026-11-10
+
+- **`backup_offsite --path`** (repeatable) puts a file or folder into this pass's configuration
+  archive, as `offsite-backup run --path` already did on a plain server, and says each one that went
+  up on a line of its own after the summary (`backup_offsite: up PATH`). For a deploy that hands over
+  the dump it took before migrating and deletes it once it is off the box. `run(paths=...)` is the
+  same from Python. Refused with `--only` naming other kinds than `config`.
+- **A path handed over with `--path` is required, on both commands.** Missing, or holding a file the
+  process cannot read, it fails the pass. Before, the command line's `--path` was left out with a
+  warning when missing, and an unreadable file under it was skipped unless `STRICT` — a script
+  deleting what it handed over would have deleted what never went up. `CONFIG`'s own `PATHS` keep
+  their behaviour (`REQUIRED`, `STRICT`).
+
 ## 0.4.1 — 2026-11-04
 
 - **The Telegram token and the webhook URL stay out of the HTTP client's log.** `httpx2` logs every

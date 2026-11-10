@@ -95,10 +95,11 @@ class PathsSource(ConfigSource):
             return [Path(str(path)).expanduser() for path in listed if str(path).strip()]
         return []
 
-    def _unreadable(self, path: Path) -> bool:
+    def _unreadable(self, path: Path, root: Path) -> bool:
         if os.access(path, os.R_OK):
             return False
-        if self.strict:
+        # a required path is all there or the pass fails: one left out silently would read as gone up
+        if self.strict or root in self.required_paths:
             msg = f'{self.label}: {path} cannot be read'
             raise SourceMissingError(msg)
         return True
@@ -122,13 +123,13 @@ class PathsSource(ConfigSource):
                 tar.addfile(member, io.BytesIO(data))
             for root in self.paths:
                 if root.is_file():
-                    if not self._excluded(root) and not self._unreadable(root):
+                    if not self._excluded(root) and not self._unreadable(root, root):
                         tar.add(root, arcname=root.name, recursive=False)
                     continue
                 for path in sorted(root.rglob('*')):
                     if path.is_symlink() or not path.is_file() or self._excluded(path):
                         continue
-                    if self._unreadable(path):
+                    if self._unreadable(path, root):
                         continue
                     tar.add(path, arcname=f'{root.name}/{path.relative_to(root).as_posix()}', recursive=False)
         return into

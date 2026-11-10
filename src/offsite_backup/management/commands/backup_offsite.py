@@ -1,5 +1,6 @@
 """``manage.py backup_offsite``: one pass now; non-zero on failure, so a deploy can rely on it."""
 
+from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
@@ -15,7 +16,7 @@ class Command(BaseCommand):
     help = 'Back up the databases, media and deployment configuration off the machine, now.'
 
     def add_arguments(self, parser: CommandParser) -> None:
-        """``--without-media``, ``--reason``, ``--only``."""
+        """``--without-media``, ``--reason``, ``--only``, ``--path``."""
         parser.add_argument(
             '--without-media',
             action='store_true',
@@ -32,6 +33,14 @@ class Command(BaseCommand):
             action='append',
             choices=KINDS,
             help='Back up only this part; repeat for several. A pass without media is marked partial.',
+        )
+        parser.add_argument(
+            '--path',
+            action='append',
+            default=[],
+            type=Path,
+            help="Add a file or folder to this pass's configuration archive; repeatable. One that is not there "
+            'fails the pass; each that went up is said on a line of its own ("backup_offsite: up PATH").',
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -51,8 +60,14 @@ class Command(BaseCommand):
                 '(the message then says the deploy stops on failure)'
             )
         try:
-            summary = run(media=not options['without_media'], reason=reason, only=options['only'])
-        except BackupError as error:
+            summary = run(
+                media=not options['without_media'], reason=reason, only=options['only'], paths=options['path']
+            )
+        except (BackupError, ValueError) as error:
             raise CommandError(f'backup_offsite: {error}') from error
         stores = f' to each of {len(summary.stores)} stores' if len(summary.stores) > 1 else ''
         self.stdout.write(f'backup_offsite: {summary.objects} objects, {summary.bytes} bytes up{stores}')
+        # A caller that deletes what it handed over (a deploy's dump) reads these: only a pass that
+        # returned wrote them, and every store took the archive holding them.
+        for path in options['path']:
+            self.stdout.write(f'backup_offsite: up {path}')

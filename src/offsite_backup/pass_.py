@@ -238,15 +238,26 @@ def run(
     media: bool = True,
     reason: str = 'nightly',
     only: Sequence[str] | None = None,
+    paths: Sequence[Path | str] = (),
     now: datetime | None = None,
 ) -> Summary:
-    """One pass now. Raises when not configured, on any failure, and when any database or store failed."""
+    """One pass now. Raises when not configured, on any failure, and when any database or store failed.
+
+    ``paths`` go into this pass's configuration archive beside ``CONFIG``'s own (``conf.with_paths``):
+    one that is not there fails the pass, so a caller that deletes them afterwards deletes only what
+    went up.
+    """
     settings = conf.load()
     selected = set(only or KINDS)
     unknown = selected - set(KINDS)
     if unknown:
         msg = f'only= takes {", ".join(KINDS)}; got {", ".join(sorted(unknown))}'
         raise ValueError(msg)
+    if paths and 'config' not in selected:
+        msg = 'paths= go into the configuration archive, which only= leaves out'
+        raise ValueError(msg)
+    if paths:
+        settings = replace(settings, values=conf.with_paths(settings.values, paths))
     parts = components(settings)
     with_media = media and 'media' in selected
     moment = now or datetime.now(timezone.utc)

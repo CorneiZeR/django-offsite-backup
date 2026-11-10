@@ -171,6 +171,30 @@ def test_backup_offsite_prints_what_went_up(configured, fake_s3):
     assert command('backup_offsite', '--reason', 'deploy', '--without-media').startswith('backup_offsite: 2 objects')
 
 
+def test_backup_offsite_says_each_path_that_went_up(configured, fake_s3, tmp_path):
+    """A deploy deletes the dump it handed over only on these lines."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    out = command('backup_offsite', '--reason', 'deploy', '--without-media', '--path', str(dump))
+    assert out.splitlines()[-1] == f'backup_offsite: up {dump}'
+
+
+def test_backup_offsite_says_no_path_up_when_the_pass_fails(configured, fake_s3, settings, tmp_path):
+    """A failed pass is a CommandError and names no path as gone up."""
+    settings.OFFSITE_BACKUP['DATABASES']['FAIL'] = ['default']
+    out = StringIO()
+    with pytest.raises(CommandError):
+        call_command('backup_offsite', '--path', str(tmp_path), stdout=out)
+    assert 'backup_offsite: up' not in out.getvalue()
+
+
+def test_backup_offsite_refuses_a_path_without_the_configuration(configured, tmp_path):
+    """--only db has no archive to carry it."""
+    with pytest.raises(CommandError, match='configuration archive'):
+        command('backup_offsite', '--only', 'db', '--path', str(tmp_path))
+
+
 def test_backup_offsite_fails_non_zero(configured, fake_s3, settings):
     """A failure is a CommandError, so the deploy stops."""
     settings.OFFSITE_BACKUP['DATABASES']['FAIL'] = ['default']

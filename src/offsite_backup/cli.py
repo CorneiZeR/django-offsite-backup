@@ -166,16 +166,6 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _with_paths(values: dict[str, Any], paths: Sequence[Path]) -> dict[str, Any]:
-    """``run --path``: the paths added to ``CONFIG``'s, or a ``PathsSource`` of them alone."""
-    if not paths:
-        return values
-    block = dict(values.get('CONFIG') or {'BACKEND': 'offsite_backup.config.paths.PathsSource'})
-    listed = block.get('PATHS') or []
-    block['PATHS'] = [*([listed] if isinstance(listed, str) else listed), *(str(path) for path in paths)]
-    return {**values, 'CONFIG': block}
-
-
 def _say(text: str) -> None:
     print(text)
 
@@ -347,7 +337,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         _err(f'offsite-backup: no setting — pass --config FILE or set {CONFIG_ENV}')
         return 2
     try:
-        values = _with_paths(load_config(path, args.env_file), getattr(args, 'path', ()))
+        values = conf.with_paths(load_config(path, args.env_file), getattr(args, 'path', ()))
     except BackupError as error:
         _err(f'offsite-backup: {error}')
         return 2

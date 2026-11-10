@@ -27,6 +27,20 @@ before it. Put one command in front of your migrations:
 * On a machine where backups are off it prints "nothing to do" and exits 0, so the same
   pipeline deploys a staging machine that has no keys.
 
+**Handing over a dump the deploy took.** `--path` (repeatable) puts a file or a folder into
+this pass's configuration archive, beside `CONFIG`'s own paths — say the pre-migration dump
+of every database on the server, which the deploy then deletes instead of keeping it on the
+box. A path handed over this way is required: missing, or holding a file the command cannot
+read, it fails the pass. Each one that went up is said on a line of its own, after the
+summary — the only thing a caller should read as "gone up":
+
+```text
+backup_offsite: 4 objects, 81234 bytes up
+backup_offsite: up /backup-set
+```
+
+`--path` needs the configuration in the pass: with `--only` naming other kinds it is refused.
+
 **Forgetting `--reason`.** `backup_offsite` defaults to `--reason manual`: a person running
 it by hand is the common case. A deploy step that leaves the flag out is read as a pass by
 hand, and its failure message lacks the deploy line. As a safeguard, `--without-media`

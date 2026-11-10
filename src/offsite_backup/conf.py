@@ -16,7 +16,7 @@ Django project — the mapping the command line read from its TOML file and hand
 """
 
 import copy
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -37,6 +37,7 @@ __all__ = (
     'problems',
     'read',
     'standalone',
+    'with_paths',
 )
 
 SETTINGS_NAME = 'OFFSITE_BACKUP'
@@ -100,6 +101,27 @@ def django_setting(name: str, default: Any = None) -> Any:
     except ImportError:
         return default
     return getattr(settings, name, default)
+
+
+def with_paths(values: Mapping[str, Any], paths: Sequence[Path | str]) -> dict[str, Any]:
+    """The setting with ``paths`` added to ``CONFIG``'s ``PATHS``, or a ``PathsSource`` of them alone.
+
+    What ``offsite-backup run --path`` and ``backup_offsite --path`` add to one pass: files that
+    belong with tonight's configuration archive (a dump the deploy took, a secrets copy) and are
+    not part of the setting. They are required, too (``REQUIRED``): one missing, or a file under
+    it that cannot be read, fails the pass instead of being left out — whoever handed them over
+    may delete them once the pass returns. The setting itself is not changed.
+    """
+    if not paths:
+        return dict(values)
+    block = dict(values.get('CONFIG') or {'BACKEND': 'offsite_backup.config.paths.PathsSource'})
+    added = [str(path) for path in paths]
+    listed = block.get('PATHS') or []
+    block['PATHS'] = [*([listed] if isinstance(listed, str) else listed), *added]
+    required = block.get('REQUIRED')
+    if required is not True:
+        block['REQUIRED'] = [*(required if isinstance(required, (list, tuple)) else []), *added]
+    return {**values, 'CONFIG': block}
 
 
 def base_dir() -> Path:

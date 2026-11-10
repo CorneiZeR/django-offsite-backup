@@ -240,3 +240,49 @@ def test_targets_that_cannot_be_listed_do_not_cost_media_and_config(configured, 
 
 def no_aliases():
     raise RuntimeError('tenant registry unreachable')
+
+
+def config_names(fake):
+    """The members of the one configuration archive the pass wrote."""
+    [key] = [key for key in stored(fake) if '/config/' in key]
+    with tarfile.open(fileobj=io.BytesIO(body(fake, key))) as tar:
+        return tar.getnames()
+
+
+def test_paths_go_into_this_pass_s_configuration_archive(configured, fake_s3, now, tmp_path, settings):
+    """A deploy hands over the dump it just took; the setting itself is left as it was."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'globals.sql').write_text('CREATE ROLE app;\n')
+    before = dict(settings.OFFSITE_BACKUP['CONFIG'])
+    run(media=False, reason='deploy', paths=[dump], now=now)
+    names = config_names(fake_s3)
+    assert {'set/app.dump', 'set/globals.sql'} <= set(names)
+    assert any(name.startswith('deploy') for name in names)
+    assert settings.OFFSITE_BACKUP['CONFIG'] == before
+
+
+def test_a_path_that_is_not_there_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """Nothing handed over may be taken as gone up when it was not."""
+    with pytest.raises(Exception, match='gone'):
+        run(media=False, paths=[tmp_path / 'gone'], now=now)
+
+
+def test_paths_with_the_configuration_left_out_are_refused(configured, fake_s3, now, tmp_path):
+    """`only` without config has no archive to carry them."""
+    with pytest.raises(ValueError, match='configuration archive'):
+        run(only=['db'], paths=[tmp_path], now=now)
+
+
+def test_a_handed_file_that_cannot_be_read_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """A dump owned by somebody else is not left out quietly: the caller would delete it."""
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'app.dump').chmod(0)
+    try:
+        with pytest.raises(Exception, match='cannot be read'):
+            run(media=False, paths=[dump], now=now)
+    finally:
+        (dump / 'app.dump').chmod(0o600)

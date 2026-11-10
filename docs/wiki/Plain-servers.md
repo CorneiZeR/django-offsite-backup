@@ -167,6 +167,8 @@ backup run --reason "$reason" --path "$work/app.tar" --path /srv/app/app.conf
   upgrade stops and the running service (`NAME`) keeps serving.
 * `--path` files go into the configuration archive, `<PREFIX>/config/<stamp>.tar.zst.age`,
   last in the pass — so the morning check, `status` and rotation read it like any other.
+  They are required: one that is missing, or a file under it that cannot be read, fails the
+  pass rather than being left out, so a script may delete them once `run` returned 0.
 * `LAST_SUCCESS_FILE` writes the time of every successful pass, for a monitor that reads a
   file's age.
 

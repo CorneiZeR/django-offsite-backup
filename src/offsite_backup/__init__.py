@@ -8,7 +8,7 @@ line ``offsite-backup`` runs the same passes on a server with no Django project.
 
 from typing import TYPE_CHECKING, Any
 
-__version__ = '0.4.1'
+__version__ = '0.5.0'
 
 __all__ = (
     'BackupError',
