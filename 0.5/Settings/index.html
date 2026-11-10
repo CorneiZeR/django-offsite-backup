@@ -1,0 +1,3303 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Encrypted, immutable off-site backups of databases, media and deployment configuration — for Django projects and plain servers">
+      
+      
+        <meta name="author" content="Oleksii Kolosiuk">
+      
+      
+        <link rel="canonical" href="https://corneizer.github.io/django-offsite-backup/latest/0.5/Settings/">
+      
+      
+        <link rel="prev" href="../Installation/">
+      
+      
+        <link rel="next" href="../Stores-S3/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Settings - django-offsite-backup</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans:300,300i,400,400i,700,700i%7CIBM+Plex+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"IBM Plex Sans";--md-code-font:"IBM Plex Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#settings" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="django-offsite-backup" class="md-header__button md-logo" aria-label="django-offsite-backup" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            django-offsite-backup
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Settings
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Follow the system"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Follow the system" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to light" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CorneiZeR/django-offsite-backup" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CorneiZeR/django-offsite-backup
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="django-offsite-backup" class="md-nav__button md-logo" aria-label="django-offsite-backup" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    django-offsite-backup
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CorneiZeR/django-offsite-backup" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CorneiZeR/django-offsite-backup
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#blank-means-unset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blank means unset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabled-off-on-or-refused" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENABLED: off, on, or refused
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#top-level-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Top-level keys
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Top-level keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RETENTION
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CHECK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GUARD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DRILL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strict-and-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STRICT and REQUIRED
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Backend options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#store-options-every-store-takes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: options every store takes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-offsite_backupstoress3s3store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: offsite_backup.stores.s3.S3Store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-offsite_backupstoresfilesystemdirectorystore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: offsite_backup.stores.filesystem.DirectoryStore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption-offsite_backupencryptionage_cliagecli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION: offsite_backup.encryption.age_cli.AgeCli
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption-offsite_backupencryptionpyragepyrage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION: offsite_backup.encryption.pyrage.Pyrage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasespostgrespostgressource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.postgres.PostgresSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasesmysqlmysqlsource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.mysql.MySQLSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasessqlitesqlitesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.sqlite.SQLiteSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-options-every-media-source-takes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: options every media source takes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediafilesystemdirectorysource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.filesystem.DirectorySource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadocker_volumevolumesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.docker_volume.VolumeSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadjango_storagestoragesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.django_storage.StorageSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmedias3s3source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.s3.S3Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-offsite_backupconfigpathspathssource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CONFIG: offsite_backup.config.paths.PathsSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifierstelegramtelegramnotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.telegram.TelegramNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifiersdjango_aiogramtopicnotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.django_aiogram.TopicNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifierswebhookwebhooknotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.webhook.WebhookNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifiersloglognotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.log.LogNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-own-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your own backend
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Where backups go
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Where backups go
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-S3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stores: S3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../S3-providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S3 providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-directory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stores: directory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stores-several/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Several stores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What is backed up
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    What is backed up
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Databases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Databases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Media
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Configuration-archive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration archive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How it is kept
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How it is kept
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Encryption/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Encryption and keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Retention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Retention and locks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running it
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Running it
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Scheduling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scheduling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Deploy-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Plain-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Without Django
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../System-checks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System checks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AI-assistants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI assistants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#blank-means-unset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blank means unset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabled-off-on-or-refused" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENABLED: off, on, or refused
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#top-level-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Top-level keys
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Top-level keys">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RETENTION
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CHECK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GUARD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DRILL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strict-and-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STRICT and REQUIRED
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Backend options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#store-options-every-store-takes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: options every store takes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-offsite_backupstoress3s3store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: offsite_backup.stores.s3.S3Store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#store-offsite_backupstoresfilesystemdirectorystore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STORE: offsite_backup.stores.filesystem.DirectoryStore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption-offsite_backupencryptionage_cliagecli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION: offsite_backup.encryption.age_cli.AgeCli
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption-offsite_backupencryptionpyragepyrage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION: offsite_backup.encryption.pyrage.Pyrage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasespostgrespostgressource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.postgres.PostgresSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasesmysqlmysqlsource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.mysql.MySQLSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databases-offsite_backupdatabasessqlitesqlitesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DATABASES: offsite_backup.databases.sqlite.SQLiteSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-options-every-media-source-takes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: options every media source takes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediafilesystemdirectorysource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.filesystem.DirectorySource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadocker_volumevolumesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.docker_volume.VolumeSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmediadjango_storagestoragesource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.django_storage.StorageSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#media-offsite_backupmedias3s3source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEDIA: offsite_backup.media.s3.S3Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-offsite_backupconfigpathspathssource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CONFIG: offsite_backup.config.paths.PathsSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifierstelegramtelegramnotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.telegram.TelegramNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifiersdjango_aiogramtopicnotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.django_aiogram.TopicNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifierswebhookwebhooknotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.webhook.WebhookNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notify-offsite_backupnotifiersloglognotifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOTIFY: offsite_backup.notifiers.log.LogNotifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-own-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your own backend
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/CorneiZeR/django-offsite-backup/edit/master/docs/wiki/Settings.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="settings">Settings<a class="headerlink" href="#settings" title="Permanent link">&para;</a></h1>
+<p>One dict, <code>OFFSITE_BACKUP</code>, in <code>settings.py</code> — or, on a server with no Django project, the
+same keys at the top level of a TOML file (<a href="../Plain-servers/#the-setting">Without Django</a>).
+Every key has a default; the backends each take a block of their own — <code>BACKEND</code>, a dotted
+path, plus that backend's options.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="n">OFFSITE_BACKUP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">'PREFIX'</span><span class="p">:</span> <span class="s1">'acme/prod'</span><span class="p">,</span>
+    <span class="s1">'ENV'</span><span class="p">:</span> <span class="s1">'prod'</span><span class="p">,</span>
+    <span class="s1">'NAME'</span><span class="p">:</span> <span class="s1">'acme'</span><span class="p">,</span>
+    <span class="s1">'STORE'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.stores.s3.S3Store'</span><span class="p">,</span>
+        <span class="s1">'ENDPOINT_URL'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_S3_ENDPOINT'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+        <span class="s1">'REGION'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_S3_REGION'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+        <span class="s1">'BUCKET'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_S3_BUCKET'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+        <span class="s1">'ACCESS_KEY'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_S3_ACCESS_KEY'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+        <span class="s1">'SECRET_KEY'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_S3_SECRET_KEY'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+        <span class="s1">'LOCK_DAYS'</span><span class="p">:</span> <span class="mi">13</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s1">'ENCRYPTION'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.encryption.age_cli.AgeCli'</span><span class="p">,</span>
+        <span class="s1">'RECIPIENTS'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_AGE_RECIPIENT'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+    <span class="p">},</span>
+    <span class="s1">'DATABASES'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.databases.postgres.PostgresSource'</span><span class="p">,</span>
+        <span class="s1">'ALIASES'</span><span class="p">:</span> <span class="p">[</span><span class="s1">'default'</span><span class="p">],</span>
+        <span class="s1">'FORMAT'</span><span class="p">:</span> <span class="s1">'plain'</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s1">'MEDIA'</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.media.filesystem.DirectorySource'</span><span class="p">,</span> <span class="s1">'EXCLUDE'</span><span class="p">:</span> <span class="p">[</span><span class="s1">'thumbs/*'</span><span class="p">]},</span>
+    <span class="p">],</span>
+    <span class="s1">'CONFIG'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.config.paths.PathsSource'</span><span class="p">,</span>
+        <span class="s1">'PATHS'</span><span class="p">:</span> <span class="p">[</span><span class="s1">'/app/deploy'</span><span class="p">],</span>
+        <span class="s1">'RENDER_ENV'</span><span class="p">:</span> <span class="s1">'deploy-vars.txt'</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s1">'RETENTION'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'KEEP_NIGHTS'</span><span class="p">:</span> <span class="mi">14</span><span class="p">},</span>
+    <span class="s1">'CHECK'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'STALE_HOURS'</span><span class="p">:</span> <span class="mi">26</span><span class="p">},</span>
+    <span class="s1">'NOTIFY'</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.notifiers.telegram.TelegramNotifier'</span><span class="p">,</span>
+            <span class="s1">'TOKEN'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_TELEGRAM_TOKEN'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+            <span class="s1">'CHAT_ID'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_TELEGRAM_CHAT_ID'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+            <span class="s1">'TOPIC_ID'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_TELEGRAM_TOPIC_ID'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">],</span>
+    <span class="s1">'GUARD'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'CACHE'</span><span class="p">:</span> <span class="s1">'default'</span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Credentials come from the environment, in your settings.</strong> The package never reads
+<code>os.environ</code> for its configuration (the exceptions are <code>AGE_IDENTITY</code>, the private key
+a <em>restore</em> reads — see <a href="../Restore/">Restore</a> — and <code>OFFSITE_BACKUP_SILENCE</code>, the test
+runner's switch — see <a href="../Testing/#parallel-workers">Testing</a>; off Django, the command line
+expands <code>${NAME}</code> in its TOML file — see <a href="../Plain-servers/#the-setting">Without Django</a>). Read each one with a default of <code>''</code>, as
+above: an unset variable then means "off", not a <code>KeyError</code> at import.</p>
+<h2 id="blank-means-unset">Blank means unset<a class="headerlink" href="#blank-means-unset" title="Permanent link">&para;</a></h2>
+<p>What <code>os.environ.get('X', '')</code> gives on a machine without <code>X</code> is read as <em>not set</em>, wherever
+it ends up:</p>
+<ul>
+<li><code>None</code>, a blank string and <code>0</code> (what <code>int(os.environ.get('X') or 0)</code> gives) are unset. A
+  required option holding one of them is named by <code>E001</code>, like an absent one.</li>
+<li>A list made only of those — <code>[os.environ.get('X', '')]</code> is <code>['']</code> — is unset too.</li>
+<li>Inside a list, blank items are dropped: <code>PATHS</code>, <code>INCLUDE</code>/<code>EXCLUDE</code>, a list of
+  <code>ALIASES</code>, <code>RECIPIENTS</code>.</li>
+<li>A <code>TOPIC_ID</code> that is unset means the chat's main thread.</li>
+</ul>
+<p>So the plain idiom works as it is, for one recipient or several:</p>
+<div class="highlight"><pre><span></span><code><span class="s1">'ENCRYPTION'</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s1">'BACKEND'</span><span class="p">:</span> <span class="s1">'offsite_backup.encryption.age_cli.AgeCli'</span><span class="p">,</span>
+    <span class="c1"># 'age1abc...', or 'age1abc..., age1def...' — or nothing, on a laptop</span>
+    <span class="s1">'RECIPIENTS'</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'BACKUP_AGE_RECIPIENTS'</span><span class="p">,</span> <span class="s1">''</span><span class="p">),</span>
+<span class="p">},</span>
+</code></pre></div>
+<p><code>RECIPIENTS</code> takes a string or a list. A string is split on commas and newlines, and — for
+<code>age1…</code> keys only — on whitespace; an <code>ssh-ed25519 …</code> recipient keeps the space inside it.
+On a machine with the store credentials and no recipient, <code>E001</code> names <code>RECIPIENTS</code>.</p>
+<h2 id="enabled-off-on-or-refused"><code>ENABLED</code>: off, on, or refused<a class="headerlink" href="#enabled-off-on-or-refused" title="Permanent link">&para;</a></h2>
+<p>Three states, never confused:</p>
+<ul>
+<li><strong>off</strong> — <code>OFFSITE_BACKUP</code> is absent or empty, <code>ENABLED</code> is false, or none of the
+  options that name a destination is set. Commands print "not configured on this machine,
+  nothing to do" and exit 0; the system checks say nothing. A development machine holds no
+  key — not giving it one <em>is</em> the enforcement.</li>
+<li><strong>partly configured</strong> — something says "back up" and something it needs is empty. Every
+  missing piece is named by <code>E001</code>, and a pass refuses to start. It is never read as
+  "off": a production machine that lost one variable must not stop backing up in silence.</li>
+<li><strong>on</strong> — every backend builds and every required option is set.</li>
+</ul>
+<p>With <code>ENABLED</code> left at <code>None</code> (the default) the machine is on when <strong>any</strong> of these is
+non-empty:</p>
+<table>
+<thead>
+<tr>
+<th>backend</th>
+<th>options that switch it on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>S3Store</code></td>
+<td><code>BUCKET</code>, <code>ACCESS_KEY</code>, <code>SECRET_KEY</code>, <code>ENDPOINT_URL</code></td>
+</tr>
+<tr>
+<td><code>DirectoryStore</code></td>
+<td><code>ROOT</code></td>
+</tr>
+</tbody>
+</table>
+<p>A recipient is not among them: it is a public key, and writing it into settings must not
+switch on every machine that has no store key. <strong>A machine with only the age recipient set
+— and no store credentials — is off, not partly configured.</strong> A hand-written predecessor
+may have used the recipient as its "on" switch; here the store is the switch.</p>
+<p>A <code>BACKEND</code> path that does not import also counts as "on", so <code>E002</code> can say what is
+wrong with it. <code>ENABLED: True</code> or <code>False</code> overrides the rule either way.</p>
+<div class="admonition note">
+<p class="admonition-title">A recipient alone is off</p>
+<p>A public key is not a secret, so <code>RECIPIENTS: ['age1...']</code> may be written straight into
+<code>settings.py</code>. It switches nothing on: developer laptops and CI that load those settings
+without store credentials stay <strong>off</strong>, and <code>manage.py check</code> says nothing there. The
+other way round — store credentials and no recipient — is partly configured, and <code>E001</code>
+names <code>RECIPIENTS</code>.</p>
+</div>
+<h2 id="top-level-keys">Top-level keys<a class="headerlink" href="#top-level-keys" title="Permanent link">&para;</a></h2>
+<p>Every key of <code>offsite_backup.conf.DEFAULTS</code>. <code>RETENTION</code>, <code>CHECK</code>, <code>GUARD</code> and <code>DRILL</code> merge with
+their defaults key by key, so <code>'GUARD': {'CACHE': 'redis'}</code> keeps <code>RUNNING_SECONDS</code>; every
+other key replaces its default whole.</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>type</th>
+<th>default</th>
+<th>what it is</th>
+<th>validated by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ENABLED</code></td>
+<td><code>bool</code> or <code>None</code></td>
+<td><code>None</code></td>
+<td>on/off; <code>None</code> decides from the options above</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>PREFIX</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>every key lives under <code>&lt;PREFIX&gt;/</code>; rotation never leaves it. Surrounding <code>/</code> are stripped. Required</td>
+<td><code>E001</code></td>
+</tr>
+<tr>
+<td><code>ENV</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>the environment, for the message's hashtag (<code>#prod</code>)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>NAME</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>a service name; shown in a message only when <code>PREFIX</code> is empty</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>STORE</code></td>
+<td>block, or a list of blocks</td>
+<td><code>None</code></td>
+<td>where backups are kept — <a href="../Stores-S3/">S3</a> or <a href="../Stores-directory/">a directory</a>; a list writes every pass to <a href="../Stores-several/">several stores</a>, each with a <code>NAME</code>. Required</td>
+<td><code>E001</code>, <code>E002</code></td>
+</tr>
+<tr>
+<td><code>ENCRYPTION</code></td>
+<td>block</td>
+<td><code>None</code></td>
+<td>how they are sealed — <a href="../Encryption/">Encryption</a>: the <code>age</code> binary or pyrage. Required</td>
+<td><code>E001</code>, <code>E002</code>, <code>E008</code></td>
+</tr>
+<tr>
+<td><code>DATABASES</code></td>
+<td>block</td>
+<td><code>None</code></td>
+<td><a href="../Databases/">Databases</a>: PostgreSQL, MySQL/MariaDB or SQLite</td>
+<td><code>E001</code>, <code>E002</code>, <code>E009</code>/<code>W005</code> (deploy, SQLite)</td>
+</tr>
+<tr>
+<td><code>MEDIA</code></td>
+<td>list of blocks (or one block)</td>
+<td><code>[]</code></td>
+<td><a href="../Media/">Media</a></td>
+<td><code>E001</code>, <code>E002</code>, <code>E009</code>, <code>E012</code>, <code>W005</code> (deploy)</td>
+</tr>
+<tr>
+<td><code>CONFIG</code></td>
+<td>block</td>
+<td><code>None</code></td>
+<td><a href="../Configuration-archive/">Configuration archive</a></td>
+<td><code>E002</code>, <code>E009</code>, <code>W005</code> (deploy)</td>
+</tr>
+<tr>
+<td><code>COMPRESS</code></td>
+<td>list of <code>str</code> (argv)</td>
+<td><code>['zstd', '-19', '--long=27', '-T0', '-q']</code></td>
+<td>the compression stage for databases and the configuration archive; empty turns compression off</td>
+<td><code>E003</code> (<code>zstd</code> on <code>PATH</code> when non-empty)</td>
+</tr>
+<tr>
+<td><code>DECOMPRESS</code></td>
+<td>list of <code>str</code> (argv)</td>
+<td><code>['zstd', '-d', '-q', '--long=31']</code></td>
+<td>the stage a restore runs on anything that starts with zstd's magic bytes</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>RETENTION</code></td>
+<td>dict</td>
+<td><code>{'KEEP_NIGHTS': 14}</code></td>
+<td><a href="../Retention/">Retention</a></td>
+<td><code>E001</code>, <code>E007</code></td>
+</tr>
+<tr>
+<td><code>CHECK</code></td>
+<td>dict</td>
+<td><code>{'STALE_HOURS': 26}</code></td>
+<td><a href="../Monitoring/">Monitoring</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>NOTIFY</code></td>
+<td>list of blocks</td>
+<td><code>[]</code></td>
+<td><a href="../Notifications/">Notifications</a></td>
+<td><code>E002</code>, <code>W004</code></td>
+</tr>
+<tr>
+<td><code>MESSAGES</code></td>
+<td>dotted path</td>
+<td><code>'offsite_backup.messages.default'</code></td>
+<td>the formatter — <a href="../Notifications/#your-own-format">Notifications</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>GUARD</code></td>
+<td>dict</td>
+<td>see below</td>
+<td>the once-per-night claim — <a href="../Scheduling/#once-per-night">Scheduling</a></td>
+<td><code>E001</code>, <code>W003</code></td>
+</tr>
+<tr>
+<td><code>LAST_SUCCESS_FILE</code></td>
+<td>path</td>
+<td><code>''</code></td>
+<td>a file rewritten with the ISO time of every successful pass — <a href="../Monitoring/">Monitoring</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>DEFAULT_REASON</code></td>
+<td><code>str</code></td>
+<td><code>'manual'</code></td>
+<td>the reason <code>backup_offsite</code> uses when <code>--reason</code> is not given — <a href="../Deploy-integration/">Deploy integration</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>STRICT</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>every <code>CONFIG</code> path and every media source is required, and an unreadable file fails the pass — <a href="#strict-and-required">below</a></td>
+<td><code>E009</code></td>
+</tr>
+<tr>
+<td><code>WORKDIR</code></td>
+<td>path</td>
+<td><code>''</code></td>
+<td>where the temporary workspace is made — a pass's, a restore's, a drill's; <code>''</code> is the system's temporary directory</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>DRILL</code></td>
+<td>dict</td>
+<td>see below</td>
+<td>the restore drill — <a href="../Restore/#the-monthly-drill">Restore</a></td>
+<td><code>E011</code> (deploy)</td>
+</tr>
+</tbody>
+</table>
+<p>At least one of <code>DATABASES</code>, <code>MEDIA</code> and <code>CONFIG</code> must be set, or <code>E001</code> says
+"nothing to back up".</p>
+<h3 id="retention"><code>RETENTION</code><a class="headerlink" href="#retention" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KEEP_NIGHTS</code></td>
+<td>positive <code>int</code></td>
+<td><code>14</code></td>
+<td>whole UTC nights kept per kind. Must be greater than the store's <code>LOCK_DAYS</code> (<code>E007</code>); not a positive integer is <code>E001</code>. A store's own <code>KEEP_NIGHTS</code> overrides it for that store</td>
+</tr>
+</tbody>
+</table>
+<h3 id="check"><code>CHECK</code><a class="headerlink" href="#check" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STALE_HOURS</code></td>
+<td>number</td>
+<td><code>26</code></td>
+<td>how old the newest whole backup may be before the morning check calls it missing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="guard"><code>GUARD</code><a class="headerlink" href="#guard" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ENABLED</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>whether <code>run_nightly()</code> claims the night at all</td>
+</tr>
+<tr>
+<td><code>BACKEND</code></td>
+<td><code>'cache'</code> or <code>'database'</code></td>
+<td><code>'cache'</code></td>
+<td>where the night is claimed: a shared Django cache, or a PostgreSQL advisory lock (<a href="../Scheduling/#once-per-night">Scheduling</a>); anything else is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>CACHE</code></td>
+<td>cache alias</td>
+<td><code>'default'</code></td>
+<td><code>cache</code> backend: must exist in <code>CACHES</code> (<code>E001</code>) and be shared between workers (<code>W003</code> on <code>LocMemCache</code> and <code>DummyCache</code>)</td>
+</tr>
+<tr>
+<td><code>RUNNING_SECONDS</code></td>
+<td><code>int</code></td>
+<td><code>3600</code></td>
+<td><code>cache</code> backend: how long a pass whose worker died holds the night</td>
+</tr>
+<tr>
+<td><code>DONE_SECONDS</code></td>
+<td><code>int</code></td>
+<td><code>93600</code> (26 h)</td>
+<td><code>cache</code> backend: how long "done" is remembered — past the end of its UTC date</td>
+</tr>
+<tr>
+<td><code>DATABASE</code></td>
+<td>database alias</td>
+<td><code>'default'</code></td>
+<td><code>database</code> backend: the database the lock is taken on; an alias that is not a PostgreSQL database in <code>DATABASES</code> is <code>E001</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="drill"><code>DRILL</code><a class="headerlink" href="#drill" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DATABASE</code></td>
+<td>database alias</td>
+<td><code>''</code></td>
+<td>the throwaway database every dump is restored into — an alias in <code>DATABASES</code> (or the source's <code>CONNECTIONS</code>). Required for a drill of a backup that holds databases. The same alias as a live one, or one that reaches the same host, port and database name, is refused — and is <code>E011</code> under <code>check --deploy</code>, as is an alias that names no database</td>
+</tr>
+<tr>
+<td><code>IDENTITY_FILE</code></td>
+<td>path</td>
+<td><code>''</code></td>
+<td>the age identity the drill decrypts with, when <code>--identity</code> is not given; <code>''</code> falls back to <code>AGE_IDENTITY</code></td>
+</tr>
+<tr>
+<td><code>MEDIA</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>decrypt and list every media volume too (<code>--without-media</code> turns it off for one run)</td>
+</tr>
+<tr>
+<td><code>COMPARE_LIVE</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>count the live databases too, and show both figures</td>
+</tr>
+</tbody>
+</table>
+<h3 id="strict-and-required"><code>STRICT</code> and <code>REQUIRED</code><a class="headerlink" href="#strict-and-required" title="Permanent link">&para;</a></h3>
+<p>By default a pass backs up what is there: a missing <code>CONFIG</code> path is logged and left out,
+an unreadable file is logged and left out, and a media source with no files writes no volume.
+A deployment whose certificates or signing keys are part of what restores the machine may
+want a pass without them to fail instead. Two settings, one mechanism:</p>
+<ul>
+<li><code>REQUIRED</code> on a source, for that source only:<ul>
+<li>on <code>CONFIG</code>, <code>True</code> makes every path in <code>PATHS</code> required, and a list names the required
+  ones (<code>'REQUIRED': ['/app/deploy/certs']</code>). A required path missing at pass time fails
+  the pass;</li>
+<li>on a media source, <code>True</code> makes a source with no files at all a failure.</li>
+</ul>
+</li>
+<li><code>STRICT: True</code> at the top level, for the whole pass: every <code>CONFIG</code> path and every media
+  source is required, and a file that cannot be read — a <code>CONFIG</code> file, or a file under a
+  <code>DirectorySource</code> <code>ROOT</code> — fails the pass instead of being left out.</li>
+</ul>
+<p>The pass fails with <code>SourceMissingError</code>, and the FAILED message names what was missing:</p>
+<div class="highlight"><pre><span></span><code>SourceMissingError: OFFSITE_BACKUP['CONFIG']: required path(s) missing: /app/deploy/certs
+</code></pre></div>
+<p><code>manage.py check --deploy</code> reports a required <code>CONFIG</code> path missing where it runs as <code>E009</code>,
+and an optional one as <code>W005</code>; a plain <code>manage.py check</code> says nothing about paths
+(<a href="../System-checks/#why-the-path-checks-are-deploy-checks">System checks</a>).</p>
+<h2 id="backend-options">Backend options<a class="headerlink" href="#backend-options" title="Permanent link">&para;</a></h2>
+<p>Every backend reads its own block: <code>BACKEND</code> plus the options below. An option listed as
+<strong>required</strong> is named by <code>E001</code> when empty on a machine where backups are on.</p>
+<h3 id="store-options-every-store-takes"><code>STORE</code>: options every store takes<a class="headerlink" href="#store-options-every-store-takes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NAME</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>how messages, the morning check and <code>--store</code> call this store. <strong>Required, and distinct, when <code>STORE</code> is a list</strong> (<code>E001</code>); a single store needs none (<a href="../Stores-several/">Several stores</a>)</td>
+</tr>
+<tr>
+<td><code>KEEP_NIGHTS</code></td>
+<td>positive <code>int</code></td>
+<td><code>RETENTION['KEEP_NIGHTS']</code></td>
+<td>this store's own window: a short one for a local copy, a long one off-site. Not a positive integer is <code>E001</code>; checked against this store's <code>LOCK_DAYS</code> (<code>E007</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="store-offsite_backupstoress3s3store"><code>STORE</code>: <code>offsite_backup.stores.s3.S3Store</code><a class="headerlink" href="#store-offsite_backupstoress3s3store" title="Permanent link">&para;</a></h3>
+<p>Needs the <code>[s3]</code> extra. <a href="../Stores-S3/">Stores: S3</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BUCKET</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td><strong>required</strong></td>
+</tr>
+<tr>
+<td><code>ACCESS_KEY</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td><strong>required</strong></td>
+</tr>
+<tr>
+<td><code>SECRET_KEY</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td><strong>required</strong></td>
+</tr>
+<tr>
+<td><code>ENDPOINT_URL</code></td>
+<td>URL</td>
+<td><code>None</code> (AWS)</td>
+<td>the provider's endpoint, e.g. <code>https://fsn1.your-objectstorage.com</code></td>
+</tr>
+<tr>
+<td><code>REGION</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td>the region name the provider expects</td>
+</tr>
+<tr>
+<td><code>LOCK_DAYS</code></td>
+<td><code>int</code></td>
+<td><code>13</code></td>
+<td>days every object is locked COMPLIANCE; <code>0</code> stores without a lock. Checked against the bucket's default rule (<code>E006</code>) and against <code>KEEP_NIGHTS</code> (<code>E007</code>)</td>
+</tr>
+<tr>
+<td><code>ADDRESSING_STYLE</code></td>
+<td><code>'auto'</code>, <code>'path'</code> or <code>'virtual'</code></td>
+<td><code>'auto'</code></td>
+<td>botocore's addressing style: <code>path</code> is <code>https://host/bucket/key</code>, <code>virtual</code> is <code>https://bucket.host/key</code>. MinIO and SeaweedFS need <code>path</code> (<a href="../S3-providers/#addressing-style">S3 providers</a>); anything else is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>SIGNATURE_VERSION</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td>botocore's signature version (e.g. <code>'s3v4'</code>); <code>None</code> keeps botocore's default</td>
+</tr>
+<tr>
+<td><code>VERIFY</code></td>
+<td><code>bool</code> or path</td>
+<td><code>True</code></td>
+<td>TLS verification: <code>True</code>, <code>False</code>, or the path of a CA bundle for a store behind an internal certificate. A path that is not a file is <code>E001</code></td>
+</tr>
+</tbody>
+</table>
+<p>Only these options make the client: no <code>~/.aws</code>, no instance role, no <code>AWS_*</code> variables.</p>
+<h3 id="store-offsite_backupstoresfilesystemdirectorystore"><code>STORE</code>: <code>offsite_backup.stores.filesystem.DirectoryStore</code><a class="headerlink" href="#store-offsite_backupstoresfilesystemdirectorystore" title="Permanent link">&para;</a></h3>
+<p><a href="../Stores-directory/">Stores: directory</a>. Always raises <code>W001</code>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ROOT</code></td>
+<td>path</td>
+<td>—</td>
+<td><strong>required</strong>; <code>~</code> is expanded</td>
+</tr>
+</tbody>
+</table>
+<h3 id="encryption-offsite_backupencryptionage_cliagecli"><code>ENCRYPTION</code>: <code>offsite_backup.encryption.age_cli.AgeCli</code><a class="headerlink" href="#encryption-offsite_backupencryptionage_cliagecli" title="Permanent link">&para;</a></h3>
+<p><a href="../Encryption/">Encryption</a>. Runs <code>age</code> (<code>E003</code>).</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RECIPIENTS</code></td>
+<td><code>str</code> or list of <code>str</code></td>
+<td>—</td>
+<td><strong>required</strong>; public keys (<code>age1…</code>, <code>ssh-ed25519 …</code>, <code>ssh-rsa …</code>). A string splits on commas, newlines and — between <code>age1…</code> keys — whitespace (<a href="#blank-means-unset">above</a>). A private key or anything else is <code>E008</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="encryption-offsite_backupencryptionpyragepyrage"><code>ENCRYPTION</code>: <code>offsite_backup.encryption.pyrage.Pyrage</code><a class="headerlink" href="#encryption-offsite_backupencryptionpyragepyrage" title="Permanent link">&para;</a></h3>
+<p>Needs the <code>[pyrage]</code> extra; runs no binary. The same format as <code>age</code>, either way round
+(<a href="../Encryption/#without-the-binary-pyrage">Encryption</a>).</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RECIPIENTS</code></td>
+<td><code>str</code> or list of <code>str</code></td>
+<td>—</td>
+<td><strong>required</strong>; as for <code>AgeCli</code>. A private key, or a recipient pyrage cannot read, is <code>E008</code></td>
+</tr>
+<tr>
+<td><code>PYTHON</code></td>
+<td>path</td>
+<td><code>sys.executable</code></td>
+<td>the interpreter each sealing stage runs; set it where <code>sys.executable</code> is not Python (a uWSGI worker)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="databases-offsite_backupdatabasespostgrespostgressource"><code>DATABASES</code>: <code>offsite_backup.databases.postgres.PostgresSource</code><a class="headerlink" href="#databases-offsite_backupdatabasespostgrespostgressource" title="Permanent link">&para;</a></h3>
+<p><a href="../Databases/">Databases</a>. Runs <code>pg_dump</code> (<code>E003</code>, <code>E004</code>).</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALIASES</code></td>
+<td>list of aliases, or a dotted path to a callable returning one</td>
+<td><code>['default']</code></td>
+<td>which <code>DATABASES</code> aliases to dump; blank items are dropped</td>
+</tr>
+<tr>
+<td><code>FORMAT</code></td>
+<td><code>'plain'</code> or <code>'custom'</code></td>
+<td><code>'plain'</code></td>
+<td><code>pg_dump</code> output format; anything else is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>NO_OWNER</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>adds <code>--no-owner --no-privileges</code></td>
+</tr>
+<tr>
+<td><code>EXTRA_ARGS</code></td>
+<td>list of <code>str</code></td>
+<td><code>[]</code></td>
+<td>appended to the <code>pg_dump</code> command</td>
+</tr>
+<tr>
+<td><code>CONNECTIONS</code></td>
+<td>dict of alias → connection block</td>
+<td><code>None</code></td>
+<td>the connections themselves, read instead of Django's <code>DATABASES</code> — what a server with no Django project uses (<a href="../Databases/#the-connection">Databases</a>); not a mapping of blocks is <code>E001</code></td>
+</tr>
+</tbody>
+</table>
+<p>The connection comes from <code>CONNECTIONS[alias]</code> when it is set, from Django's
+<code>DATABASES[alias]</code> otherwise: <code>HOST</code>, <code>PORT</code>, <code>USER</code>, <code>NAME</code>,
+<code>PASSWORD</code> (passed in <code>PGPASSWORD</code>, never on the command line) and
+<code>OPTIONS['sslmode']</code> / <code>OPTIONS['sslrootcert']</code>.</p>
+<h3 id="databases-offsite_backupdatabasesmysqlmysqlsource"><code>DATABASES</code>: <code>offsite_backup.databases.mysql.MySQLSource</code><a class="headerlink" href="#databases-offsite_backupdatabasesmysqlmysqlsource" title="Permanent link">&para;</a></h3>
+<p><a href="../Databases/#mysql-and-mariadb">Databases</a>. Runs the dump program and the client of <code>CLIENT</code> (<code>E003</code>).</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALIASES</code></td>
+<td>list of aliases, or a dotted path to a callable returning one</td>
+<td><code>['default']</code></td>
+<td>as for PostgreSQL</td>
+</tr>
+<tr>
+<td><code>CLIENT</code></td>
+<td><code>'mysql'</code> or <code>'mariadb'</code></td>
+<td><code>'mysql'</code></td>
+<td><code>mysqldump</code> and <code>mysql</code>, or <code>mariadb-dump</code> and <code>mariadb</code>; anything else is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>EXTRA_ARGS</code></td>
+<td>list of <code>str</code></td>
+<td><code>[]</code></td>
+<td>appended to the dump command (e.g. <code>['--routines', '--events']</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The connection comes from <code>DATABASES[alias]</code>: <code>HOST</code> (a path starting with <code>/</code> is a socket),
+<code>PORT</code>, <code>USER</code>, <code>PASSWORD</code>, <code>NAME</code>, <code>OPTIONS['unix_socket']</code> and <code>OPTIONS['ssl']</code>
+(<code>ca</code>, <code>cert</code>, <code>key</code>) — written to a 0600 option file, never the command line.</p>
+<h3 id="databases-offsite_backupdatabasessqlitesqlitesource"><code>DATABASES</code>: <code>offsite_backup.databases.sqlite.SQLiteSource</code><a class="headerlink" href="#databases-offsite_backupdatabasessqlitesqlitesource" title="Permanent link">&para;</a></h3>
+<p><a href="../Databases/#sqlite">Databases</a>. Runs no binary.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALIASES</code></td>
+<td>list of aliases, or a dotted path to a callable returning one</td>
+<td><code>['default']</code></td>
+<td>SQLite aliases of <code>DATABASES</code>; one that is not SQLite, or is in memory, is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>REQUIRED</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>a database file missing where <code>check --deploy</code> runs is <code>E009</code> instead of <code>W005</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="media-options-every-media-source-takes"><code>MEDIA</code>: options every media source takes<a class="headerlink" href="#media-options-every-media-source-takes" title="Permanent link">&para;</a></h3>
+<p><a href="../Media/">Media</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NAME</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>the kind: <code>media/</code> when empty, <code>media-&lt;name&gt;/</code> otherwise. Give each of several sources its own</td>
+</tr>
+<tr>
+<td><code>VOLUME_BYTES</code></td>
+<td><code>int</code></td>
+<td><code>4294967296</code> (4 GiB)</td>
+<td>the most one volume holds; must be more than 20 KiB and at most 5 GB (<code>E001</code>)</td>
+</tr>
+<tr>
+<td><code>INCLUDE</code></td>
+<td>list of globs</td>
+<td><code>[]</code></td>
+<td>only names matching one of these; blank items are dropped</td>
+</tr>
+<tr>
+<td><code>EXCLUDE</code></td>
+<td>list of globs</td>
+<td><code>[]</code></td>
+<td>names matching one of these are left out; blank items are dropped</td>
+</tr>
+<tr>
+<td><code>COMPRESS</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>run the <code>COMPRESS</code> stage on volumes too</td>
+</tr>
+<tr>
+<td><code>REQUIRED</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>a source with no files fails the pass (<a href="#strict-and-required">above</a>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="media-offsite_backupmediafilesystemdirectorysource"><code>MEDIA</code>: <code>offsite_backup.media.filesystem.DirectorySource</code><a class="headerlink" href="#media-offsite_backupmediafilesystemdirectorysource" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ROOT</code></td>
+<td>path</td>
+<td><code>settings.MEDIA_ROOT</code></td>
+<td>the directory archived; missing is <code>W005</code> under <code>check --deploy</code>, and logged by the pass. Under <code>STRICT</code> a file in it that cannot be read fails the pass</td>
+</tr>
+</tbody>
+</table>
+<h3 id="media-offsite_backupmediadocker_volumevolumesource"><code>MEDIA</code>: <code>offsite_backup.media.docker_volume.VolumeSource</code><a class="headerlink" href="#media-offsite_backupmediadocker_volumevolumesource" title="Permanent link">&para;</a></h3>
+<p>Runs <code>docker</code> (<code>E003</code>) and needs the daemon's socket. <a href="../Media/">Media</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VOLUME</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td><strong>required</strong>; the named volume, as <code>docker volume ls</code> shows it. Missing is <code>W005</code> (<code>E009</code> when <code>REQUIRED</code>) under <code>check --deploy</code>; a daemon that cannot be asked is <code>E012</code></td>
+</tr>
+<tr>
+<td><code>IMAGE</code></td>
+<td><code>str</code></td>
+<td><code>'busybox:stable'</code></td>
+<td>the image the throwaway container is created from — never started, so any image present will do</td>
+</tr>
+</tbody>
+</table>
+<h3 id="media-offsite_backupmediadjango_storagestoragesource"><code>MEDIA</code>: <code>offsite_backup.media.django_storage.StorageSource</code><a class="headerlink" href="#media-offsite_backupmediadjango_storagestoragesource" title="Permanent link">&para;</a></h3>
+<p><a href="../Media/">Media</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STORAGE</code></td>
+<td>alias</td>
+<td><code>'default'</code></td>
+<td>a storage of <code>STORAGES</code>; one it does not define is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>PREFIX</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>a folder of the storage; only files under it. One that cannot be listed under <code>check --deploy</code> is <code>E012</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="media-offsite_backupmedias3s3source"><code>MEDIA</code>: <code>offsite_backup.media.s3.S3Source</code><a class="headerlink" href="#media-offsite_backupmedias3s3source" title="Permanent link">&para;</a></h3>
+<p>Needs the <code>[s3]</code> extra. Its credentials are its own; it does not borrow the store's.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BUCKET</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td><strong>required</strong></td>
+</tr>
+<tr>
+<td><code>PREFIX</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>only keys under it</td>
+</tr>
+<tr>
+<td><code>ENDPOINT_URL</code></td>
+<td>URL</td>
+<td><code>None</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>REGION</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ACCESS_KEY</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>SECRET_KEY</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ADDRESSING_STYLE</code></td>
+<td><code>'auto'</code>, <code>'path'</code> or <code>'virtual'</code></td>
+<td><code>'auto'</code></td>
+<td>as on <code>S3Store</code>; anything else is <code>E001</code></td>
+</tr>
+<tr>
+<td><code>SIGNATURE_VERSION</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td>as on <code>S3Store</code></td>
+</tr>
+<tr>
+<td><code>VERIFY</code></td>
+<td><code>bool</code> or path</td>
+<td><code>True</code></td>
+<td>as on <code>S3Store</code>; a path that is not a file is <code>E001</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="config-offsite_backupconfigpathspathssource"><code>CONFIG</code>: <code>offsite_backup.config.paths.PathsSource</code><a class="headerlink" href="#config-offsite_backupconfigpathspathssource" title="Permanent link">&para;</a></h3>
+<p><a href="../Configuration-archive/">Configuration archive</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PATHS</code></td>
+<td>list of paths</td>
+<td><code>[]</code></td>
+<td>files and directories archived; blank items are dropped; missing is <code>W005</code> under <code>check --deploy</code>, and logged by the pass</td>
+</tr>
+<tr>
+<td><code>RENDER_ENV</code></td>
+<td>path</td>
+<td><code>None</code></td>
+<td>a file of variable names to rebuild the environment from; relative to <code>settings.BASE_DIR</code>; missing is <code>W005</code> under <code>check --deploy</code>, and logged by the pass</td>
+</tr>
+<tr>
+<td><code>EXCLUDE</code></td>
+<td>list of globs</td>
+<td><code>[]</code></td>
+<td>matched against each file's <strong>name</strong>; always in addition to <code>.env</code>, which never travels</td>
+</tr>
+<tr>
+<td><code>REQUIRED</code></td>
+<td><code>bool</code> or list of paths</td>
+<td><code>False</code></td>
+<td><code>True</code>: every path is required; a list: those paths are. A required path missing at pass time fails the pass, and is <code>E009</code> under <code>check --deploy</code> (<a href="#strict-and-required">above</a>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="notify-offsite_backupnotifierstelegramtelegramnotifier"><code>NOTIFY</code>: <code>offsite_backup.notifiers.telegram.TelegramNotifier</code><a class="headerlink" href="#notify-offsite_backupnotifierstelegramtelegramnotifier" title="Permanent link">&para;</a></h3>
+<p>Needs the <code>[telegram]</code> extra. <a href="../Notifications/">Notifications</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TOKEN</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td><strong>required</strong> (see the note below)</td>
+</tr>
+<tr>
+<td><code>CHAT_ID</code></td>
+<td><code>int</code> or <code>str</code></td>
+<td>—</td>
+<td><strong>required</strong>; <code>0</code> counts as unset</td>
+</tr>
+<tr>
+<td><code>TOPIC_ID</code></td>
+<td><code>int</code></td>
+<td><code>None</code></td>
+<td>a forum topic (<code>message_thread_id</code>); <code>None</code>, blank or <code>0</code> is the main thread; not an integer is <code>E010</code></td>
+</tr>
+<tr>
+<td><code>TIMEOUT</code></td>
+<td>seconds</td>
+<td><code>10</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>API_URL</code></td>
+<td>URL</td>
+<td><code>'https://api.telegram.org'</code></td>
+<td>for a local Bot API server</td>
+</tr>
+</tbody>
+</table>
+<h3 id="notify-offsite_backupnotifiersdjango_aiogramtopicnotifier"><code>NOTIFY</code>: <code>offsite_backup.notifiers.django_aiogram.TopicNotifier</code><a class="headerlink" href="#notify-offsite_backupnotifiersdjango_aiogramtopicnotifier" title="Permanent link">&para;</a></h3>
+<p>Needs the <code>[aiogram]</code> extra.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CHAT_ID</code></td>
+<td><code>int</code> or <code>str</code></td>
+<td>—</td>
+<td><strong>required</strong>; <code>0</code> counts as unset</td>
+</tr>
+<tr>
+<td><code>TOPIC_ID</code></td>
+<td><code>int</code></td>
+<td><code>None</code></td>
+<td>a forum topic; <code>None</code>, blank or <code>0</code> is the main thread; not an integer is <code>E010</code></td>
+</tr>
+<tr>
+<td><code>DELIVERY</code></td>
+<td><code>'direct'</code> or <code>'queue'</code></td>
+<td><code>'direct'</code></td>
+<td><code>direct</code> calls <code>bot.send_raw</code> from the process running the pass, which then needs the bot token; <code>queue</code> calls <code>bot.send</code>, handing the message to the queue a bot container consumes (<a href="../Notifications/#direct-or-queued">Notifications</a>); anything else is <code>E010</code></td>
+</tr>
+<tr>
+<td><code>BOT</code></td>
+<td>alias</td>
+<td><code>None</code></td>
+<td>one of django-aiogram's bots; the default bot when absent</td>
+</tr>
+<tr>
+<td><code>BOT_FACTORY</code></td>
+<td>dotted path</td>
+<td><code>None</code></td>
+<td>a callable returning an object with <code>send_raw</code> / <code>send</code>, used instead of <code>BOT</code> — another bot wrapper, or an older django-aiogram; one that does not import or is not callable is <code>E002</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="notify-offsite_backupnotifierswebhookwebhooknotifier"><code>NOTIFY</code>: <code>offsite_backup.notifiers.webhook.WebhookNotifier</code><a class="headerlink" href="#notify-offsite_backupnotifierswebhookwebhooknotifier" title="Permanent link">&para;</a></h3>
+<p>Needs the <code>[webhook]</code> extra. <a href="../Notifications/#a-webhook">Notifications</a>.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>URL</code></td>
+<td>URL</td>
+<td>—</td>
+<td><strong>required</strong>; <code>http://</code> or <code>https://</code>, else <code>E010</code></td>
+</tr>
+<tr>
+<td><code>SECRET</code></td>
+<td><code>str</code></td>
+<td><code>''</code></td>
+<td>signs every body: <code>X-Offsite-Backup-Signature: sha256=&lt;HMAC-SHA256&gt;</code></td>
+</tr>
+<tr>
+<td><code>HEADERS</code></td>
+<td>dict of <code>str</code></td>
+<td><code>{}</code></td>
+<td>extra request headers; not a mapping is <code>E010</code></td>
+</tr>
+<tr>
+<td><code>TIMEOUT</code></td>
+<td>seconds</td>
+<td><code>10</code></td>
+<td>per attempt; not a positive number is <code>E010</code></td>
+</tr>
+<tr>
+<td><code>RETRIES</code></td>
+<td><code>int</code></td>
+<td><code>2</code></td>
+<td>attempts after the first on a network error, a 429 or a 5xx; not a whole number ≥ 0 is <code>E010</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="notify-offsite_backupnotifiersloglognotifier"><code>NOTIFY</code>: <code>offsite_backup.notifiers.log.LogNotifier</code><a class="headerlink" href="#notify-offsite_backupnotifiersloglognotifier" title="Permanent link">&para;</a></h3>
+<p>No options. Writes to the <code>offsite_backup</code> logger.</p>
+<p>A notifier's required options are named by <code>E001</code> like any other backend's: an empty
+<code>TOKEN</code> or <code>CHAT_ID</code> on a machine where backups are on fails <code>manage.py check</code>.</p>
+<h2 id="your-own-backend">Your own backend<a class="headerlink" href="#your-own-backend" title="Permanent link">&para;</a></h2>
+<p>Every family has a base class: <code>offsite_backup.stores.base.Store</code>,
+<code>offsite_backup.encryption.base.Sealer</code>, <code>offsite_backup.databases.base.DatabaseSource</code>,
+<code>offsite_backup.media.base.MediaSource</code>, <code>offsite_backup.config.base.ConfigSource</code>,
+<code>offsite_backup.notifiers.base.Notifier</code>. Name your subclass by its dotted path in
+<code>BACKEND</code>; the package needs no change. Declare <code>REQUIRED</code>, <code>SIGNALS</code> and <code>BINARIES</code> on the
+class (or override <code>binaries()</code> when an option chooses the programs) to take part in <code>E001</code>,
+the on/off decision and <code>E003</code>, and override <code>check()</code> (offline)
+and <code>deploy_check()</code> (network, run by <code>check --deploy</code>) for anything else. A path that is
+not a subclass of the family's base is <code>E002</code>.</p>
+
+
+
+
+
+
+
+  
+    
+  
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
+  </span>
+
+    
+    
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../Installation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Installation">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Installation
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../Stores-S3/" class="md-footer__link md-footer__link--next" aria-label="Next: Stores: S3">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Stores: S3
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      MIT
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/CorneiZeR/django-offsite-backup" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/django-offsite-backup/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tracking", "navigation.sections", "navigation.top", "navigation.footer", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>
