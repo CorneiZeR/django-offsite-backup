@@ -80,16 +80,32 @@ class PathsSource(ConfigSource):
             path = conf.base_dir() / path
         return path
 
-    def _excluded(self, path: Path) -> bool:
+    def _excluded(self, path: Path, root: Path | None = None) -> bool:
         # added to the default, never replacing it: a custom list must not let the live file travel
         patterns = [*DEFAULT_EXCLUDE, *self.strings('EXCLUDE')]
-        return any(fnmatch.fnmatch(path.name, pattern) for pattern in patterns)
+        excluded = any(fnmatch.fnmatch(path.name, pattern) for pattern in patterns)
+        if excluded and root is not None and root in self.handed:
+            msg = f'{self.label}: {path} was handed over to go up, and EXCLUDE leaves it out'
+            raise SourceMissingError(msg)
+        return excluded
+
+    @property
+    def handed(self) -> list[Path]:
+        """``HANDED``: paths a caller added for one pass (``--path``) and may delete once it returns.
+
+        All of each must go up, or the pass fails: missing, unreadable, or excluded.
+        """
+        return [Path(path).expanduser() for path in self.strings('HANDED')]
 
     @property
     def required_paths(self) -> list[Path]:
-        """``REQUIRED: True`` (or ``STRICT``) means every path; a list names some of them."""
+        """``REQUIRED: True`` (or ``STRICT``) means every path; a list names some of them; ``HANDED`` always."""
         if self.required:
             return self.paths
+        if self.handed:
+            listed = self.option('REQUIRED')
+            named = [Path(str(path)).expanduser() for path in listed] if isinstance(listed, (list, tuple)) else []
+            return [*named, *self.handed]
         listed = self.option('REQUIRED')
         if isinstance(listed, (list, tuple)):
             return [Path(str(path)).expanduser() for path in listed if str(path).strip()]
@@ -98,8 +114,8 @@ class PathsSource(ConfigSource):
     def _unreadable(self, path: Path, root: Path) -> bool:
         if os.access(path, os.R_OK):
             return False
-        # a required path is all there or the pass fails: one left out silently would read as gone up
-        if self.strict or root in self.required_paths:
+        # a handed path is all there or the pass fails: one left out silently would read as gone up
+        if self.strict or root in self.handed:
             msg = f'{self.label}: {path} cannot be read'
             raise SourceMissingError(msg)
         return True
@@ -123,11 +139,11 @@ class PathsSource(ConfigSource):
                 tar.addfile(member, io.BytesIO(data))
             for root in self.paths:
                 if root.is_file():
-                    if not self._excluded(root) and not self._unreadable(root, root):
+                    if not self._excluded(root, root) and not self._unreadable(root, root):
                         tar.add(root, arcname=root.name, recursive=False)
                     continue
                 for path in sorted(root.rglob('*')):
-                    if path.is_symlink() or not path.is_file() or self._excluded(path):
+                    if path.is_symlink() or not path.is_file() or self._excluded(path, root):
                         continue
                     if self._unreadable(path, root):
                         continue

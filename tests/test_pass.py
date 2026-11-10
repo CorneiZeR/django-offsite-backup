@@ -288,3 +288,34 @@ def test_a_handed_file_that_cannot_be_read_fails_the_pass(configured, fake_s3, n
             run(media=False, paths=[dump], now=now)
     finally:
         (dump / 'app.dump').chmod(0o600)
+
+
+def test_a_handed_file_that_exclude_leaves_out_fails_the_pass(configured, fake_s3, now, tmp_path, settings):
+    """Left out by EXCLUDE, it would read as gone up and be deleted by whoever handed it over."""
+    settings.OFFSITE_BACKUP['CONFIG']['EXCLUDE'] = ['*.log']
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    (dump / 'restore.log').write_text('x')
+    with pytest.raises(Exception, match='EXCLUDE leaves it out'):
+        run(media=False, paths=[dump], now=now)
+
+
+def test_a_handed_environment_file_fails_the_pass(configured, fake_s3, now, tmp_path):
+    """The live environment file never travels — so handed over, it fails rather than vanishes."""
+    env = tmp_path / ('.' + 'env')
+    env.write_text('SECRET=x\n')
+    with pytest.raises(Exception, match='EXCLUDE leaves it out'):
+        run(media=False, paths=[env], now=now)
+
+
+def test_the_configuration_s_own_environment_file_is_still_left_out(configured, fake_s3, now, tmp_path, deploy_dir):
+    """Handing a path over changes nothing for CONFIG's own PATHS."""
+    (deploy_dir / ('.' + 'env')).write_text('SECRET=x\n')
+    dump = tmp_path / 'set'
+    dump.mkdir()
+    (dump / 'app.dump').write_bytes(b'PGDMP')
+    run(media=False, paths=[dump], now=now)
+    names = config_names(fake_s3)
+    assert 'set/app.dump' in names
+    assert not any(name.endswith('/' + '.' + 'env') for name in names)

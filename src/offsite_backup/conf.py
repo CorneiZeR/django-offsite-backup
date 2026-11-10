@@ -108,9 +108,10 @@ def with_paths(values: Mapping[str, Any], paths: Sequence[Path | str]) -> dict[s
 
     What ``offsite-backup run --path`` and ``backup_offsite --path`` add to one pass: files that
     belong with tonight's configuration archive (a dump the deploy took, a secrets copy) and are
-    not part of the setting. They are required, too (``REQUIRED``): one missing, or a file under
-    it that cannot be read, fails the pass instead of being left out — whoever handed them over
-    may delete them once the pass returns. The setting itself is not changed.
+    not part of the setting. They are ``HANDED`` too: one missing, or a file under it that cannot
+    be read or that ``EXCLUDE`` would leave out, fails the pass instead of being left out —
+    whoever handed them over may delete them once the pass returns. The setting itself is not
+    changed.
     """
     if not paths:
         return dict(values)
@@ -118,9 +119,8 @@ def with_paths(values: Mapping[str, Any], paths: Sequence[Path | str]) -> dict[s
     added = [str(path) for path in paths]
     listed = block.get('PATHS') or []
     block['PATHS'] = [*([listed] if isinstance(listed, str) else listed), *added]
-    required = block.get('REQUIRED')
-    if required is not True:
-        block['REQUIRED'] = [*(required if isinstance(required, (list, tuple)) else []), *added]
+    handed = block.get('HANDED') or []
+    block['HANDED'] = [*([handed] if isinstance(handed, str) else handed), *added]
     return {**values, 'CONFIG': block}
 
 
