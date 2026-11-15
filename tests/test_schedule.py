@@ -101,8 +101,15 @@ def test_taskiq_retries_as_many_times_as_it_is_told(configured, monkeypatch):
     nightly, _ = register(broker, retries=2)
 
     async def go():
+        # a retry is kicked from the failed run's own task, so wait_all() can return before it starts
         await broker.startup()
         await nightly.kiq()
+        for _ in range(200):
+            await broker.wait_all()
+            if len(runs) >= 3:
+                break
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0.1)  # a fourth run, if one were coming, has had the time to start
         await broker.wait_all()
         await broker.shutdown()
 
