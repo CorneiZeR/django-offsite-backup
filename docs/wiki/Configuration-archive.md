@@ -118,6 +118,14 @@ BACKUP_S3_SECRET_KEY=...
 `RENDER_ENV` is relative to `settings.BASE_DIR` unless absolute. If your deploy renders the
 `.env` from a list of variable names already, point `RENDER_ENV` at that same list.
 
+**Set, it is required.** A `RENDER_ENV` that is not a file where the pass runs fails the pass
+(`required path(s) missing: … (RENDER_ENV)`) and is `E009` under `check --deploy`; it is never
+left out with a warning, because the archive would go up without the environment a restore
+needs while every pass read as written. The usual cause is an image that leaves the list
+out — a `.dockerignore` excluding the folder it lives in: let that one file back in
+(`!ci/deploy-vars.txt` below the line excluding `ci`). To go without the rebuilt
+environment, do not set `RENDER_ENV`.
+
 The archive therefore holds every secret the application has. It is sealed to your age
 recipient like everything else; whoever holds the private key holds all of it.
 
@@ -136,8 +144,8 @@ services:
 The worker runs the nightly pass; the deploy pass runs in the service your deploy starts
 it in (often the web image as a one-off). Both need the mount, or one of them archives an
 empty folder — the pass logs `Configuration path not found; left out`, and `check --deploy`
-in that service says `W005` — or, for a required path, the pass fails and `check --deploy`
-says `E009`.
+in that service says `W005` — or, for a required path and for `RENDER_ENV`, the pass fails and
+`check --deploy` says `E009`.
 
 ## Without `CONFIG`
 

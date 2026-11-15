@@ -113,6 +113,16 @@ class PathsSource(ConfigSource):
             return [Path(str(path)).expanduser() for path in listed if str(path).strip()]
         return []
 
+    @property
+    def missing_names_file(self) -> str | None:
+        """``RENDER_ENV`` when it is set and not a file here: always required, never left out.
+
+        Left out, the archive would go up without the environment a restore needs, and every pass would read as
+        written. Not setting ``RENDER_ENV`` is the way to go without it.
+        """
+        names = self.names_file
+        return str(names) if names is not None and not names.is_file() else None
+
     def _unreadable(self, path: Path, root: Path) -> bool:
         if os.access(path, os.R_OK):
             return False
@@ -125,6 +135,8 @@ class PathsSource(ConfigSource):
     def archive(self, into: Path, sealing: Sealing) -> Path:
         """Each path under its own name (``deploy/compose.yml``), the rebuilt environment at the root."""
         missing = [str(path) for path in self.required_paths if not path.exists()]
+        if self.missing_names_file:
+            missing.append(f'{self.missing_names_file} (RENDER_ENV)')
         if missing:
             msg = f'{self.label}: required path(s) missing: {", ".join(missing)}'
             raise SourceMissingError(msg)
@@ -132,7 +144,7 @@ class PathsSource(ConfigSource):
             logger.warning('Configuration path not found; left out', extra={'ob_path': gone})
         with feed(sealing.stages(), into=into) as stdin, tarfile.open(fileobj=stdin, mode='w|') as tar:
             names = self.names_file
-            if names is not None and names.is_file():
+            if names is not None:
                 data = rendered_environment(names).encode()
                 member = tarfile.TarInfo(REBUILT_FILE)
                 member.size = len(data)
@@ -197,23 +209,24 @@ class PathsSource(ConfigSource):
         raise SourceMissingError(msg)
 
     def missing_optional(self) -> list[str]:
-        """The listed paths and the names file not found here, the required ones aside."""
+        """The listed paths not found here, the required ones aside."""
         required = set(self.required_paths)
-        missing = [str(path) for path in self.paths if not path.exists() and path not in required]
-        names = self.names_file
-        if names is not None and not names.is_file():
-            missing.append(str(names))
-        return missing
+        return [str(path) for path in self.paths if not path.exists() and path not in required]
 
     def deploy_check(self) -> list[checks.CheckMessage]:
-        """E009 for a required path, W005 for the rest: only where a pass runs, never on every ``manage.py``."""
+        """E009 for a required path and ``RENDER_ENV``, W005 for the rest: only where a pass runs."""
         found = super().deploy_check()
         required = [str(path) for path in self.required_paths if not path.exists()]
+        if self.missing_names_file:
+            required.append(f'{self.missing_names_file} (RENDER_ENV)')
         if required:
             found.append(
                 checks.Error(
                     f'{self.label}: required path(s) missing here: {", ".join(required)}.',
-                    hint='Mount the deployment directory into this container, or drop REQUIRED for it.',
+                    hint=(
+                        'Mount the deployment directory into this container (an image must not leave RENDER_ENV '
+                        'out), drop REQUIRED for a path, or unset RENDER_ENV.'
+                    ),
                     id='offsite_backup.E009',
                 )
             )

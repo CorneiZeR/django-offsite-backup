@@ -104,9 +104,11 @@ any task that touches the ORM.
 
 ### Retries
 
-The nightly task carries the labels `retry_on_error=True` and `max_retries=retries` (3 by
-default). Labels only describe the wish: **the broker needs taskiq's
-`SimpleRetryMiddleware`** to act on them.
+The nightly task carries the labels `retry_on_error=True` and `max_retries=retries + 1`:
+`retries` is how many times a failed night is tried again (3 by default), and taskiq's
+`max_retries` counts every run, the first included. Labels only describe the wish: **the broker
+needs taskiq's `SimpleRetryMiddleware`** (or `SmartRetryMiddleware`, for delays between the
+attempts) to act on them.
 
 ```python
 from taskiq.middlewares import SimpleRetryMiddleware

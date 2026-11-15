@@ -67,7 +67,7 @@ def test_taskiq_retries_the_nightly_pass_through_the_guard(flaky, fake_s3):
     broker = InMemoryBroker().with_middlewares(SimpleRetryMiddleware())
     nightly, check = register(broker)
     assert nightly.labels['retry_on_error'] is True
-    assert nightly.labels['max_retries'] == 3
+    assert nightly.labels['max_retries'] == 4  # taskiq counts the first run
     assert 'retry_on_error' not in check.labels
 
     async def go():
@@ -79,6 +79,43 @@ def test_taskiq_retries_the_nightly_pass_through_the_guard(flaky, fake_s3):
     asyncio.run(go())
     assert len(flaky) == 2
     assert backends.DUMPED == ['default']
+
+
+def test_taskiq_retries_as_many_times_as_it_is_told(configured, monkeypatch):
+    """retries=2 is two retries after the first run: taskiq's max_retries counts runs, the first included."""
+    pytest.importorskip('taskiq')
+    from taskiq import InMemoryBroker, SimpleRetryMiddleware
+
+    from offsite_backup import guard
+    from offsite_backup.schedule.taskiq import register
+
+    runs = []
+
+    def run(**kwargs):
+        runs.append(kwargs)
+        raise ConnectionError('object storage is down')
+
+    monkeypatch.setattr(guard, 'run', run)
+    cache.clear()
+    broker = InMemoryBroker().with_middlewares(SimpleRetryMiddleware())
+    nightly, _ = register(broker, retries=2)
+
+    async def go():
+        # a retry is kicked from the failed run's own task, so wait_all() can return before it starts
+        await broker.startup()
+        await nightly.kiq()
+        for _ in range(200):
+            await broker.wait_all()
+            if len(runs) >= 3:
+                break
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0.1)  # a fourth run, if one were coming, has had the time to start
+        await broker.wait_all()
+        await broker.shutdown()
+
+    asyncio.run(go())
+    cache.clear()
+    assert len(runs) == 3
 
 
 def test_taskiq_retries_can_be_turned_off():
