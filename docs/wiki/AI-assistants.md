@@ -63,8 +63,11 @@ Project uses django-offsite-backup 0.4. Rules:
   shared cache, GUARD = {'BACKEND': 'database'} (a PostgreSQL advisory lock).
   Celery's beat entries are in CELERY_TIMEZONE; do not switch a project's beat
   to UTC without asking (it moves every other entry) — pass local hours to
-  beat_schedule() instead. taskiq retries need SimpleRetryMiddleware on the
-  broker.
+  beat_schedule() instead. taskiq retries need SimpleRetryMiddleware (or
+  SmartRetryMiddleware) on the broker; register(broker, retries=N) is N retries
+  after the first run.
+- RENDER_ENV, once set, must be in every image that runs a pass: a .dockerignore
+  excluding its folder fails the pass. Let the one file back in with a negation.
 - Deploy: ALWAYS write the full line
   `python manage.py backup_offsite --without-media --reason deploy` — both
   flags; without --reason the pass reads "By hand" and its failure does not
@@ -72,7 +75,7 @@ Project uses django-offsite-backup 0.4. Rules:
   non-zero exit stop the deploy. Do not add `|| true`. Mount the deployment
   directory read-only into the service that runs it AND into the worker.
 - Validate with `python manage.py check` and `python manage.py check --deploy`.
-  Missing mounts (W005, E009 for a REQUIRED path) are reported by
+  Missing mounts (W005, E009 for a REQUIRED path or the RENDER_ENV file) are reported by
   `check --deploy` only — run it in each service that runs a pass (the deploy's
   and the worker); a plain check is quiet about paths on purpose. Treat offsite_backup.E0xx/W0xx as the spec. Do not silence an error; only
   W001 (directory store) may be silenced, and only where the user chose it.

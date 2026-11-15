@@ -3,10 +3,12 @@
 ``nightly, check = register(broker)`` — the tasks carry ``schedule`` labels for
 ``taskiq``'s ``LabelScheduleSource`` (nightly 03:00 UTC, check 09:00 UTC by default).
 
-The nightly task carries ``retry_on_error`` / ``max_retries`` labels (``retries``, 3 by
-default; 0 turns them off), which taskiq's ``SimpleRetryMiddleware`` acts on — the broker
-needs that middleware. A failed pass gives the night back to the guard, so the retry
-re-enters it. The morning check is not retried: every attempt would say MISSING again.
+The nightly task carries ``retry_on_error`` / ``max_retries`` labels — ``retries`` retries
+after the first run, 3 by default; 0 turns them off — which taskiq's ``SimpleRetryMiddleware``
+(or ``SmartRetryMiddleware``) acts on; the broker needs one of them. taskiq's ``max_retries``
+counts every run, the first included, so it is given ``retries + 1``. A failed pass gives the
+night back to the guard, so the retry re-enters it. The morning check is not retried: every
+attempt would say MISSING again.
 
 ``register(broker, drill='0 5 1 * *')`` also defines the monthly restore drill
 (``offsite_backup.drill``, not retried); without ``drill`` it is not registered at all.
@@ -30,7 +32,8 @@ def register(
     drill: str | None = None,
 ) -> tuple[Any, Any]:
     """Define the nightly pass and the check on ``broker`` with cron schedules (UTC) — and the drill, when given."""
-    retry_labels: dict[str, Any] = {'retry_on_error': True, 'max_retries': retries} if retries > 0 else {}
+    # taskiq gives up once a task has run `max_retries` times, so the first run is one of them
+    retry_labels: dict[str, Any] = {'retry_on_error': True, 'max_retries': retries + 1} if retries > 0 else {}
 
     @broker.task(task_name='offsite_backup.nightly', schedule=[{'cron': nightly, 'cron_offset': None}], **retry_labels)
     async def backup_nightly() -> dict[str, Any]:

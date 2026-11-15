@@ -35,7 +35,7 @@ Codes are stable: a code never changes meaning. Each is explained, with its fix,
 | `offsite_backup.E006` | the bucket's default retention is missing, not COMPLIANCE, or not `LOCK_DAYS` days | deploy |
 | `offsite_backup.E007` | `KEEP_NIGHTS` (the store's own, else `RETENTION`'s) is not greater than that store's `LOCK_DAYS` | settings |
 | `offsite_backup.E008` | `RECIPIENTS` holds a private age key, or something that is not an age recipient — or, for `Pyrage`, one pyrage cannot read | settings |
-| `offsite_backup.E009` | a required `CONFIG` path (`REQUIRED`, or `STRICT`) does not exist where the check runs; so does a required `VolumeSource` volume or SQLite database file | deploy |
+| `offsite_backup.E009` | a required `CONFIG` path (`REQUIRED`, or `STRICT`) or the `RENDER_ENV` file does not exist where the check runs; so does a required `VolumeSource` volume or SQLite database file | deploy |
 | `offsite_backup.E010` | a notifier option has the wrong form: a `TOPIC_ID` that is not an integer (one check for both Telegram notifiers), a `TopicNotifier` `DELIVERY` other than `direct`/`queue`; a `WebhookNotifier` `URL` that is not `http(s)://`, a `TIMEOUT` that is not a positive number, `RETRIES` that is not a whole number ≥ 0, `HEADERS` that is not a mapping | settings |
 | `offsite_backup.E011` | `DRILL['DATABASE']` is a live database — an alias the pass dumps, or one reaching the same host, port and name — or names no database at all: the drill would refuse to run | deploy |
 | `offsite_backup.E012` | a media source cannot be reached from where the check runs: the Docker daemon cannot be asked about a `VolumeSource` volume, or a `StorageSource` `PREFIX` cannot be listed | deploy |
@@ -61,7 +61,7 @@ container that was never meant to back anything up; an optional one as a warning
 printed by every deploy, and a warning every deploy prints is one people learn to ignore.
 
 So the plain check says nothing about paths, and `check --deploy` — run where the deploy
-runs the pass — reports a missing required path as `E009` and a missing optional one as
+runs the pass — reports a missing required path (and a missing `RENDER_ENV`) as `E009` and a missing optional one as
 `W005`. The worker runs no system check; the pass itself says it there: a required path
 missing fails the pass, an optional one is logged as it is left out
 (`Configuration path not found; left out`, `Media directory not found` —

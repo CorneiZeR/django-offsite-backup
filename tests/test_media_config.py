@@ -4,6 +4,7 @@ import tarfile
 import pytest
 
 from offsite_backup.config.paths import REBUILT_FILE, PathsSource, env_line, rendered_environment
+from offsite_backup.exceptions import SourceMissingError
 from offsite_backup.media.base import MEMBER_OVERHEAD, VOLUME_OVERHEAD, MediaEntry, pack
 from offsite_backup.media.filesystem import DirectorySource
 from offsite_backup.media.s3 import S3Source
@@ -130,11 +131,28 @@ def test_a_missing_path_is_w005_under_deploy_checks_only(tmp_path):
     assert source.check() == []
 
 
-def test_a_missing_names_file_is_w005_under_deploy_checks_only(tmp_path):
-    """RENDER_ENV not found is the same warning, in the same place."""
+def test_a_missing_names_file_is_e009_under_deploy_checks_only(tmp_path):
+    """RENDER_ENV set and not found is an error where a pass runs: the archive would go up without the environment."""
     source = PathsSource({'PATHS': [], 'RENDER_ENV': str(tmp_path / 'vars.txt')}, label='CONFIG')
-    assert [message.id for message in source.deploy_check()] == ['offsite_backup.W005']
+    [message] = source.deploy_check()
+    assert message.id == 'offsite_backup.E009'
+    assert 'vars.txt (RENDER_ENV)' in message.msg
     assert source.check() == []
+
+
+def test_a_missing_names_file_fails_the_pass(tmp_path):
+    """Not left out with a warning: a backup without the environment a restore needs is not a backup that went up."""
+    source = PathsSource({'PATHS': [], 'RENDER_ENV': str(tmp_path / 'vars.txt')}, label='CONFIG')
+    with pytest.raises(SourceMissingError, match=r'vars\.txt \(RENDER_ENV\)'):
+        source.archive(tmp_path / 'c.tar', Sealing(Passthrough({})))
+
+
+def test_a_names_file_that_is_a_directory_fails_the_pass(tmp_path):
+    """A directory where the list should be is as missing as no file at all."""
+    (tmp_path / 'vars.txt').mkdir()
+    source = PathsSource({'PATHS': [], 'RENDER_ENV': str(tmp_path / 'vars.txt')}, label='CONFIG')
+    with pytest.raises(SourceMissingError):
+        source.archive(tmp_path / 'c.tar', Sealing(Passthrough({})))
 
 
 def test_a_missing_media_root_is_w005_under_deploy_checks_only(tmp_path):

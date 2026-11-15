@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.0 — 2026-11-15
+
+- **A `RENDER_ENV` that is set must be there.** A names file not found where the pass runs fails
+  the pass (`required path(s) missing: … (RENDER_ENV)`) and is `E009` under `check --deploy`.
+  Before, it was left out with a warning (`Configuration path not found; left out`, `W005`), and
+  the configuration archive went up without the rebuilt environment while the pass read as written:
+  an image whose `.dockerignore` excluded the list's folder sent every backup up with no secret key
+  to restore the machine with. A deploy's pass now stops the deploy instead. Not setting
+  `RENDER_ENV` remains the way to go without it ([Configuration archive](Configuration-archive.md)); `CONFIG`'s `PATHS` keep their behaviour.
+- **taskiq: `register(broker, retries=N)` retries N times.** taskiq's `max_retries` counts every
+  run, the first included, and was given `N` as it is: the default `retries=3` gave two retries,
+  and `retries=1` none. It is now given `N + 1` ([Scheduling](Scheduling.md)). **A project that passed one more to make up
+  for it now gets one retry more than it wants: pass the retries you mean.**
+
 ## 0.5.0 — 2026-11-10
 
 - **`backup_offsite --path`** (repeatable) puts a file or folder into this pass's configuration
