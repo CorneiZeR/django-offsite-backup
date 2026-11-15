@@ -122,12 +122,17 @@ jobs:
   integration:
     # a whole cycle against real services: backup -> restore into a clean database -> row counts
     # match; media volumes byte for byte; Object Lock read back; rotation over real versions
-    name: integration (postgres ${{ matrix.postgres }})
+    name: integration (postgres ${{ matrix.postgres }}${{ matrix.client != matrix.postgres && format(', client {0}', matrix.client) || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        postgres: ['16', '18']
+        include:
+          - {postgres: '16', client: '16'}
+          - {postgres: '18', client: '18'}
+          # a client newer than the server: what the machine restoring has on the day, and a 17+
+          # one writes `SET transaction_timeout` an older server refuses
+          - {postgres: '15', client: '18'}
     services:
       postgres:
         image: postgres:${{ matrix.postgres }}
@@ -147,14 +152,14 @@ jobs:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: pyproject.toml
-      - name: Install age, zstd and the PostgreSQL ${{ matrix.postgres }} client
+      - name: Install age, zstd and the PostgreSQL ${{ matrix.client }} client
         run: |
           set -euo pipefail
           sudo apt-get update -q
           sudo apt-get install -y -q age zstd postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install -y -q postgresql-client-${{ matrix.postgres }}
-          echo "/usr/lib/postgresql/${{ matrix.postgres }}/bin" >> "$GITHUB_PATH"
+          sudo apt-get install -y -q postgresql-client-${{ matrix.client }}
+          echo "/usr/lib/postgresql/${{ matrix.client }}/bin" >> "$GITHUB_PATH"
       # a step, not a service: a service container cannot be given a command, and MinIO needs `server`
       - name: Start an S3 server with Object Lock
         run: |
