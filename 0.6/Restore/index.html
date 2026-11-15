@@ -1721,7 +1721,8 @@ every month so the procedure is known to work before the day it is needed.</p>
   server for a routine restore; restore from your own machine, or from a throwaway one.</li>
 <li>A machine with the project's image (or a checkout with the package installed), <code>age</code>
   (or the <code>[pyrage]</code> extra — either opens what the other sealed), <code>zstd</code>, and the database's
-  client: <code>psql</code>/<code>pg_restore</code> of the server's major version or newer, <code>mysql</code> / <code>mariadb</code>
+  client: <code>psql</code>/<code>pg_restore</code> of the server's major version or newer (a 17+ client into an
+  older server is handled, see below), <code>mysql</code> / <code>mariadb</code>
   for MySQL and MariaDB; nothing for SQLite.</li>
 <li>Settings that point at the same store and <code>PREFIX</code>. A <strong>read-only</strong> S3 key is enough and
   better than the server's.</li>
@@ -1806,6 +1807,11 @@ so open it with <code>pg_restore</code>, not <code>psql</code>; <code>head -c 5<
 <li><code>--apply --database ALIAS</code> downloads, decrypts, verifies and loads the dump into that
   <code>DATABASES</code> alias — with <code>psql --single-transaction</code> for plain SQL, <code>pg_restore
   --single-transaction --exit-on-error</code> for the custom format, both <code>--no-owner</code>.</li>
+<li><strong>Into a server older than 17</strong>, the load goes through <code>psql --single-transaction</code> either
+  way, without the <code>SET transaction_timeout = 0;</code> line a 17+ <code>pg_dump</code>/<code>pg_restore</code> writes
+  into every script: an older server refuses that parameter, and the whole load with it.
+  So a laptop with PostgreSQL 18's client restores into the server's own major (15, 16)
+  as it is.</li>
 <li>With <code>--apply</code>, <code>--stamp latest</code> means the newest dump <strong>of that database</strong>, a deploy's
   included — the most recent state is what you want back.</li>
 <li><code>--stamp</code> also takes a full key: <code>--stamp acme/prod/released/db-tenant_42/2026-03-01T10-00Z.sql.zst.age</code>.</li>
@@ -1998,7 +2004,7 @@ does not implement them fails the drill by its name, and the rest still runs.</p
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 4, 2026 21:04:24 UTC">November 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 15, 2026 15:25:30 UTC">November 15, 2026</span>
   </span>
 
     
