@@ -219,6 +219,9 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -q
+          # The runner image ships a MySQL server the client would upgrade, and its postinst cannot start it
+          # with the service container on 3306 (dpkg exit 1). The suite only needs the client.
+          sudo apt-get remove -y -q mysql-server mysql-server-core
           sudo apt-get install -y -q age zstd ${{ matrix.server.package }}
       - name: Wait for the server
         run: |
