@@ -41,6 +41,10 @@ _CLEAR = (
     'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
 )
 _PSQL = ['psql', '--no-psqlrc', '--no-password', '--quiet', '--set=ON_ERROR_STOP=1']
+#: the first server that knows ``transaction_timeout``, which ``pg_dump``/``pg_restore`` 17+ set in every script
+_TRANSACTION_TIMEOUT_SINCE = 17
+#: the one line of that script an older server refuses, and with ON_ERROR_STOP the whole load with it
+_DROP_TRANSACTION_TIMEOUT = ['grep', '-v', '-x', '-F', 'SET transaction_timeout = 0;']
 
 
 def _is_custom(path: Path) -> bool:
@@ -161,6 +165,9 @@ class PostgresSource(DatabaseSource):
         argv, env = self.connection(alias)
         if clean:
             self.psql(alias, 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;')
+        if self.server_major(alias) < _TRANSACTION_TIMEOUT_SINCE:
+            self._restore_into_older(plain, argv, env)
+            return
         if _is_custom(plain):
             command = [
                 'pg_restore',
@@ -175,6 +182,21 @@ class PostgresSource(DatabaseSource):
         else:
             command = [*_PSQL, '--single-transaction', *argv, f'--file={plain}']
         run_into([command], into=Path('/dev/null'), env=env)
+
+    @staticmethod
+    def _restore_into_older(plain: Path, argv: list[str], env: dict[str, str]) -> None:
+        """Into a server older than 17: the script without its ``SET transaction_timeout``, through ``psql``.
+
+        A 17+ client writes that line into every script it makes, a plain dump's and ``pg_restore``'s alike, and
+        an older server refuses the parameter. The client on hand is whatever the machine restoring has, newer
+        than the server more often than not, so the line goes rather than the restore.
+        """
+        load = [*_PSQL, '--single-transaction', *argv]
+        if _is_custom(plain):
+            stages = [['pg_restore', '--no-owner', '--no-privileges', '--file=-', str(plain)]]
+            run_into([*stages, _DROP_TRANSACTION_TIMEOUT, load], into=Path('/dev/null'), env=env)
+        else:
+            run_into([_DROP_TRANSACTION_TIMEOUT, load], into=Path('/dev/null'), source=plain, env=env)
 
     @staticmethod
     def client_major() -> int | None:

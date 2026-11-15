@@ -9,7 +9,8 @@ every month so the procedure is known to work before the day it is needed.
   server for a routine restore; restore from your own machine, or from a throwaway one.
 * A machine with the project's image (or a checkout with the package installed), `age`
   (or the `[pyrage]` extra — either opens what the other sealed), `zstd`, and the database's
-  client: `psql`/`pg_restore` of the server's major version or newer, `mysql` / `mariadb`
+  client: `psql`/`pg_restore` of the server's major version or newer (a 17+ client into an
+  older server is handled, see below), `mysql` / `mariadb`
   for MySQL and MariaDB; nothing for SQLite.
 * Settings that point at the same store and `PREFIX`. A **read-only** S3 key is enough and
   better than the server's.
@@ -89,6 +90,11 @@ python manage.py backup_restore --stamp latest --apply --database default
 * `--apply --database ALIAS` downloads, decrypts, verifies and loads the dump into that
   `DATABASES` alias — with `psql --single-transaction` for plain SQL, `pg_restore
   --single-transaction --exit-on-error` for the custom format, both `--no-owner`.
+* **Into a server older than 17**, the load goes through `psql --single-transaction` either
+  way, without the `SET transaction_timeout = 0;` line a 17+ `pg_dump`/`pg_restore` writes
+  into every script: an older server refuses that parameter, and the whole load with it.
+  So a laptop with PostgreSQL 18's client restores into the server's own major (15, 16)
+  as it is.
 * With `--apply`, `--stamp latest` means the newest dump **of that database**, a deploy's
   included — the most recent state is what you want back.
 * `--stamp` also takes a full key: `--stamp acme/prod/released/db-tenant_42/2026-03-01T10-00Z.sql.zst.age`.

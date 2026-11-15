@@ -40,7 +40,7 @@ def psql(tmp_path, monkeypatch):
                 for index, part in enumerate(command.split(' UNION ALL ')):
                     print(f'{{index}}\\t{{(index + 1) * 10}}')
             elif 'server_version_num' in command:
-                print('180001')
+                print(os.environ.get('FAKE_VERSION', '180001'))
             """
         )
     )
@@ -95,6 +95,30 @@ def test_restore_refuses_a_non_empty_target_asked_through_psql(psql, monkeypatch
     plain.write_text('-- PostgreSQL database dump complete\n')
     with pytest.raises(BackupError, match="database 'default' is not empty"):
         source().restore(plain, 'default')
+
+
+SCRIPT = '-- dump\nSET statement_timeout = 0;\nSET transaction_timeout = 0;\nCREATE TABLE t (id int);\n'
+
+
+def test_a_restore_into_a_server_older_than_17_drops_transaction_timeout(psql, monkeypatch, tmp_path):
+    """A 17+ client writes `SET transaction_timeout` into every script, and a 15 server refuses the whole load on it."""
+    monkeypatch.setenv('FAKE_VERSION', '150013')
+    plain = tmp_path / 'x.sql'
+    plain.write_text(SCRIPT)
+    source().restore(plain, 'default')
+    [load] = [call for call in psql() if '--single-transaction' in call['argv']]
+    assert 'CREATE TABLE t (id int);' in load['sql']
+    assert 'SET statement_timeout = 0;' in load['sql']
+    assert 'transaction_timeout' not in load['sql']
+
+
+def test_a_restore_into_17_or_newer_hands_the_file_over_as_it_is(psql, tmp_path):
+    """The server knows the parameter: nothing is filtered, psql reads the file itself."""
+    plain = tmp_path / 'x.sql'
+    plain.write_text(SCRIPT)
+    source().restore(plain, 'default')
+    [load] = [call for call in psql() if '--single-transaction' in call['argv']]
+    assert f'--file={plain}' in load['argv']
 
 
 def test_clear_drops_every_schema_and_makes_public_anew(psql):

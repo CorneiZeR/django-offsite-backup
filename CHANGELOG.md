@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
+## 0.6.1 — 2026-11-15
+
+- **A restore into a PostgreSQL server older than 17 works with a 17+ client.** `pg_dump` and
+  `pg_restore` 17+ write `SET transaction_timeout = 0;` into every script, and a 15 or 16 server
+  refuses the parameter: `backup_restore --apply` and the drill failed on the first line with
+  `unrecognized configuration parameter "transaction_timeout"`, with the client the restoring
+  machine happened to have. Into such a server the load now goes through `psql
+  --single-transaction` without that line, the custom format through `pg_restore --file=-`.
+  A server of 17 or newer is loaded as before.
+
 ## 0.6.0 — 2026-11-15
 
 - **A `RENDER_ENV` that is set must be there.** A names file not found where the pass runs fails
