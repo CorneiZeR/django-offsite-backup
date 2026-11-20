@@ -14,6 +14,7 @@ httpx2 = pytest.importorskip('httpx2')  # the [telegram]/[webhook] extra
 
 TOKEN = '123456:SECRET-token-value'
 HOOK = 'https://hooks.example/abc/SECRET-path'
+RELAY = 'https://relay.example/SECRET-relay-path'
 
 
 def _answer(request: httpx2.Request) -> httpx2.Response:
@@ -44,6 +45,18 @@ def test_the_telegram_token_is_not_in_the_client_log(offline, caplog):
     assert 'HTTP Request' in logged
     assert TOKEN not in logged
     assert '<redacted>' in logged
+
+
+def test_a_relays_api_url_is_not_in_the_client_log(offline, caplog):
+    notifier = TelegramNotifier(
+        {'TOKEN': TOKEN, 'CHAT_ID': '-100', 'API_URL': RELAY + '/'}, label="OFFSITE_BACKUP['NOTIFY'][0]"
+    )
+    with caplog.at_level(logging.INFO, logger='httpx2'):
+        assert notifier.send(_outcome(), 'x')
+    logged = _client_log(caplog)
+    assert 'HTTP Request' in logged
+    assert 'SECRET-relay-path' not in logged
+    assert 'relay.example' not in logged
 
 
 def test_the_webhook_url_is_not_in_the_client_log(offline, caplog):

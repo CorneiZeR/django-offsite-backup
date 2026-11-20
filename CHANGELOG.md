@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org/): renaming a setting or flipping a default is a
 major version.
 
+## 0.6.2 — 2026-11-20
+
+- **A Telegram `API_URL` stays out of the HTTP client's log.** A relay to the Bot API, where
+  api.telegram.org is unreachable, is usually reached by a secret path; the filter that hid the
+  token from `httpx2`'s INFO line left that path in it, so the command line wrote it to the
+  journal with every message. Any `API_URL` other than Telegram's own is now `<redacted>` there
+  too. **Change a relay's path that ran under an earlier version with `httpx2` logged at INFO.**
+
 ## 0.6.1 — 2026-11-15
 
 - **A restore into a PostgreSQL server older than 17 works with a 17+ client.** `pg_dump` and

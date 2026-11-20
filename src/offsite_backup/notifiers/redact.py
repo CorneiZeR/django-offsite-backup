@@ -1,4 +1,7 @@
-"""Secrets out of the HTTP client's own log: it writes every request's URL, and Telegram's carries the token."""
+"""Secrets out of the HTTP client's own log: it writes every request's URL, and Telegram's carries the token.
+
+A relay's base URL (Telegram's ``API_URL``) often carries a secret path of its own, and is hidden too.
+"""
 
 import logging
 

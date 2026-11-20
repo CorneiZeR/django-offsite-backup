@@ -18,6 +18,7 @@ logger = logging.getLogger('offsite_backup')
 
 #: the longest wait a 429 is honoured for; longer and the message is dropped, logged
 _MAX_RETRY_AFTER = 30
+_BOT_API = 'https://api.telegram.org'
 
 
 class TelegramNotifier(ChatNotifier):
@@ -28,9 +29,10 @@ class TelegramNotifier(ChatNotifier):
     def _post(self, payload: dict[str, Any]) -> Any:
         import httpx2  # noqa: PLC0415 - the [telegram] extra
 
-        base = str(self.option('API_URL', 'https://api.telegram.org')).rstrip('/')
+        base = str(self.option('API_URL', _BOT_API)).rstrip('/')
         url = f'{base}/bot{self.option("TOKEN")}/sendMessage'
-        redact.hide(self.option('TOKEN'))
+        # A relay's URL often carries a secret path of its own; Telegram's is no secret
+        redact.hide(self.option('TOKEN'), base if base != _BOT_API else None)
         with httpx2.Client(timeout=float(self.option('TIMEOUT', 10))) as client:
             return client.post(url, json=payload)
 
