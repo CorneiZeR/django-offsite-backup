@@ -137,7 +137,7 @@ parse, and an error text with a `<` in it would otherwise be lost silently.
 | `TOKEN`, `CHAT_ID` | required |
 | `TOPIC_ID` | a forum topic (`message_thread_id`); `None`, empty or `0` for the main thread; not an integer is `E010` |
 | `TIMEOUT` | seconds, default 10 |
-| `API_URL` | default `https://api.telegram.org`; for a local Bot API server |
+| `API_URL` | default `https://api.telegram.org`; for a local Bot API server or a relay where Telegram is unreachable |
 
 * A **topic id typed wrong** makes Telegram refuse the message. It is logged
   (`Telegram refused the backup message`, with Telegram's description) and nothing is
@@ -146,7 +146,8 @@ parse, and an error text with a `<` in it would otherwise be lost silently.
 * Neither the token nor the text is ever logged. A connection error is logged by its
   class only — the URL, and so the token, is in the message of several of them.
 * The HTTP client logs every request with its URL at INFO, and the Bot API's URL holds the
-  token: a filter on the `httpx2` logger writes `<redacted>` in its place (and in place of a
+  token: a filter on the `httpx2` logger writes `<redacted>` in its place (and in place of an
+  `API_URL` other than Telegram's own — a relay's often carries a secret path — and of a
   webhook's URL), however the project configured its logging.
 
 ## Through django-aiogram

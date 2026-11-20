@@ -383,7 +383,7 @@ Needs the `[telegram]` extra. [Notifications](Notifications.md).
 | `CHAT_ID` | `int` or `str` | — | **required**; `0` counts as unset |
 | `TOPIC_ID` | `int` | `None` | a forum topic (`message_thread_id`); `None`, blank or `0` is the main thread; not an integer is `E010` |
 | `TIMEOUT` | seconds | `10` | |
-| `API_URL` | URL | `'https://api.telegram.org'` | for a local Bot API server |
+| `API_URL` | URL | `'https://api.telegram.org'` | for a local Bot API server or a relay; any other than the default is kept out of the HTTP client's log |
 
 ### `NOTIFY`: `offsite_backup.notifiers.django_aiogram.TopicNotifier`
 
