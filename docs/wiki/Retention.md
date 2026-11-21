@@ -6,7 +6,8 @@
 ```
 
 Each kind keeps its newest **14 whole nights**; every object is locked for **13 days**.
-One less, on purpose.
+One less, on purpose. Older backups can be kept too, one a week and one a month —
+[below](#weekly-and-monthly-backups); both are off by default.
 
 ## Counted in whole nights
 
@@ -28,6 +29,52 @@ strictly inside `<PREFIX>/<kind>/`, **with the trailing slash**: `db/` never mat
 `db-analytics/`, and `acme/prod/` never matches `acme/prod-old/`. A pass rotates the kinds
 it wrote to, so a nightly pass rotates media and a deploy pass does not.
 
+## Weekly and monthly backups
+
+```python
+'RETENTION': {'KEEP_NIGHTS': 7, 'KEEP_WEEKS': 4, 'KEEP_MONTHS': 3},
+```
+
+Past the daily window, rotation can keep one night a week and, older still, one night a
+month. Both counts default to `0`, which keeps the daily window only. The tiers are chosen
+among the same whole nights, read from the same names:
+
+1. **daily** — the newest `KEEP_NIGHTS` nights, as above;
+2. **weekly** — among the nights older than the oldest daily one, grouped by ISO week
+   (Monday to Sunday): the **earliest** night present in each of the newest `KEEP_WEEKS`
+   weeks;
+3. **monthly** — among the nights older than the oldest weekly night kept (older than the
+   oldest daily one when the weekly tier keeps none), grouped by calendar month: the
+   **earliest** night present in each of the newest `KEEP_MONTHS` months.
+
+Every other whole night is deleted. The earliest night, not the latest, because it does not
+change while its week or month ages: the night that went in as a week's copy stays that
+week's copy until the week leaves the tier, and the one a month keeps is the one it first
+had. A kept copy never moves, so a backup you have noted down is still there on the next
+night.
+
+Rotated every night with `7/4/3`, a kind settles on exactly 14 nights. On 30 May 2026
+(a Saturday), after a nightly pass every night since 1 January:
+
+| tier | nights kept |
+| --- | --- |
+| daily (7) | 24 May – 30 May |
+| weekly (4) | 27 April, 4 May, 11 May, 18 May — each a Monday, the first night of its week |
+| monthly (3) | 2 February, 2 March, 6 April — each the first night of its month left after the weekly tier |
+
+Fourteen backups reaching back about three months past the weekly ones — to 2 February,
+some four months in all — for the storage of 14 nights. A month keeps the night its first
+week kept: 1 March was a Sunday, the last night of the week that began on 23 February, so it
+was never that week's copy and was gone long before March reached the monthly tier.
+
+[Passes without media](#passes-without-media) are measured against the **daily** window
+only: a deploy pass older than the oldest daily night is deleted, even beside a weekly or
+monthly night of the same date, or a folder would keep months of them.
+
+Each store may set its own `KEEP_WEEKS` and `KEEP_MONTHS`, as it may its own `KEEP_NIGHTS`
+([Several stores](Stores-several.md)): a short local window and a long off-site history
+from the same passes. Each is a non-negative integer, or `E001`.
+
 ## Rotation runs last
 
 Only after every part of the pass is uploaded. Making room before the new backup exists
@@ -46,7 +93,7 @@ acme/prod/db/2026-03-10T14-12Z.without-media.sql.zst.age
 ```
 
 Those objects **never count as nights**. They are kept while they are newer than the
-oldest whole night kept, and deleted with it. Counted naively, a fortnight of deploys over
+oldest daily night kept, and deleted with it — a weekly or monthly night does not keep them. Counted naively, a fortnight of deploys over
 failing nights would push out the last whole backup's database while its media stayed —
 unrestorable.
 
@@ -79,6 +126,13 @@ clock that disagrees — is **left for a later night** with a warning in the log
 (`Backup still locked; left for a later night`), not a failure: a refused delete must not
 fail the night over an object that is safe.
 
+Only the daily tier must outlast the lock: weekly and monthly nights are older than the
+oldest daily one, so whatever rotation deletes is past its lock already. The other side of
+that, in this version: a weekly or monthly copy is locked for `LOCK_DAYS` like every object,
+and **unlocked after that** — kept by rotation, but no longer protected from a deleting
+credential. The copies you can count on after a compromise are still the last `LOCK_DAYS`
+days ([Security model](Security-model.md)).
+
 Changing either number:
 
 * more nights — raise `KEEP_NIGHTS` and leave `LOCK_DAYS`;
@@ -96,12 +150,13 @@ current version is an object, and the oldest of them:
 🗄 Kept: 14 days, since 2026-02-25
 ```
 
-The count includes nights that only a deploy pass wrote. It is best effort: a depth that
+The count includes nights that only a deploy pass wrote, and the weekly and monthly ones: with
+`7/4/3` it reads 14, since a date some four months back. It is best effort: a depth that
 cannot be read is a line left out of the message, never a failed backup.
 
 ## Storage, roughly
 
-A kind holds about `KEEP_NIGHTS` nights of whole backups plus every deploy pass since the
-oldest of them. Media is uploaded whole every night, so it dominates: 5 GB of media at 14
+A kind holds about `KEEP_NIGHTS + KEEP_WEEKS + KEEP_MONTHS` nights of whole backups plus
+every deploy pass since the oldest daily one. Media is uploaded whole every night, so it dominates: 5 GB of media at 14
 nights is about 70 GB stored. Incremental media is on the roadmap, for when that stops
 being acceptable.

@@ -29,8 +29,8 @@ worth keeping. A single block (no list) works exactly as before and needs no `NA
 Every object a pass writes goes to **each** store in turn, under the same key: the
 databases, every media volume and its manifest, the configuration archive. Each store
 reads its own lock back — the S3 copy is COMPLIANCE-locked and checked, the directory copy
-has none — and each is [rotated](Retention.md) on its own, by its own `KEEP_NIGHTS`
-(`RETENTION['KEEP_NIGHTS']` when it sets none). `E007` compares each store's window with
+has none — and each is [rotated](Retention.md) on its own, by its own `KEEP_NIGHTS`,
+`KEEP_WEEKS` and `KEEP_MONTHS` (`RETENTION`'s when it sets none). `E007` compares each store's window with
 **its own** `LOCK_DAYS`.
 
 The message and `backup_offsite` count each object once and name the stores:

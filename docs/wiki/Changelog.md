@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0 — 2026-11-21
+
+- **Weekly and monthly backups.** `RETENTION['KEEP_WEEKS']` and `RETENTION['KEEP_MONTHS']` keep,
+  past the daily window, the earliest night of each of the newest ISO weeks and then of the
+  newest calendar months ([Retention](Retention.md#weekly-and-monthly-backups)); a store may set
+  its own, as it may `KEEP_NIGHTS`. The earliest night, so a kept copy never moves while its
+  week or month ages: `7/4/3` keeps 14 backups reaching back some four months. Both default to `0`, which rotates exactly as before. A pass
+  without media is still kept only while newer than the oldest *daily* night. Locks are
+  unchanged: `E007` still compares `KEEP_NIGHTS` with `LOCK_DAYS`, and a weekly or monthly copy
+  is unlocked once its `LOCK_DAYS` have run out — kept by rotation, not protected from a
+  deleting key. Not a non-negative integer is `E001`.
+
 ## 0.6.2 — 2026-11-20
 
 - **A Telegram `API_URL` stays out of the HTTP client's log.** A relay to the Bot API, where

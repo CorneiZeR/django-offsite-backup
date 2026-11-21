@@ -80,6 +80,28 @@ def test_keep_nights_must_be_a_positive_integer(settings, keep):
     assert any('KEEP_NIGHTS' in problem for problem in conf.problems())
 
 
+@pytest.mark.parametrize('tier', ['KEEP_WEEKS', 'KEEP_MONTHS'])
+@pytest.mark.parametrize('count', [-1, '4', None, True, 1.5])
+def test_weekly_and_monthly_counts_must_be_non_negative_integers(settings, tier, count):
+    """KEEP_WEEKS and KEEP_MONTHS outside the non-negative integers are refused by name."""
+    settings.OFFSITE_BACKUP = {
+        'PREFIX': 'p',
+        'STORE': {'BACKEND': 'offsite_backup.stores.filesystem.DirectoryStore', 'ROOT': '/tmp/x'},
+        'ENCRYPTION': {'BACKEND': 'offsite_backup.encryption.age_cli.AgeCli', 'RECIPIENTS': ['age1x']},
+        'CONFIG': {'BACKEND': 'offsite_backup.config.paths.PathsSource'},
+        'RETENTION': {tier: count},
+    }
+    assert conf.problems() == [f"OFFSITE_BACKUP['RETENTION'][{tier!r}] (a non-negative integer, got {count!r})"]
+
+
+def test_weekly_and_monthly_tiers_are_off_by_default(settings):
+    """0 weeks and 0 months: whole nights only, as before the tiers; 0 is a valid count."""
+    settings.OFFSITE_BACKUP = {'RETENTION': {'KEEP_NIGHTS': 7}}
+    assert (conf.read().keep_weeks, conf.read().keep_months) == (0, 0)
+    settings.OFFSITE_BACKUP = {'RETENTION': {'KEEP_WEEKS': 4, 'KEEP_MONTHS': 3}}
+    assert (conf.read().keep_nights, conf.read().keep_weeks, conf.read().keep_months) == (14, 4, 3)
+
+
 def test_nested_blocks_merge_with_their_defaults(settings):
     """GUARD given partly keeps the rest of its defaults."""
     settings.OFFSITE_BACKUP = {'GUARD': {'CACHE': 'shared'}}

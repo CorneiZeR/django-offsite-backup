@@ -55,7 +55,7 @@ DEFAULTS: dict[str, Any] = {
     'CONFIG': None,
     'COMPRESS': ['zstd', '-19', '--long=27', '-T0', '-q'],
     'DECOMPRESS': ['zstd', '-d', '-q', '--long=31'],
-    'RETENTION': {'KEEP_NIGHTS': 14},
+    'RETENTION': {'KEEP_NIGHTS': 14, 'KEEP_WEEKS': 0, 'KEEP_MONTHS': 0},
     'CHECK': {'STALE_HOURS': 26},
     'NOTIFY': [],
     'MESSAGES': 'offsite_backup.messages.default',
@@ -174,6 +174,16 @@ class Settings:
     def keep_nights(self) -> int:
         """Whole nights kept per kind."""
         return int(self.values['RETENTION']['KEEP_NIGHTS'])
+
+    @property
+    def keep_weeks(self) -> int:
+        """Weekly nights kept per kind, past the daily ones."""
+        return int(self.values['RETENTION']['KEEP_WEEKS'])
+
+    @property
+    def keep_months(self) -> int:
+        """Monthly nights kept per kind, past the weekly ones."""
+        return int(self.values['RETENTION']['KEEP_MONTHS'])
 
     @property
     def stale_hours(self) -> float:
@@ -302,6 +312,10 @@ def problems(conf: Settings | None = None) -> list[str]:
     keep = conf['RETENTION'].get('KEEP_NIGHTS')
     if not isinstance(keep, int) or isinstance(keep, bool) or keep < 1:
         missing.append(f'{label("RETENTION", "KEEP_NIGHTS")} (a positive integer, got {keep!r})')
+    for tier in ('KEEP_WEEKS', 'KEEP_MONTHS'):
+        count = conf['RETENTION'].get(tier)
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            missing.append(f'{label("RETENTION", tier)} (a non-negative integer, got {count!r})')
     return missing
 
 

@@ -29,6 +29,7 @@ The same code is used for values that are present but wrong, each with its own m
 | message | fix |
 | --- | --- |
 | `... (a positive integer, got ...)` for `KEEP_NIGHTS` | an `int` ≥ 1 |
+| `... (a non-negative integer, got ...)` for `KEEP_WEEKS` or `KEEP_MONTHS`, or a store's `['KEEP_WEEKS'] is ...; expected a non-negative integer` | an `int` ≥ 0; `0` keeps none |
 | `['FORMAT'] is ...; expected one of plain, custom` | `'plain'` or `'custom'` |
 | `['VOLUME_BYTES'] is ...; expected more than 20480 bytes and at most 5 GB` | the default 4 GiB is right for almost everyone |
 | `['ADDRESSING_STYLE'] is ...; expected one of auto, path, virtual` | `'path'` for MinIO and SeaweedFS, `'auto'` or `'virtual'` for AWS ([S3 providers](S3-providers.md#addressing-style)) |

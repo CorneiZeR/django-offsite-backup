@@ -50,7 +50,8 @@ It **cannot**:
   morning check only sees current versions, so hiding the recent backups behind markers
   makes it report them **missing**.
 * **Can delete what is no longer locked**: everything older than `LOCK_DAYS`. The window
-  you can count on after a compromise is `LOCK_DAYS`, not `KEEP_NIGHTS`. Notice early —
+  you can count on after a compromise is `LOCK_DAYS`, not `KEEP_NIGHTS` — and the weekly and
+  monthly copies ([Retention](Retention.md#weekly-and-monthly-backups)) are past their lock. Notice early —
   that is what the [morning check](Monitoring.md) is for — and raise `LOCK_DAYS` (with the
   bucket's default rule and `KEEP_NIGHTS`) if two weeks is too short for you.
 * **Can fill the bucket** and so the bill. Provider-side quotas and billing alerts are the

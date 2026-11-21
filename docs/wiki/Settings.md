@@ -160,6 +160,8 @@ At least one of `DATABASES`, `MEDIA` and `CONFIG` must be set, or `E001` says
 | key | type | default | |
 | --- | --- | --- | --- |
 | `KEEP_NIGHTS` | positive `int` | `14` | whole UTC nights kept per kind. Must be greater than the store's `LOCK_DAYS` (`E007`); not a positive integer is `E001`. A store's own `KEEP_NIGHTS` overrides it for that store |
+| `KEEP_WEEKS` | non-negative `int` | `0` | past the daily window, one night a week for this many ISO weeks — the earliest night of each ([Retention](Retention.md#weekly-and-monthly-backups)); `0` keeps none. Not a non-negative integer is `E001`. A store's own `KEEP_WEEKS` overrides it for that store |
+| `KEEP_MONTHS` | non-negative `int` | `0` | past the weekly tier, one night a month for this many calendar months — the earliest night of each; `0` keeps none. Not a non-negative integer is `E001`. A store's own `KEEP_MONTHS` overrides it for that store |
 
 ### `CHECK`
 
@@ -224,6 +226,8 @@ Every backend reads its own block: `BACKEND` plus the options below. An option l
 | --- | --- | --- | --- |
 | `NAME` | `str` | `''` | how messages, the morning check and `--store` call this store. **Required, and distinct, when `STORE` is a list** (`E001`); a single store needs none ([Several stores](Stores-several.md)) |
 | `KEEP_NIGHTS` | positive `int` | `RETENTION['KEEP_NIGHTS']` | this store's own window: a short one for a local copy, a long one off-site. Not a positive integer is `E001`; checked against this store's `LOCK_DAYS` (`E007`) |
+| `KEEP_WEEKS` | non-negative `int` | `RETENTION['KEEP_WEEKS']` | this store's own weekly tier. Not a non-negative integer is `E001` |
+| `KEEP_MONTHS` | non-negative `int` | `RETENTION['KEEP_MONTHS']` | this store's own monthly tier. Not a non-negative integer is `E001` |
 
 ### `STORE`: `offsite_backup.stores.s3.S3Store`
 
