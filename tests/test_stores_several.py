@@ -148,6 +148,23 @@ def test_each_store_rotates_by_its_own_keep_nights(two_stores, fake_s3, now, loc
     assert len(s3_nights) == 4
 
 
+def test_each_store_keeps_weeks_and_months_by_its_own_or_the_retention_setting(
+    two_stores, fake_s3, now, local, settings
+):
+    """The off-site store takes RETENTION's weekly and monthly tiers; the local one sets its own 0."""
+    settings.OFFSITE_BACKUP['STORE'][0]['LOCK_DAYS'] = 0
+    fake_s3.bucket(BUCKET, lock_enabled=False)
+    settings.OFFSITE_BACKUP['RETENTION'] = {'KEEP_NIGHTS': 2, 'KEEP_WEEKS': 1, 'KEEP_MONTHS': 1}
+    settings.OFFSITE_BACKUP['STORE'][1].update(KEEP_WEEKS=0, KEEP_MONTHS=0)
+    for day in range(40):
+        run(now=now + timedelta(days=day))
+    store = DirectoryStore({'ROOT': str(local)})
+    local_nights = {naming.night(key) for key in store.current('acme/prod/db/')}
+    s3_nights = {naming.night(key) for key in s3_keys(fake_s3) if '/db/' in key}
+    assert len(local_nights) == 2
+    assert len(s3_nights) == 2 + 1 + 1
+
+
 def test_several_stores_need_a_name_each(configured, settings, local):
     """--store and the messages name a store; two unnamed ones cannot be told apart."""
     settings.OFFSITE_BACKUP['STORE'] = [
@@ -191,6 +208,21 @@ def test_a_store_keep_nights_must_be_a_positive_integer(two_stores, settings, va
     """E001 for a window that is not a number of nights."""
     settings.OFFSITE_BACKUP['STORE'][1]['KEEP_NIGHTS'] = value
     assert 'offsite_backup.E001' in ids(check_settings())
+
+
+@pytest.mark.parametrize('option', ['KEEP_WEEKS', 'KEEP_MONTHS'])
+@pytest.mark.parametrize('value', [-1, 'two', True])
+def test_a_store_weeks_and_months_must_be_non_negative_integers(two_stores, settings, option, value):
+    """E001 names a store's own weekly or monthly count that is not a whole number of them."""
+    settings.OFFSITE_BACKUP['STORE'][1][option] = value
+    [error] = [message for message in check_settings() if message.id == 'offsite_backup.E001']
+    assert error.msg == f"OFFSITE_BACKUP['STORE'][1][{option!r}] is {value!r}; expected a non-negative integer."
+
+
+def test_a_store_may_keep_no_weeks_or_months(two_stores, settings):
+    """0 is a valid count of weeks and of months, unlike of nights."""
+    settings.OFFSITE_BACKUP['STORE'][1].update(KEEP_WEEKS=0, KEEP_MONTHS=0)
+    assert 'offsite_backup.E001' not in ids(check_settings())
 
 
 def test_restore_reads_the_named_store(two_stores, fake_s3, now, tmp_path, local):

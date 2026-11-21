@@ -65,6 +65,8 @@ PATHS = ["/srv/registry/docker-compose.yml", "/srv/registry/config"]
 
 [RETENTION]
 KEEP_NIGHTS = 14
+KEEP_WEEKS = 4       # past the 14 nights, one a week for four weeks; 0 (the default) keeps none
+KEEP_MONTHS = 3      # older still, one a month for three months
 
 [[NOTIFY]]
 BACKEND = "offsite_backup.notifiers.telegram.TelegramNotifier"
@@ -79,7 +81,7 @@ check. What differs off Django:
 * **Variables.** A string may name environment variables: `${NAME}`, or `${NAME:-default}`;
   `$$` is a literal `$`. An unset variable is blank — and blank is unset, so a missing
   secret is still named by `E001` instead of read as a value. Only strings expand; write
-  numbers (`LOCK_DAYS`, `KEEP_NIGHTS`) as TOML numbers.
+  numbers (`LOCK_DAYS`, `KEEP_NIGHTS`, `KEEP_WEEKS`, `KEEP_MONTHS`) as TOML numbers.
 * **`--env-file FILE`** (repeatable) reads `KEY=value` lines — `#` comments, an optional
   `export`, one pair of quotes dropped — for the variables. Later files win over earlier
   ones and over the process environment. Keep the secrets there, root-only, and the TOML

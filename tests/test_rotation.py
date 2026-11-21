@@ -2,7 +2,8 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from offsite_backup.rotation import depth, rotate
+from offsite_backup import naming
+from offsite_backup.rotation import Keep, depth, rotate
 from offsite_backup.stores.filesystem import DirectoryStore
 from offsite_backup.stores.s3 import S3Store
 from offsite_backup.testing import FakeS3, use_fake_s3
@@ -115,6 +116,78 @@ def test_a_locked_version_is_held_without_failing_the_night(fake, store):
     assert result.removed == []
     fake.clock_state['now'] = NOW + timedelta(days=40)
     assert rotate(store, 'p/db/', 2, now=NOW + timedelta(days=40)).removed == [f'p/db/{night(1)}.sql.zst.age']
+
+
+def at(day, hour=3, extra=''):
+    return f'p/db/{day:%Y-%m-%d}T{hour:02d}-00Z{extra}.sql.zst.age'
+
+
+def kept_nights(fake, *, partial=False):
+    return sorted({naming.night(key) for key in keys(fake) if naming.is_partial(key) == partial})
+
+
+def every_night(first, last):
+    return [first + timedelta(days=n) for n in range((last - first).days + 1)]
+
+
+def test_weekly_and_monthly_tiers_keep_the_earliest_night_of_each(fake, store):
+    """Past the daily window: the earliest night of each of the newest weeks, then of the newest months."""
+    put(fake, *(at(day) for day in every_night(date(2026, 1, 1), date(2026, 3, 31))))
+    rotate(store, 'p/db/', Keep(7, weeks=4, months=3), now=NOW)
+    daily = every_night(date(2026, 3, 25), date(2026, 3, 31))
+    # the week of Monday 23 March holds the 23rd and 24th outside the daily window
+    weekly = [date(2026, 3, 2), date(2026, 3, 9), date(2026, 3, 16), date(2026, 3, 23)]
+    # older than 2 March: 1 March is March's earliest, then February's and January's first
+    monthly = [date(2026, 1, 1), date(2026, 2, 1), date(2026, 3, 1)]
+    assert kept_nights(fake) == [*monthly, *weekly, *daily]
+
+
+def test_a_month_tier_alone_counts_from_the_daily_window(fake, store):
+    """With no weekly tier, months are counted among the nights older than the oldest daily one."""
+    put(fake, *(at(day) for day in every_night(date(2026, 1, 1), date(2026, 3, 31))))
+    rotate(store, 'p/db/', Keep(7, months=2), now=NOW)
+    assert kept_nights(fake) == [date(2026, 2, 1), date(2026, 3, 1), *every_night(date(2026, 3, 25), date(2026, 3, 31))]
+
+
+def test_nightly_passes_settle_on_exactly_the_three_tiers(fake, store):
+    """150 nights, rotated each night: 7 daily, 4 weekly, 3 monthly — and a kept week's night never moves."""
+    days = every_night(date(2026, 1, 1), date(2026, 5, 30))
+    held: dict[tuple[int, int], set[date]] = {}
+    for day in days:
+        put(fake, at(day))
+        rotate(store, 'p/db/', Keep(7, weeks=4, months=3), now=NOW)
+        nights = kept_nights(fake)
+        daily = sorted(nights, reverse=True)[:7]
+        for night in nights:
+            if night < min(daily):
+                held.setdefault(night.isocalendar()[:2], set()).add(night)
+    nights = kept_nights(fake)
+    assert len(nights) == 7 + 4 + 3
+    daily, weekly, monthly = nights[7:], nights[3:7], nights[:3]
+    assert daily == every_night(date(2026, 5, 24), date(2026, 5, 30))
+    assert weekly == [date(2026, 4, 27), date(2026, 5, 4), date(2026, 5, 11), date(2026, 5, 18)]
+    assert monthly == [date(2026, 2, 2), date(2026, 3, 2), date(2026, 4, 6)]
+    assert len({night.isocalendar()[:2] for night in weekly + monthly}) == 7
+    assert len({(night.year, night.month) for night in monthly}) == 3
+    # every week ever kept past the daily window was kept by one and the same night, start to end
+    assert all(len(nights) == 1 for nights in held.values())
+
+
+def test_partial_passes_are_measured_against_the_daily_window_only(fake, store):
+    """A deploy pass older than the oldest daily night goes, even beside a weekly or monthly one."""
+    put(fake, *(at(day) for day in every_night(date(2026, 1, 1), date(2026, 3, 31))))
+    without = '.without-media'
+    put(fake, at(date(2026, 3, 1), 12, without), at(date(2026, 3, 23), 12, without), at(date(2026, 3, 26), 12, without))
+    rotate(store, 'p/db/', Keep(7, weeks=4, months=3), now=NOW)
+    assert kept_nights(fake, partial=True) == [date(2026, 3, 26)]
+    assert date(2026, 3, 23) in kept_nights(fake)
+
+
+def test_with_no_whole_night_the_tiers_do_not_keep_partial_passes(fake, store):
+    """A fresh setup of deploys only keeps its newest partial nights, as without tiers."""
+    put(fake, *(at(day, 12, '.without-media') for day in every_night(date(2026, 1, 1), date(2026, 3, 31))))
+    rotate(store, 'p/db/', Keep(2, weeks=4, months=3), now=NOW)
+    assert kept_nights(fake, partial=True) == [date(2026, 3, 30), date(2026, 3, 31)]
 
 
 def test_rotation_never_leaves_its_folder(fake, store):

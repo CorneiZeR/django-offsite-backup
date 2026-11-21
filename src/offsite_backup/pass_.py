@@ -38,7 +38,7 @@ from offsite_backup.media.base import MANIFEST_SUFFIX, ManifestRow, MediaSource,
 from offsite_backup.notify import notify
 from offsite_backup.outcome import FAILED, WRITTEN, Outcome, Summary
 from offsite_backup.registry import build
-from offsite_backup.rotation import depth, rotate
+from offsite_backup.rotation import Keep, depth, rotate
 from offsite_backup.sealing import Sealing
 from offsite_backup.stores.base import Store
 
@@ -212,10 +212,15 @@ class _Pass:
     def rotate(self) -> None:
         """Rotate every kind this pass wrote to, in every store that holds tonight, then read the depth."""
         prefix = self.summary.prefix
-        default = self.parts.settings.keep_nights
+        settings = self.parts.settings
         for store in self.healthy:
+            keep = Keep(
+                store.keep_nights(settings.keep_nights),
+                store.keep_weeks(settings.keep_weeks),
+                store.keep_months(settings.keep_months),
+            )
             for kind in self.kinds:
-                result = rotate(store, naming.folder(prefix, kind), store.keep_nights(default), now=self.moment)
+                result = rotate(store, naming.folder(prefix, kind), keep, now=self.moment)
                 self.summary.removed += result.removed
                 self.summary.held += result.held
         depth_kind = next((kind for kind in self.kinds if kind.startswith('db')), naming.CONFIG)
