@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.7.0)
+## 0.7.0 — 2026-11-21
 
 - **Weekly and monthly backups.** `RETENTION['KEEP_WEEKS']` and `RETENTION['KEEP_MONTHS']` keep,
   past the daily window, the earliest night of each of the newest ISO weeks and then of the
